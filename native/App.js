@@ -11,9 +11,20 @@ import NewsScreen from './src/screens/NewsScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
 import LiveAlertsScreen from './src/screens/LiveAlertsScreen'
 import AdminScreen from './src/screens/AdminScreen'
+import PrayersScreen from './src/screens/PrayersScreen'
+import PdfViewerScreen from './src/screens/PdfViewerScreen'
+import ContactRabbiScreen from './src/screens/ContactRabbiScreen'
+import WeeklyLessonsScreen from './src/screens/WeeklyLessonsScreen'
+import ReelsScreen from './src/screens/ReelsScreen'
+import SideMenuScreen from './src/screens/SideMenuScreen'
+import DonationScreen from './src/screens/DonationScreen'
+import FlyersScreen from './src/screens/FlyersScreen'
+import AboutScreen from './src/screens/AboutScreen'
+import CommunityNewsScreen from './src/screens/CommunityNewsScreen'
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins'
 import { CinzelDecorative_400Regular, CinzelDecorative_700Bold } from '@expo-google-fonts/cinzel-decorative'
-import { registerForPushNotificationsAsync } from './src/utils/notifications'
+import { Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, Heebo_700Bold, Heebo_900Black } from '@expo-google-fonts/heebo'
+// import { registerForPushNotificationsAsync } from './src/utils/notifications'
 
 const Stack = createNativeStackNavigator()
 
@@ -28,6 +39,11 @@ export default function App() {
     Poppins_700Bold,
     CinzelDecorative_400Regular,
     CinzelDecorative_700Bold,
+    Heebo_400Regular,
+    Heebo_500Medium,
+    Heebo_600SemiBold,
+    Heebo_700Bold,
+    Heebo_900Black,
   })
 
   useEffect(() => {
@@ -44,38 +60,20 @@ export default function App() {
     return () => clearTimeout(t)
   }, [fadeAnim])
 
-  // Register for push notifications
-  useEffect(() => {
-    registerForPushNotificationsAsync().then(token => {
-      if (token) {
-        console.log('Push Token:', token)
-        // TODO: Save token to Firestore when user logs in
-      }
-    })
-
-    // Handle notification received while app is in foreground
-    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification)
-    })
-
-    // Handle notification tap
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      const screen = response.notification.request.content.data.screen
-      if (screen && navigationRef.current) {
-        navigationRef.current.navigate(screen)
-      }
-    })
-
-    return () => {
-      Notifications.removeNotificationSubscription(notificationListener)
-      Notifications.removeNotificationSubscription(responseListener)
-    }
-  }, [])
+  // Push notifications disabled - will be added later
+  // useEffect(() => {
+  //   registerForPushNotificationsAsync().then(token => {
+  //     if (token) {
+  //       console.log('Push Token:', token)
+  //     }
+  //   })
+  //   ...
+  // }, [])
 
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
-        <ActivityIndicator color="#D4AF37" />
+        <ActivityIndicator color="#DC2626" />
         <StatusBar style="dark" />
       </View>
     )
@@ -93,6 +91,16 @@ export default function App() {
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="LiveAlerts" component={LiveAlertsScreen} />
           <Stack.Screen name="Admin" component={AdminScreen} />
+          <Stack.Screen name="Prayers" component={PrayersScreen} />
+          <Stack.Screen name="PdfViewer" component={PdfViewerScreen} />
+          <Stack.Screen name="ContactRabbi" component={ContactRabbiScreen} />
+          <Stack.Screen name="WeeklyLessons" component={WeeklyLessonsScreen} />
+          <Stack.Screen name="Reels" component={ReelsScreen} />
+          <Stack.Screen name="SideMenu" component={SideMenuScreen} />
+          <Stack.Screen name="Donation" component={DonationScreen} />
+          <Stack.Screen name="Flyers" component={FlyersScreen} />
+          <Stack.Screen name="About" component={AboutScreen} />
+          <Stack.Screen name="CommunityNews" component={CommunityNewsScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       {showSplash && (
