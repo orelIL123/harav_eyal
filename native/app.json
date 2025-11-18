@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "רב אייל עמרמי",
-    "slug": "rav-eial-amrami",
+    "name": "הרב אייל עמרמי",
+    "slug": "harav-eyal",
     "owner": "orel895",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -42,7 +42,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "a3cc4905-828c-479a-93f0-9b255f822bc8"
+        "projectId": "429bf080-b8a2-42be-a2f6-ba6d3a70cff2"
       }
     }
   }

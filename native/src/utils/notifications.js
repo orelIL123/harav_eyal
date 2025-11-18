@@ -89,6 +89,10 @@ export function formatAlertForPush(alert) {
  * Schedule a notification for later (optional - for scheduled alerts)
  */
 export async function scheduleNotification({ title, body, data = {}, triggerDate }) {
+  const trigger = triggerDate instanceof Date 
+    ? { date: triggerDate }
+    : triggerDate
+  
   await Notifications.scheduleNotificationAsync({
     content: {
       title,
@@ -96,7 +100,7 @@ export async function scheduleNotification({ title, body, data = {}, triggerDate
       data,
       sound: 'default',
     },
-    trigger: triggerDate,
+    trigger,
   })
 }
 

@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========== HELPER FUNCTIONS ==========
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && 
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ========== CARDS IMAGES ==========
+    // כרטיסיות - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /cards/{cardId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ========== NEWS IMAGES ==========
+    // חדשות - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /news/{newsId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ========== COURSES ==========
+    // קורסים - רק Admin יכול להעלות/למחוק, משתמשים רשומים יכולים לקרוא
+    match /courses/{courseId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    // ========== USER UPLOADS ==========
+    // משתמשים יכולים להעלות רק לפרופיל שלהם
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // ========== DEFAULT DENY ==========
+    // כל השאר חסום
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

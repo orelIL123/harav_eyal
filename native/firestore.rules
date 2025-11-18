@@ -1,0 +1,117 @@
+rules_version = '2';
+
+service cloud.firestore {
+
+  match /databases/{database}/documents {
+
+    // ========== HELPER FUNCTIONS ==========
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isVIP() {
+      return isSignedIn() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'vip';
+    }
+
+    function isPremium() {
+      return isSignedIn() &&
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'premium' ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'vip');
+    }
+
+    // ========== USERS COLLECTION ==========
+
+    match /users/{userId} {
+      // Users can read and write their own data
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      // Admins can read all users
+      allow read: if isAdmin();
+    }
+
+    // ========== ALERTS COLLECTION ==========
+
+    match /alerts/{alertId} {
+      // All signed-in users can read alerts
+      allow read: if isSignedIn();
+      // Only admins can create, update, delete
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== COURSES COLLECTION ==========
+
+    match /courses/{courseId} {
+      // Free users can only see free courses
+      // Premium/VIP users can see all courses
+      allow read: if isSignedIn() &&
+        (!resource.data.isPremium || isPremium());
+      // Only admins can modify courses
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== HOME CARDS COLLECTION ==========
+
+    match /homeCards/{cardId} {
+      // Public read for all
+      allow read: if true;
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== APP CONFIG COLLECTION ==========
+
+    match /appConfig/config {
+      // Public read
+      allow read: if true;
+      // Only admins can modify
+      allow write: if isAdmin();
+    }
+
+    // ========== RECOMMENDATIONS COLLECTION ==========
+
+    match /recommendations/{recoId} {
+      // All signed-in users can read
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== NEWS COLLECTION ==========
+
+    match /news/{newsId} {
+      // Only published news can be read by signed-in users
+      allow read: if isSignedIn() && resource.data.isPublished == true;
+      // Admins can read all (including drafts)
+      allow read: if isAdmin();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== MARKET DATA COLLECTION ==========
+
+    match /marketData/snapshot {
+      // Public read for market data
+      allow read: if true;
+      // Only server/admin can write
+      allow write: if isAdmin();
+    }
+
+    // ========== DEFAULT DENY ==========
+
+    // Deny all other requests
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+  }
+
+}
+
+

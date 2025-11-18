@@ -1,0 +1,292 @@
+{
+  "project": {
+    "name": "harav_eyal",
+    "env": ["dev", "prod"],
+    "region": "us-central1"
+  },
+  "preferences": {
+    "videos": {
+      "stories": {
+        "storage": "firebase-storage",
+        "expiryHours": 24,
+        "transcode": false,
+        "thumbnailGeneration": true
+      },
+      "longForm": {
+        "storage": "youtube-unlisted",
+        "player": "webview/embed",
+        "fallback": "firebase-storage"
+      },
+      "futureOption": {
+        "provider": "cloudflare-stream",
+        "status": "planned"
+      }
+    },
+    "audio": {
+      "storage": "firebase-storage",
+      "format": "mp3",
+      "bitrateKbps": 128
+    },
+    "push": {
+      "providers": ["expo-fcm"],
+      "topics": ["all", "daily", "alerts"],
+      "deeplinkRoutes": ["Home", "DailyInsight", "CommunityNews", "Profile"]
+    }
+  },
+  "auth": {
+    "methods": ["phone", "email-password"],
+    "roles": ["admin", "user"],
+    "claims": {
+      "admin": "boolean"
+    },
+    "profileSource": "firestore.users"
+  },
+  "firestore": {
+    "collections": {
+      "users": {
+        "path": "users/{uid}",
+        "schema": {
+          "displayName": "string?",
+          "phone": "string?",
+          "role": "string (admin|user)",
+          "createdAt": "timestamp",
+          "lastLoginAt": "timestamp?",
+          "notificationTokens": "string[]"
+        },
+        "indexes": []
+      },
+      "dailyInsights": {
+        "path": "dailyInsights/{dateId}",
+        "schema": {
+          "title": "string",
+          "text": "string",
+          "audioUrl": "string?",
+          "audioDurationSec": "number?",
+          "createdBy": "string (uid)",
+          "createdAt": "timestamp",
+          "updatedAt": "timestamp?",
+          "published": "boolean",
+          "dedications": "array<{ id: string, type: string (neshama|refuah|success), name: string, createdAt: timestamp }>"
+        },
+        "indexes": [
+          {
+            "fields": ["published", "createdAt"],
+            "queryScope": "COLLECTION"
+          }
+        ]
+      },
+      "faithLessons": {
+        "path": "faithLessons/{lessonId}",
+        "schema": {
+          "category": "string (shalom-bayit|parnasa|chatzot|tefila)",
+          "title": "string",
+          "summary": "string",
+          "spotlight": "string?",
+          "focusPoints": "string[]",
+          "practices": "string[]",
+          "sources": "string[]",
+          "priority": "number",
+          "published": "boolean",
+          "createdAt": "timestamp",
+          "createdBy": "string (uid)"
+        },
+        "indexes": [
+          {
+            "fields": ["category", "priority"],
+            "queryScope": "COLLECTION"
+          }
+        ]
+      },
+      "dailyStories": {
+        "path": "dailyStories/{dateId}/clips/{clipId}",
+        "schema": {
+          "videoUrl": "string",
+          "thumbUrl": "string?",
+          "createdBy": "string (uid)",
+          "createdAt": "timestamp",
+          "expiresAt": "timestamp"
+        },
+        "indexes": [
+          {
+            "fields": ["expiresAt"],
+            "queryScope": "COLLECTION_GROUP"
+          }
+        ]
+      },
+      "notifications": {
+        "path": "notifications/{notificationId}",
+        "schema": {
+          "title": "string",
+          "body": "string",
+          "deeplinkRoute": "string?",
+          "payload": "map?",
+          "topic": "string? (all|daily|alerts)",
+          "tokens": "string[]?",
+          "createdAt": "timestamp",
+          "scheduledAt": "timestamp?",
+          "status": "string (draft|queued|sent|failed)"
+        },
+        "indexes": [
+          {
+            "fields": ["scheduledAt"],
+            "queryScope": "COLLECTION"
+          },
+          {
+            "fields": ["status", "createdAt"],
+            "queryScope": "COLLECTION"
+          }
+        ]
+      },
+      "feeds": {
+        "path": "feeds/{feedId}",
+        "schema": {
+          "type": "string (alert|news)",
+          "title": "string",
+          "body": "string",
+          "mediaUrl": "string?",
+          "createdAt": "timestamp",
+          "published": "boolean"
+        },
+        "indexes": [
+          {
+            "fields": ["published", "createdAt"],
+            "queryScope": "COLLECTION"
+          }
+        ]
+      }
+    }
+  },
+  "storage": {
+    "paths": {
+      "audioDaily": "audio/daily/{yyyy-MM-dd}/{uuid}.mp3",
+      "videoStories": "video/stories/{yyyy-MM-dd}/{clipId}.mp4",
+      "videoStoriesThumbs": "video/stories_thumbs/{yyyy-MM-dd}/{clipId}.jpg",
+      "images": "images/{...}"
+    },
+    "limits": {
+      "audioMaxMb": 20,
+      "storyMaxMb": 100,
+      "longVideoMaxMb": 1024
+    },
+    "mimeEnforce": true
+  },
+  "functions": {
+    "runtime": "nodejs20",
+    "triggers": {
+      "onStoryUpload": {
+        "type": "storage.finalize",
+        "bucketPath": "video/stories/**",
+        "tasks": ["generateThumbnail", "writeMetadata"]
+      },
+      "cleanupExpiredStories": {
+        "type": "scheduler",
+        "schedule": "every 15 minutes",
+        "tasks": ["deleteExpiredClipsAndFiles"]
+      },
+      "sendPush": {
+        "type": "httpsCallable",
+        "tasks": ["dispatchPushToTokensOrTopic"]
+      },
+      "setUserRole": {
+        "type": "httpsCallable",
+        "tasks": ["updateFirestoreRole", "setCustomClaim"]
+      }
+    }
+  },
+  "rules": {
+    "firestore": {
+      "users": {
+        "read": "request.auth != null && request.auth.uid == resource.id",
+        "write": "request.auth != null && request.auth.uid == resource.id",
+        "adminWriteRole": "request.auth.token.admin == true"
+      },
+      "dailyInsights": {
+        "read": "true",
+        "write": "request.auth != null && request.auth.token.admin == true"
+      },
+      "dailyStories": {
+        "read": "true",
+        "write": "request.auth != null && request.auth.token.admin == true"
+      },
+      "notifications": {
+        "read": "request.auth != null && request.auth.token.admin == true",
+        "write": "request.auth != null && request.auth.token.admin == true"
+      },
+      "feeds": {
+        "read": "resource.data.published == true || (request.auth != null && request.auth.token.admin == true)",
+        "write": "request.auth != null && request.auth.token.admin == true"
+      },
+      "faithLessons": {
+        "read": "resource.data.published == true || (request.auth != null && request.auth.token.admin == true)",
+        "write": "request.auth != null && request.auth.token.admin == true"
+      }
+    },
+    "storage": {
+      "publicRead": [
+        "video/stories/**",
+        "video/stories_thumbs/**",
+        "audio/daily/**"
+      ],
+      "rules": {
+        "read": "request.resource != null && (request.resource.name.matches('video/stories/.*') || request.resource.name.matches('video/stories_thumbs/.*') || request.resource.name.matches('audio/daily/.*'))",
+        "write": "request.auth != null && request.auth.token.admin == true"
+      }
+    }
+  },
+  "notifications": {
+    "routing": {
+      "dailyAudio": {
+        "route": "DailyInsight",
+        "params": {
+          "type": "audio"
+        }
+      },
+      "dailyText": {
+        "route": "DailyInsight",
+        "params": {
+          "type": "text"
+        }
+      },
+      "story": {
+        "route": "DailyInsight",
+        "params": {
+          "type": "story"
+        }
+      },
+      "alert": {
+        "route": "Home"
+      }
+    },
+    "payloadExamples": [
+      {
+        "title": "הקלטה יומית חדשה",
+        "body": "האזינו עכשיו",
+        "topic": "daily",
+        "deeplinkRoute": "DailyInsight",
+        "payload": {
+          "type": "audio",
+          "date": "2025-11-16"
+        }
+      }
+    ]
+  },
+  "adminPanel": {
+    "features": [
+      "createDailyText",
+      "uploadDailyAudio",
+      "uploadStoryVideo",
+      "schedulePush",
+      "manageUsersRoles"
+    ],
+    "validations": {
+      "requiredFields": [
+        "title/text for dailyInsights",
+        "videoUrl for stories"
+      ],
+      "maxSizesMb": {
+        "audio": 20,
+        "story": 100
+      }
+    }
+  }
+}

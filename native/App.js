@@ -21,6 +21,20 @@ import DonationScreen from './src/screens/DonationScreen'
 import FlyersScreen from './src/screens/FlyersScreen'
 import AboutScreen from './src/screens/AboutScreen'
 import CommunityNewsScreen from './src/screens/CommunityNewsScreen'
+import FaithLearningScreen from './src/screens/FaithLearningScreen'
+import BooksScreen from './src/screens/BooksScreen'
+import InstitutionsScreen from './src/screens/InstitutionsScreen'
+import OurActivitiesScreen from './src/screens/OurActivitiesScreen'
+import KindergartenScreen from './src/screens/KindergartenScreen'
+import TalmudTorahScreen from './src/screens/TalmudTorahScreen'
+import GirlsSchoolScreen from './src/screens/GirlsSchoolScreen'
+import SmallYeshivaScreen from './src/screens/SmallYeshivaScreen'
+import LargeYeshivaScreen from './src/screens/LargeYeshivaScreen'
+import KollelScreen from './src/screens/KollelScreen'
+import WomenLessonsScreen from './src/screens/WomenLessonsScreen'
+import CommunityActivitiesScreen from './src/screens/CommunityActivitiesScreen'
+import YouthClubScreen from './src/screens/YouthClubScreen'
+import LessonsLibraryScreen from './src/screens/LessonsLibraryScreen'
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins'
 import { CinzelDecorative_400Regular, CinzelDecorative_700Bold } from '@expo-google-fonts/cinzel-decorative'
 import { Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, Heebo_700Bold, Heebo_900Black } from '@expo-google-fonts/heebo'
@@ -101,6 +115,20 @@ export default function App() {
           <Stack.Screen name="Flyers" component={FlyersScreen} />
           <Stack.Screen name="About" component={AboutScreen} />
           <Stack.Screen name="CommunityNews" component={CommunityNewsScreen} />
+          <Stack.Screen name="FaithLearning" component={FaithLearningScreen} />
+          <Stack.Screen name="Books" component={BooksScreen} />
+          <Stack.Screen name="Institutions" component={InstitutionsScreen} />
+          <Stack.Screen name="OurActivities" component={OurActivitiesScreen} />
+          <Stack.Screen name="Kindergarten" component={KindergartenScreen} />
+          <Stack.Screen name="TalmudTorah" component={TalmudTorahScreen} />
+          <Stack.Screen name="GirlsSchool" component={GirlsSchoolScreen} />
+          <Stack.Screen name="SmallYeshiva" component={SmallYeshivaScreen} />
+          <Stack.Screen name="LargeYeshiva" component={LargeYeshivaScreen} />
+          <Stack.Screen name="Kollel" component={KollelScreen} />
+          <Stack.Screen name="WomenLessons" component={WomenLessonsScreen} />
+          <Stack.Screen name="CommunityActivities" component={CommunityActivitiesScreen} />
+          <Stack.Screen name="YouthClub" component={YouthClubScreen} />
+          <Stack.Screen name="LessonsLibrary" component={LessonsLibraryScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       {showSplash && (

@@ -3,40 +3,41 @@ import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, ImageBackg
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 
-const GOLD = '#D4AF37'
+const PRIMARY_RED = '#DC2626'
+const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
-const COURSES = [
+const NIGGUNIM = [
   {
-    id: 'course-1',
-    title: 'Foundations of Trading',
-    level: 'Beginner',
-    duration: '6 פרקים • 3.5 שעות',
-    description: 'מבוא למסחר ממושמע — הגדרת מטרות, ניהול סיכונים ובניית שגרה יומית.',
-    cover: require('../../assets/photos/photo1.jpg'),
+    id: 'niggun-1',
+    title: 'ניגון ראשון',
+    level: 'ניגון',
+    duration: '3:45',
+    description: 'ניגון מיוחד מבית המדרש',
+    cover: require('../../assets/icon.png'),
   },
   {
-    id: 'course-2',
-    title: 'Advanced Technical Analysis',
-    level: 'Intermediate',
-    duration: '8 פרקים • 5 שעות',
-    description: 'העמקה בתבניות מתקדמות, ניתוח ווליום, וכלים לזיהוי מומנטום.',
-    cover: require('../../assets/photos/photo2.jpeg'),
+    id: 'niggun-2',
+    title: 'ניגון שני',
+    level: 'ניגון',
+    duration: '4:12',
+    description: 'ניגון מעורר השראה',
+    cover: require('../../assets/icon.png'),
   },
   {
-    id: 'course-3',
-    title: 'Mindset & Faith Alignment',
-    level: 'Mindset',
-    duration: '5 פרקים • 2 שעות',
-    description: 'איך לחבר בין אמונה, תודעה ומסחר בצורה מאוזנת ויציבה.',
-    cover: require('../../assets/photos/photo3.png'),
+    id: 'niggun-3',
+    title: 'ניגון שלישי',
+    level: 'ניגון',
+    duration: '5:30',
+    description: 'ניגון של קדושה והתעלות',
+    cover: require('../../assets/icon.png'),
   },
 ]
 
 export default function CoursesScreen({ navigation }) {
-  const onCoursePress = (course) => {
-    Alert.alert('בקרוב', `${course.title} ייפתח עם תוכן מלא לאחר חיבור לבקאנד.`)
+  const onNiggunPress = (niggun) => {
+    Alert.alert('בקרוב', `דמו בהמשך נחבר - ${niggun.title}`)
   }
 
   return (
@@ -49,49 +50,49 @@ export default function CoursesScreen({ navigation }) {
           accessibilityRole="button"
           accessibilityLabel="חזרה"
         >
-          <Ionicons name="arrow-back" size={24} color={GOLD} />
+          <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
-        <Text style={styles.headerTitle}>לימודי מסחר</Text>
+        <Text style={styles.headerTitle}>ניגונים</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.subtitle}>המסלול שלך לצמיחה מקצועית</Text>
+        <Text style={styles.subtitle}>ניגונים מבית המדרש</Text>
 
-        {COURSES.map((course, idx) => (
+        {NIGGUNIM.map((niggun, idx) => (
           <Pressable
-            key={course.id}
+            key={niggun.id}
             style={[styles.courseCard, idx === 0 && styles.courseCardFirst]}
-            onPress={() => onCoursePress(course)}
+            onPress={() => onNiggunPress(niggun)}
             accessibilityRole="button"
-            accessibilityLabel={`קורס ${course.title}`}
+            accessibilityLabel={`ניגון ${niggun.title}`}
           >
-            <ImageBackground source={course.cover} style={styles.coverImage} imageStyle={styles.coverImageRadius}>
+            <ImageBackground source={niggun.cover} style={styles.coverImage} imageStyle={styles.coverImageRadius}>
               <LinearGradient colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.15)']} style={StyleSheet.absoluteFill} />
               <View style={styles.courseLabelRow}>
                 <View style={styles.levelPill}>
-                  <Text style={styles.levelText}>{course.level}</Text>
+                  <Text style={styles.levelText}>{niggun.level}</Text>
                 </View>
-                <Ionicons name="play-circle" size={28} color={GOLD} />
+                <Ionicons name="musical-notes" size={28} color={PRIMARY_RED} />
               </View>
               <View style={styles.courseTextBlock}>
-                <Text style={styles.courseTitle}>{course.title}</Text>
+                <Text style={styles.courseTitle}>{niggun.title}</Text>
                 <View style={styles.courseMetaRow}>
                   <Ionicons name="time-outline" size={14} color="#f3f4f6" />
-                  <Text style={styles.courseMeta}>{course.duration}</Text>
+                  <Text style={styles.courseMeta}>{niggun.duration}</Text>
                 </View>
-                <Text style={styles.courseDesc}>{course.description}</Text>
+                <Text style={styles.courseDesc}>{niggun.description}</Text>
               </View>
             </ImageBackground>
           </Pressable>
         ))}
 
         <View style={styles.footerCard}>
-          <Ionicons name="sparkles-outline" size={32} color={GOLD} />
+          <Ionicons name="musical-notes" size={32} color={PRIMARY_RED} />
           <View style={styles.footerTextBlock}>
-            <Text style={styles.footerTitle}>מסלול VIP</Text>
+            <Text style={styles.footerTitle}>ניגונים נוספים</Text>
             <Text style={styles.footerDesc}>
-              משתמשי VIP יקבלו גישה לקורסים מיוחדים, שיעורים לייב וקהילת מאסטרמיינד סגורה.
+              דמו בהמשך נחבר - ניגונים נוספים יופיעו כאן בקרוב.
             </Text>
           </View>
         </View>
@@ -119,12 +120,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: 'rgba(30,58,138,0.12)',
   },
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Poppins_600SemiBold',
-    color: GOLD,
+    color: PRIMARY_RED,
   },
   content: {
     paddingHorizontal: 16,
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(212,175,55,0.18)',
+    backgroundColor: 'rgba(30,58,138,0.18)',
   },
   levelText: {
     color: '#fdf3c2',
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 18,
     borderRadius: 18,
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: 'rgba(30,58,138,0.1)',
   },
   footerTextBlock: {
     flex: 1,

@@ -1,13 +1,24 @@
-import React from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform } from 'react-native'
+import React, { useState } from 'react'
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 
-const GOLD = '#D4AF37'
+const PRIMARY_RED = '#DC2626'
+const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
+const BLACK = '#000000'
 
 export default function ProfileScreen({ navigation }) {
+  // TODO: Check if user is admin from Firestore
+  const isAdmin = true // Mock - replace with actual admin check
+  const [isLoggedIn, setIsLoggedIn] = useState(false) // TODO: Replace with actual auth state
+
+  const handleLogin = () => {
+    // TODO: Implement login with phone and password
+    Alert.alert('התחברות', 'מערכת ההתחברות עם טלפון וסיסמה תתווסף בקרוב')
+  }
+
   return (
     <View style={styles.screen}>
       {/* Header */}
@@ -18,99 +29,201 @@ export default function ProfileScreen({ navigation }) {
           hitSlop={12}
           onPress={() => navigation?.goBack()}
         >
-          <Ionicons name="arrow-forward" size={28} color={DEEP_BLUE} />
+          <Ionicons name="arrow-forward" size={28} color={BLACK} />
         </Pressable>
         <Text style={styles.headerTitle}>פרופיל</Text>
         <View style={{ width: 28 }} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Profile Avatar */}
-        <View style={styles.avatarSection}>
-          <View style={styles.avatarCircle}>
-            <Ionicons name="person" size={60} color={GOLD} />
-          </View>
-          <Text style={styles.userName}>משתמש אורח</Text>
-          <Text style={styles.userEmail}>guest@naorbaruch.com</Text>
-        </View>
-
-        {/* Profile Options */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>הגדרות חשבון</Text>
-
-          <Pressable style={styles.optionCard} accessibilityRole="button">
-            <View style={styles.optionContent}>
-              <View style={styles.optionRight}>
-                <Ionicons name="chevron-back" size={20} color="#9ca3af" />
-                <View style={styles.optionText}>
-                  <Text style={styles.optionTitle}>פרטים אישיים</Text>
-                  <Text style={styles.optionDesc}>שם, אימייל ופרטי התקשרות</Text>
-                </View>
+        {/* Login Section - Show when not logged in */}
+        {!isLoggedIn && (
+          <View style={styles.section}>
+            <View style={styles.loginCard}>
+              <View style={styles.loginIconContainer}>
+                <Ionicons name="person-circle-outline" size={64} color={PRIMARY_RED} />
               </View>
-              <View style={styles.optionIcon}>
-                <Ionicons name="person-outline" size={22} color={GOLD} />
-              </View>
-            </View>
-          </Pressable>
-
-          <Pressable style={styles.optionCard} accessibilityRole="button">
-            <View style={styles.optionContent}>
-              <View style={styles.optionRight}>
-                <Ionicons name="chevron-back" size={20} color="#9ca3af" />
-                <View style={styles.optionText}>
-                  <Text style={styles.optionTitle}>אבטחה וסיסמה</Text>
-                  <Text style={styles.optionDesc}>שינוי סיסמה והגדרות אבטחה</Text>
-                </View>
-              </View>
-              <View style={styles.optionIcon}>
-                <Ionicons name="lock-closed-outline" size={22} color={GOLD} />
-              </View>
-            </View>
-          </Pressable>
-
-          <Pressable style={styles.optionCard} accessibilityRole="button">
-            <View style={styles.optionContent}>
-              <View style={styles.optionRight}>
-                <Ionicons name="chevron-back" size={20} color="#9ca3af" />
-                <View style={styles.optionText}>
-                  <Text style={styles.optionTitle}>התראות</Text>
-                  <Text style={styles.optionDesc}>העדפות התראות ופוש</Text>
-                </View>
-              </View>
-              <View style={styles.optionIcon}>
-                <Ionicons name="notifications-outline" size={22} color={GOLD} />
-              </View>
-            </View>
-          </Pressable>
-        </View>
-
-        {/* Subscription Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>מנוי</Text>
-
-          <View style={styles.subscriptionCard}>
-            <LinearGradient
-              colors={['#0b1b3a', '#162a56']}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.subscriptionContent}>
-              <Ionicons name="star" size={32} color={GOLD} />
-              <Text style={styles.subscriptionTitle}>חבר פרימיום</Text>
-              <Text style={styles.subscriptionDesc}>
-                גישה מלאה לכל התכנים, התראות והקהילה
+              <Text style={styles.loginTitle}>התחבר לחשבון שלך</Text>
+              <Text style={styles.loginDesc}>
+                התחבר עם מספר טלפון וסיסמה כדי לגשת לתוכן המלא
               </Text>
-              <Pressable style={styles.upgradeButton} accessibilityRole="button">
-                <Text style={styles.upgradeButtonText}>שדרג מנוי</Text>
+              <Pressable 
+                style={styles.loginButton} 
+                onPress={handleLogin}
+                accessibilityRole="button"
+              >
+                <Ionicons name="log-in-outline" size={20} color="#ffffff" />
+                <Text style={styles.loginButtonText}>התחבר / הרשם</Text>
               </Pressable>
             </View>
           </View>
-        </View>
+        )}
+
+        {/* Profile Avatar - Show when logged in */}
+        {isLoggedIn && (
+          <View style={styles.avatarSection}>
+            <View style={styles.avatarCircle}>
+              <Ionicons name="person" size={60} color={PRIMARY_RED} />
+            </View>
+            <Text style={styles.userName}>משתמש אורח</Text>
+            <Text style={styles.userEmail}>guest@naorbaruch.com</Text>
+          </View>
+        )}
+
+        {/* Profile Options - Show when logged in */}
+        {isLoggedIn && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>הגדרות חשבון</Text>
+            </View>
+
+            <Pressable 
+              style={styles.optionCard} 
+              accessibilityRole="button"
+              onPress={() => Alert.alert('בקרוב', 'עריכת פרטים אישיים תתווסף בקרוב')}
+            >
+              <View style={styles.optionContent}>
+                <View style={styles.optionRight}>
+                  <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionTitle}>פרטים אישיים</Text>
+                    <Text style={styles.optionDesc}>שם, אימייל ופרטי התקשרות</Text>
+                  </View>
+                </View>
+                <View style={styles.optionIcon}>
+                  <Ionicons name="person-outline" size={22} color={PRIMARY_RED} />
+                </View>
+              </View>
+            </Pressable>
+
+            <Pressable 
+              style={styles.optionCard} 
+              accessibilityRole="button"
+              onPress={() => Alert.alert('בקרוב', 'שינוי סיסמה תתווסף בקרוב')}
+            >
+              <View style={styles.optionContent}>
+                <View style={styles.optionRight}>
+                  <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionTitle}>אבטחה וסיסמה</Text>
+                    <Text style={styles.optionDesc}>שינוי סיסמה והגדרות אבטחה</Text>
+                  </View>
+                </View>
+                <View style={styles.optionIcon}>
+                  <Ionicons name="lock-closed-outline" size={22} color={PRIMARY_RED} />
+                </View>
+              </View>
+            </Pressable>
+
+            <Pressable 
+              style={styles.optionCard} 
+              accessibilityRole="button"
+              onPress={() => Alert.alert('בקרוב', 'הגדרות התראות תתווספנה בקרוב')}
+            >
+              <View style={styles.optionContent}>
+                <View style={styles.optionRight}>
+                  <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionTitle}>התראות</Text>
+                    <Text style={styles.optionDesc}>העדפות התראות ופוש</Text>
+                  </View>
+                </View>
+                <View style={styles.optionIcon}>
+                  <Ionicons name="notifications-outline" size={22} color={PRIMARY_RED} />
+                </View>
+              </View>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Subscription Section - Show when logged in */}
+        {isLoggedIn && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>מנוי</Text>
+            </View>
+
+            <View style={styles.subscriptionCard}>
+              <LinearGradient
+                colors={[DEEP_BLUE, '#162a56']}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.subscriptionContent}>
+                <Ionicons name="star" size={32} color={PRIMARY_GOLD} />
+                <Text style={styles.subscriptionTitle}>חבר פרימיום</Text>
+                <Text style={styles.subscriptionDesc}>
+                  גישה מלאה לכל התכנים, התראות והקהילה
+                </Text>
+                <Pressable 
+                  style={styles.upgradeButton} 
+                  accessibilityRole="button"
+                  onPress={() => Alert.alert('בקרוב', 'שדרוג מנוי יופיע בקרוב')}
+                >
+                  <Text style={styles.upgradeButtonText}>שדרג מנוי</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Admin Section - Only visible to admins */}
+        {isAdmin && isLoggedIn && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🔐 ניהול</Text>
+            </View>
+
+            <Pressable 
+              style={styles.optionCard} 
+              accessibilityRole="button"
+              onPress={() => navigation?.navigate('Admin')}
+            >
+              <View style={styles.optionContent}>
+                <View style={styles.optionRight}>
+                  <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionTitle}>עריכת כרטיסיות</Text>
+                    <Text style={styles.optionDesc}>ערוך כרטיסיות ראשיות, חדשות, קורסים והתראות</Text>
+                  </View>
+                </View>
+                <View style={[styles.optionIcon, { backgroundColor: 'rgba(220,38,38,0.15)' }]}>
+                  <Ionicons name="albums-outline" size={22} color={PRIMARY_RED} />
+                </View>
+              </View>
+            </Pressable>
+
+            <Pressable 
+              style={styles.optionCard} 
+              accessibilityRole="button"
+              onPress={() => navigation?.navigate('Admin')}
+            >
+              <View style={styles.optionContent}>
+                <View style={styles.optionRight}>
+                  <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionTitle}>פאנל אדמין</Text>
+                    <Text style={styles.optionDesc}>ניהול מלא של התוכן וההגדרות</Text>
+                  </View>
+                </View>
+                <View style={[styles.optionIcon, { backgroundColor: 'rgba(220,38,38,0.15)' }]}>
+                  <Ionicons name="construct-outline" size={22} color={PRIMARY_RED} />
+                </View>
+              </View>
+            </Pressable>
+          </View>
+        )}
 
         {/* Additional Options */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>נוספים</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>נוספים</Text>
+          </View>
 
-          <Pressable style={styles.optionCard} accessibilityRole="button">
+          <Pressable 
+            style={styles.optionCard} 
+            accessibilityRole="button"
+            onPress={() => navigation?.navigate('ContactRabbi')}
+          >
             <View style={styles.optionContent}>
               <View style={styles.optionRight}>
                 <Ionicons name="chevron-back" size={20} color="#9ca3af" />
@@ -120,12 +233,16 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               </View>
               <View style={styles.optionIcon}>
-                <Ionicons name="help-circle-outline" size={22} color={GOLD} />
+                <Ionicons name="help-circle-outline" size={22} color={PRIMARY_RED} />
               </View>
             </View>
           </Pressable>
 
-          <Pressable style={styles.optionCard} accessibilityRole="button">
+          <Pressable 
+            style={styles.optionCard} 
+            accessibilityRole="button"
+            onPress={() => navigation?.navigate('About')}
+          >
             <View style={styles.optionContent}>
               <View style={styles.optionRight}>
                 <Ionicons name="chevron-back" size={20} color="#9ca3af" />
@@ -135,19 +252,34 @@ export default function ProfileScreen({ navigation }) {
                 </View>
               </View>
               <View style={styles.optionIcon}>
-                <Ionicons name="information-circle-outline" size={22} color={GOLD} />
+                <Ionicons name="information-circle-outline" size={22} color={PRIMARY_RED} />
               </View>
             </View>
           </Pressable>
         </View>
 
-        {/* Logout Button */}
-        <View style={styles.section}>
-          <Pressable style={styles.logoutButton} accessibilityRole="button">
-            <Ionicons name="log-out-outline" size={22} color="#dc2626" />
-            <Text style={styles.logoutText}>התנתק</Text>
-          </Pressable>
-        </View>
+        {/* Logout Button - Show when logged in */}
+        {isLoggedIn && (
+          <View style={styles.section}>
+            <Pressable 
+              style={styles.logoutButton} 
+              accessibilityRole="button"
+              onPress={() => {
+                Alert.alert('התנתקות', 'האם אתה בטוח שברצונך להתנתק?', [
+                  { text: 'ביטול', style: 'cancel' },
+                  { 
+                    text: 'התנתק', 
+                    style: 'destructive',
+                    onPress: () => setIsLoggedIn(false)
+                  }
+                ])
+              }}
+            >
+              <Ionicons name="log-out-outline" size={22} color={PRIMARY_RED} />
+              <Text style={styles.logoutText}>התנתק</Text>
+            </Pressable>
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -169,7 +301,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: BG,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(11,27,58,0.08)',
+    borderBottomColor: 'rgba(11,27,58,0.1)',
   },
   backButton: {
     width: 40,
@@ -180,10 +312,83 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Poppins_600SemiBold',
-    color: DEEP_BLUE,
+    color: BLACK,
   },
   content: {
     flex: 1,
+  },
+  section: {
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    alignItems: 'flex-end',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+    letterSpacing: 0.3,
+  },
+  loginCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(11,27,58,0.1)',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  loginIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  loginTitle: {
+    fontSize: 22,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loginDesc: {
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  loginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: PRIMARY_RED,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 999,
+    shadowColor: PRIMARY_RED,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  loginButtonText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: '#ffffff',
   },
   avatarSection: {
     alignItems: 'center',
@@ -194,12 +399,12 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: 'rgba(220,38,38,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: GOLD,
+    borderColor: PRIMARY_RED,
   },
   userName: {
     fontSize: 22,
@@ -212,23 +417,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: '#6b7280',
   },
-  section: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
-    color: DEEP_BLUE,
-    marginBottom: 12,
-    textAlign: 'right',
-  },
   optionCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(11,27,58,0.08)',
+    borderColor: 'rgba(11,27,58,0.1)',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   optionContent: {
     flexDirection: 'row',
@@ -262,16 +461,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: 'rgba(220,38,38,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   subscriptionCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     minHeight: 180,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(11,27,58,0.08)',
+    borderColor: 'rgba(11,27,58,0.1)',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   subscriptionContent: {
     padding: 24,
@@ -281,7 +485,7 @@ const styles = StyleSheet.create({
   subscriptionTitle: {
     fontSize: 22,
     fontFamily: 'Poppins_700Bold',
-    color: GOLD,
+    color: PRIMARY_GOLD,
     marginTop: 12,
     marginBottom: 8,
   },
@@ -294,10 +498,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   upgradeButton: {
-    backgroundColor: GOLD,
+    backgroundColor: PRIMARY_GOLD,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 999,
+    shadowColor: PRIMARY_GOLD,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   upgradeButtonText: {
     fontSize: 14,
@@ -310,14 +519,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(220,38,38,0.2)',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   logoutText: {
     fontSize: 15,
     fontFamily: 'Poppins_600SemiBold',
-    color: '#dc2626',
+    color: PRIMARY_RED,
   },
 })

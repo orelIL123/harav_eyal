@@ -1,0 +1,61 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check admin via custom claims
+    function isAdminClaim() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // ========== AUDIO DAILY ==========
+    match /audio/daily/{date}/{fileName} {
+      // Public read for daily audio
+      allow read: if true;
+      
+      // Only admins can write
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 20 * 1024 * 1024 && // Max 20MB
+                   request.resource.contentType.matches('audio/.*');
+    }
+    
+    // ========== VIDEO STORIES ==========
+    match /video/stories/{date}/{clipId} {
+      // Public read for story videos
+      allow read: if true;
+      
+      // Only admins can write (enforce .mp4 in validation)
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 100 * 1024 * 1024 && // Max 100MB
+                   request.resource.contentType.matches('video/.*') &&
+                   clipId.matches('.*\\.mp4$');
+    }
+    
+    // ========== VIDEO STORIES THUMBNAILS ==========
+    match /video/stories_thumbs/{date}/{clipId} {
+      // Public read for story thumbnails
+      allow read: if true;
+      
+      // Only admins can write (enforce .jpg in validation)
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                   request.resource.contentType.matches('image/.*') &&
+                   clipId.matches('.*\\.jpg$');
+    }
+    
+    // ========== IMAGES (General) ==========
+    match /images/{allPaths=**} {
+      // Public read for images
+      allow read: if true;
+      
+      // Only admins can write
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 10 * 1024 * 1024 && // Max 10MB
+                   request.resource.contentType.matches('image/.*');
+    }
+    
+    // ========== DEFAULT DENY ==========
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

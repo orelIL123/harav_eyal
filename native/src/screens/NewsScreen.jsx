@@ -1,41 +1,49 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, ImageBackground, Share } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, ImageBackground, Share, Linking, Alert } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 
-const GOLD = '#D4AF37'
+const PRIMARY_RED = '#DC2626'
+const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
 const ARTICLES = [
   {
     id: 'news-1',
-    title: 'הזדמנויות בשוק הדיגיטלי לקראת 2026',
-    date: '31 באוקטובר 2025',
-    summary: 'איך להתכונן לשינויים הצפויים בשוק ולהפוך מידע להזדמנויות השקעה.',
-    image: require('../../assets/photos/photo2.jpeg'),
+    title: 'מוסדות הרב',
+    date: new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }),
+    summary: 'מידע על המוסדות, תמונות ועוד',
+    image: require('../../assets/icon.png'),
   },
   {
     id: 'news-2',
-    title: 'Mindset של טריידר – שיעורים מהקהילה',
-    date: '29 באוקטובר 2025',
-    summary: 'תובנות מרכזיות מהקהילה שלנו על ניהול רגשות ועמידה ביעדים.',
-    image: require('../../assets/photos/photo3.png'),
+    title: 'זריקת אמונה',
+    date: new Date(Date.now() - 86400000).toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }),
+    summary: 'תובנות מעולם התורה והאמונה',
+    image: require('../../assets/photos/זריקת אמונה.png'),
   },
   {
     id: 'news-3',
-    title: 'נאור ממליץ: 3 מניות למעקב מקרוב',
-    date: '27 באוקטובר 2025',
-    summary: 'הסקירה השבועית עם נקודות מפתח לפני שבוע המסחר הבא.',
-    image: require('../../assets/photos/photo4.png'),
+    title: 'שיעורי הרב',
+    date: new Date(Date.now() - 172800000).toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }),
+    summary: 'שיעורי תורה לצפייה',
+    image: require('../../assets/photos/שיעורי_הרב.jpg'),
   },
 ]
 
 export default function NewsScreen({ navigation }) {
   const handleShare = React.useCallback((article) => {
     Share.share({
-      message: `${article.title}\n${article.summary}\n\nפורסם ב-Naor Baruch App`
+      message: `${article.title}\n${article.summary}`
     }).catch(() => {})
+  }, [])
+
+  const handleOpenCharityLink = React.useCallback(() => {
+    const url = 'https://www.jgive.com/new/he/ils/charity-organizations/1711'
+    Linking.openURL(url).catch(() => {
+      Alert.alert('שגיאה', 'לא ניתן לפתוח את הקישור')
+    })
   }, [])
 
   return (
@@ -48,14 +56,38 @@ export default function NewsScreen({ navigation }) {
           accessibilityRole="button"
           accessibilityLabel="חזרה"
         >
-          <Ionicons name="arrow-back" size={24} color={GOLD} />
+          <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
-        <Text style={styles.headerTitle}>חדשות</Text>
+        <Text style={styles.headerTitle}>מוסדות הרב</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.subtitle}>עדכוני מסחר, ידע וכלים מעולם המיינדסט</Text>
+        <Text style={styles.subtitle}>מידע על המוסדות, תמונות ועוד</Text>
+
+        {/* קישור לדף העמותה */}
+        <Pressable
+          style={styles.charityLinkCard}
+          onPress={handleOpenCharityLink}
+          accessibilityRole="button"
+        >
+          <Ionicons name="link-outline" size={28} color={PRIMARY_RED} />
+          <View style={styles.charityLinkTextBlock}>
+            <Text style={styles.charityLinkTitle}>דף העמותה</Text>
+            <Text style={styles.charityLinkDesc}>
+              למידע נוסף על העמותה באתר JGive
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
+        </Pressable>
+
+        {/* על העמותה */}
+        <View style={styles.aboutSection}>
+          <Text style={styles.sectionTitle}>על העמותה</Text>
+          <Text style={styles.sectionText}>
+            בשנת תש"ע הוקמה קהילת 'כאייל תערוג' בשכונת הר חומה בירושלים, על ידי איש החסד הגאון הרב אייל עמרמי שליט"א. מוסדות 'כאייל תערוג' מונות גני ילדים, בית ספר לבנות, סמינר לבנות, תלמוד תורה לבנים, ישיבה קטנה וגדולה, מועדונית נוער לכיתות ו'-ח', כולל אברכים, ומרכז תורה וחסד הפועל 24 שעות ביממה שבעה ימים בשבוע. קהילת 'כאייל תערוג' מונה כ-750 משפחות, 93 אנשי צוות ומעל 1,000 תלמידים ואברכים ועוד היד נטויה. בימים אלו מורנו הרה"ג אייל עמרמי שליט"א מגשים את חזון להקמת בית התבשיל הגדול בירושלים ולהאכיל 400 מנות בכל יום.
+          </Text>
+        </View>
 
         {ARTICLES.map((article, idx) => (
           <Pressable
@@ -69,7 +101,7 @@ export default function NewsScreen({ navigation }) {
               <LinearGradient colors={[ 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.1)' ]} style={StyleSheet.absoluteFill} />
               <View style={styles.articleTopRow}>
                 <View style={styles.datePill}>
-                  <Ionicons name="calendar-outline" size={14} color={GOLD} />
+                  <Ionicons name="calendar-outline" size={14} color={PRIMARY_RED} />
                   <Text style={styles.dateText}>{article.date}</Text>
                 </View>
                 <Pressable
@@ -79,7 +111,7 @@ export default function NewsScreen({ navigation }) {
                   accessibilityRole="button"
                   accessibilityLabel={`שיתוף ${article.title}`}
                 >
-                  <Ionicons name="share-social-outline" size={18} color={GOLD} />
+                  <Ionicons name="share-social-outline" size={18} color={PRIMARY_RED} />
                 </Pressable>
               </View>
               <View style={styles.articleBottom}>
@@ -90,12 +122,27 @@ export default function NewsScreen({ navigation }) {
           </Pressable>
         ))}
 
+        <Pressable
+          style={styles.contactCard}
+          onPress={() => navigation.navigate('ContactRabbi')}
+          accessibilityRole="button"
+        >
+          <Ionicons name="mail-outline" size={32} color={PRIMARY_RED} />
+          <View style={styles.contactTextBlock}>
+            <Text style={styles.contactTitle}>צרו קשר</Text>
+            <Text style={styles.contactDesc}>
+              לשאלות, בקשות או פניות למוסדות הרב
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
+        </Pressable>
+
         <View style={styles.footerCard}>
-          <Ionicons name="create-outline" size={28} color={GOLD} />
+          <Ionicons name="create-outline" size={28} color={PRIMARY_RED} />
           <View style={styles.footerTextBlock}>
-            <Text style={styles.footerTitle}>העלאת תוכן ע"י אדמין</Text>
+            <Text style={styles.footerTitle}>עדכונים נוספים</Text>
             <Text style={styles.footerDesc}>
-              בקרוב נאפשר להוסיף כתבות חדשות עם תמונה, כותרת ומלל ישירות מהמערכת האדמיניסטרטיבית.
+              עדכונים נוספים מבית המדרש יופיעו כאן בקרוב.
             </Text>
           </View>
         </View>
@@ -123,12 +170,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: 'rgba(220,38,38,0.12)',
   },
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Poppins_600SemiBold',
-    color: GOLD,
+    color: PRIMARY_RED,
   },
   content: {
     paddingHorizontal: 16,
@@ -173,7 +220,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(212,175,55,0.2)',
+    backgroundColor: 'rgba(30,58,138,0.2)',
   },
   dateText: {
     color: '#fef9c3',
@@ -213,7 +260,7 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 18,
     borderRadius: 18,
-    backgroundColor: 'rgba(212,175,55,0.1)',
+    backgroundColor: 'rgba(220,38,38,0.1)',
   },
   footerTextBlock: {
     flex: 1,
@@ -231,5 +278,99 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     textAlign: 'right',
     lineHeight: 18,
+  },
+  contactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(11,27,58,0.08)',
+    gap: 16,
+    marginTop: 12,
+  },
+  contactTextBlock: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  contactTitle: {
+    color: DEEP_BLUE,
+    fontSize: 18,
+    fontFamily: 'Poppins_700Bold',
+    textAlign: 'right',
+  },
+  contactDesc: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    textAlign: 'right',
+  },
+  charityLinkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(11,27,58,0.08)',
+    gap: 16,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  charityLinkTextBlock: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  charityLinkTitle: {
+    color: DEEP_BLUE,
+    fontSize: 18,
+    fontFamily: 'Poppins_700Bold',
+    textAlign: 'right',
+  },
+  charityLinkDesc: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    textAlign: 'right',
+  },
+  aboutSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(11,27,58,0.08)',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins_700Bold',
+    color: DEEP_BLUE,
+    textAlign: 'right',
+    marginBottom: 12,
+  },
+  sectionText: {
+    fontSize: 16,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    textAlign: 'right',
+    lineHeight: 26,
   },
 })
