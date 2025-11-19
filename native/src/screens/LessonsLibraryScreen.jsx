@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Linking, Alert, Image, ImageBackground } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Linking, Alert, Image, ImageBackground, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { LESSON_CATEGORIES } from '../data/lessons'
+import { getLessons } from '../services/lessonsService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -13,6 +14,8 @@ export default function LessonsLibraryScreen({ navigation, route }) {
   const initialCategory = route?.params?.initialCategory || LESSON_CATEGORIES[0].key
   const [activeCategory, setActiveCategory] = useState(initialCategory)
   const [selectedRandomVideo, setSelectedRandomVideo] = useState(null)
+  const [lessons, setLessons] = useState([])
+  const [loading, setLoading] = useState(true)
   const scrollViewRef = React.useRef(null)
   const videoRefs = React.useRef({})
   
@@ -23,7 +26,38 @@ export default function LessonsLibraryScreen({ navigation, route }) {
     }
   }, [route?.params?.initialCategory])
 
+  // Load lessons from Firestore
+  useEffect(() => {
+    loadLessons()
+  }, [activeCategory])
+
+  const loadLessons = async () => {
+    try {
+      setLoading(true)
+      const firestoreLessons = await getLessons(activeCategory)
+      
+      // Convert Firestore lessons to video format
+      const videos = firestoreLessons.map(lesson => ({
+        id: lesson.id,
+        title: lesson.title,
+        date: lesson.date || '',
+        videoId: lesson.videoId || '',
+        url: lesson.url || `https://www.youtube.com/watch?v=${lesson.videoId}`,
+      }))
+      
+      setLessons(videos)
+    } catch (error) {
+      console.error('Error loading lessons:', error)
+      // Fallback to static data if Firestore fails
+      const currentCategory = LESSON_CATEGORIES.find(cat => cat.key === activeCategory) || LESSON_CATEGORIES[0]
+      setLessons(currentCategory.videos || [])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const currentCategory = LESSON_CATEGORIES.find(cat => cat.key === activeCategory) || LESSON_CATEGORIES[0]
+  const displayVideos = lessons.length > 0 ? lessons : (currentCategory.videos || [])
 
   const openYouTubeVideo = (url) => {
     Linking.openURL(url).catch(() => {
@@ -32,9 +66,9 @@ export default function LessonsLibraryScreen({ navigation, route }) {
   }
 
   const openRandomVideo = () => {
-    if (currentCategory.videos && currentCategory.videos.length > 0) {
-      const randomIndex = Math.floor(Math.random() * currentCategory.videos.length)
-      const randomVideo = currentCategory.videos[randomIndex]
+    if (displayVideos && displayVideos.length > 0) {
+      const randomIndex = Math.floor(Math.random() * displayVideos.length)
+      const randomVideo = displayVideos[randomIndex]
       setSelectedRandomVideo(randomVideo.id)
       
       // Scroll to the random video after a short delay
@@ -129,7 +163,7 @@ export default function LessonsLibraryScreen({ navigation, route }) {
             <View style={styles.categoryHeaderText}>
               <Text style={styles.categoryTitle}>{currentCategory.title}</Text>
               <Text style={styles.categoryCount}>
-                {currentCategory.videos.length} שיעורים
+                {displayVideos.length} שיעורים
               </Text>
             </View>
           </View>
@@ -144,7 +178,13 @@ export default function LessonsLibraryScreen({ navigation, route }) {
           </Pressable>
         </View>
 
-        {currentCategory.videos.map((video, idx) => {
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PRIMARY_RED} />
+            <Text style={styles.loadingText}>טוען שיעורים...</Text>
+          </View>
+        ) : (
+          displayVideos.map((video, idx) => {
           const thumbnailUrl = `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`
           const isSelected = selectedRandomVideo === video.id
           return (
@@ -200,7 +240,8 @@ export default function LessonsLibraryScreen({ navigation, route }) {
               </Pressable>
             </View>
           )
-        })}
+        })
+        )}
 
         {/* Admin Note */}
         <View style={styles.adminNote}>
@@ -466,5 +507,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: '#fff',
     letterSpacing: 0.3,
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
   },
 })

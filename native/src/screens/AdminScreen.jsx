@@ -95,7 +95,7 @@ export default function AdminScreen({ navigation, route }) {
   )
 }
 
-// ========== LESSONS FORM ==========
+// ========== LESSONS FORM ========== 
 function LessonsForm({ navigation }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({
@@ -409,12 +409,13 @@ function LessonsForm({ navigation }) {
   )
 }
 
-// ========== ALERTS FORM ==========
+// ========== ALERTS FORM ========== 
 function AlertsForm() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
-    title: 'תזכורת יומית',
+    title: t('admin.alertsForm.reminderTitlePlaceholder'),
     type: 'reminder',
-    message: 'זריקת אמונה יומית - כאייל תערוג',
+    message: t('admin.alertsForm.messagePlaceholder'),
     priority: 'medium',
     sendType: 'immediate', // immediate, scheduled
     scheduledTime: new Date().toISOString().slice(0, 16),
@@ -438,7 +439,7 @@ function AlertsForm() {
 
   const handleSubmit = async () => {
     if (!form.title || !form.message) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות הנדרשים')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.alertsForm.errorFillAllFields'))
       return
     }
 
@@ -480,8 +481,8 @@ function AlertsForm() {
       if (form.sendType === 'immediate') {
         await sendLocalNotification(notification)
         Alert.alert(
-          'הצלחה! 🎉',
-          `התראה נשלחה ונשמרה ב-Firestore!\nהתראה תימחק אוטומטית אחרי 24 שעות.`
+          t('admin.lessonsForm.success'),
+          t('admin.alertsForm.alertSent')
         )
       } else {
         const triggerDate = new Date(form.scheduledTime)
@@ -490,16 +491,16 @@ function AlertsForm() {
           triggerDate
         })
         Alert.alert(
-          'הצלחה! ⏰',
-          `התראה מתוזמנת נשמרה ב-Firestore!\nתישלח ב-${triggerDate.toLocaleString('he-IL')}`
+          t('admin.lessonsForm.success'),
+          t('admin.alertsForm.alertScheduled', { triggerDate: triggerDate.toLocaleString('he-IL') })
         )
       }
 
       // Reset form
       setForm({
-        title: 'תזכורת יומית',
+        title: t('admin.alertsForm.reminderTitlePlaceholder'),
         type: 'reminder',
-        message: 'זריקת אמונה יומית - כאייל תערוג',
+        message: t('admin.alertsForm.messagePlaceholder'),
         priority: 'medium',
         sendType: 'immediate',
         scheduledTime: new Date().toISOString().slice(0, 16),
@@ -509,7 +510,7 @@ function AlertsForm() {
       await loadAlerts()
     } catch (error) {
       console.error('Error creating alert:', error)
-      Alert.alert('שגיאה', 'לא ניתן ליצור את ההתראה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.alertsForm.errorCreatingAlert'))
     } finally {
       setLoading(false)
     }
@@ -517,22 +518,22 @@ function AlertsForm() {
 
   const handleDelete = (alert) => {
     Alert.alert(
-      'מחיקת התראה',
-      `האם אתה בטוח שברצונך למחוק את ההתראה "${alert.title}"?`,
+      t('admin.alertsForm.deleteAlertTitle'),
+      t('admin.alertsForm.deleteAlertMessage', { title: alert.title }),
       [
-        { text: 'ביטול', style: 'cancel' },
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
         {
-          text: 'מחק',
+          text: t('admin.lessonsForm.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true)
               await deleteAlert(alert.id)
-              Alert.alert('הצלחה!', 'ההתראה נמחקה')
+              Alert.alert(t('admin.lessonsForm.success'), t('admin.alertsForm.alertDeleted'))
               await loadAlerts()
             } catch (error) {
               console.error('Error deleting alert:', error)
-              Alert.alert('שגיאה', 'לא ניתן למחוק את ההתראה')
+              Alert.alert(t('admin.lessonsForm.error'), t('admin.alertsForm.errorDeletingAlert'))
             } finally {
               setLoading(false)
             }
@@ -544,29 +545,29 @@ function AlertsForm() {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>📱 יצירת תזכורת/פוש יומי</Text>
+      <Text style={styles.formTitle}>{t('admin.alertsForm.title')}</Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>כותרת התזכורת</Text>
+        <Text style={styles.label}>{t('admin.alertsForm.reminderTitle')}</Text>
         <TextInput
           style={styles.input}
           value={form.title}
           onChangeText={text => setForm({...form, title: text})}
-          placeholder="תזכורת יומית"
+          placeholder={t('admin.alertsForm.reminderTitlePlaceholder')}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>סוג התראה</Text>
+        <Text style={styles.label}>{t('admin.alertsForm.alertType')}</Text>
         <View style={styles.radioGroup}>
-          {[
-            { value: 'reminder', label: '⏰ תזכורת יומית', color: PRIMARY_RED },
-            { value: 'push', label: '🔔 פוש יומי', color: PRIMARY_GOLD },
-            { value: 'announcement', label: '📢 הודעה חשובה', color: '#16a34a' }
+          {[ 
+            { value: 'reminder', label: t('admin.alertsForm.dailyReminder'), color: PRIMARY_RED },
+            { value: 'push', label: t('admin.alertsForm.dailyPush'), color: PRIMARY_GOLD },
+            { value: 'announcement', label: t('admin.alertsForm.importantAnnouncement'), color: '#16a34a' }
           ].map(option => (
             <Pressable
               key={option.value}
-              style={[
+              style={[ 
                 styles.radioButton,
                 form.type === option.value && { backgroundColor: `${option.color}15`, borderColor: option.color }
               ]}
@@ -581,15 +582,15 @@ function AlertsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>סוג שליחה</Text>
+        <Text style={styles.label}>{t('admin.alertsForm.sendType')}</Text>
         <View style={styles.radioGroup}>
-          {[
-            { value: 'immediate', label: '⚡ שליחה מיידית', color: PRIMARY_RED },
-            { value: 'scheduled', label: '⏰ תזמון למועד', color: PRIMARY_GOLD }
+          {[ 
+            { value: 'immediate', label: t('admin.alertsForm.sendImmediately'), color: PRIMARY_RED },
+            { value: 'scheduled', label: t('admin.alertsForm.schedule'), color: PRIMARY_GOLD }
           ].map(option => (
             <Pressable
               key={option.value}
-              style={[
+              style={[ 
                 styles.radioButton,
                 form.sendType === option.value && { backgroundColor: `${option.color}15`, borderColor: option.color }
               ]}
@@ -605,7 +606,7 @@ function AlertsForm() {
 
       {form.sendType === 'scheduled' && (
         <View style={styles.formGroup}>
-          <Text style={styles.label}>תאריך ושעה</Text>
+          <Text style={styles.label}>{t('admin.alertsForm.dateAndTime')}</Text>
           <TextInput
             style={styles.input}
             value={form.scheduledTime}
@@ -616,12 +617,12 @@ function AlertsForm() {
       )}
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>הודעה (80-120 תווים)</Text>
+        <Text style={styles.label}>{t('admin.alertsForm.message')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={form.message}
           onChangeText={text => setForm({...form, message: text})}
-          placeholder="הודעה קצרה על ההתראה..."
+          placeholder={t('admin.alertsForm.messagePlaceholder')}
           multiline
           numberOfLines={3}
           maxLength={120}
@@ -630,16 +631,16 @@ function AlertsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>עדיפות</Text>
+        <Text style={styles.label}>{t('admin.alertsForm.priority')}</Text>
         <View style={styles.radioGroup}>
-          {[
-            { value: 'high', label: '🔥 דחוף', color: '#dc2626' },
-            { value: 'medium', label: '⚡ בינוני', color: '#f59e0b' },
-            { value: 'low', label: '💡 נמוך', color: '#6b7280' }
+          {[ 
+            { value: 'high', label: t('admin.alertsForm.high'), color: '#dc2626' },
+            { value: 'medium', label: t('admin.alertsForm.medium'), color: '#f59e0b' },
+            { value: 'low', label: t('admin.alertsForm.low'), color: '#6b7280' }
           ].map(option => (
             <Pressable
               key={option.value}
-              style={[
+              style={[ 
                 styles.radioButton,
                 form.priority === option.value && { backgroundColor: `${option.color}15`, borderColor: option.color }
               ]}
@@ -654,11 +655,11 @@ function AlertsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>קהל יעד</Text>
+        <Text style={styles.label}>{t('admin.alertsForm.targetAudience')}</Text>
         <View style={styles.checkboxGroup}>
-          {[
-            { value: 'all', label: 'כל המשתמשים' },
-            { value: 'registered', label: 'משתמשים רשומים בלבד' }
+          {[ 
+            { value: 'all', label: t('admin.alertsForm.allUsers') },
+            { value: 'registered', label: t('admin.alertsForm.registeredUsersOnly') }
           ].map(option => (
             <Pressable
               key={option.value}
@@ -693,23 +694,23 @@ function AlertsForm() {
           <>
             <LinearGradient colors={[PRIMARY_RED, PRIMARY_GOLD]} style={StyleSheet.absoluteFill} />
             <Ionicons name="send" size={20} color="#fff" />
-            <Text style={styles.submitButtonText}>שלח התראה + Push</Text>
+            <Text style={styles.submitButtonText}>{t('admin.alertsForm.sendAlert')}</Text>
           </>
         )}
       </Pressable>
 
       {/* Existing Alerts List */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>התראות פעילות ({alerts.length})</Text>
+        <Text style={styles.label}>{t('admin.alertsForm.activeAlerts', { count: alerts.length })}</Text>
         {loading && alerts.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={PRIMARY_RED} size="large" />
-            <Text style={styles.loadingText}>טוען התראות...</Text>
+            <Text style={styles.loadingText}>{t('admin.alertsForm.loadingAlerts')}</Text>
           </View>
         ) : alerts.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="notifications-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>אין התראות פעילות</Text>
+            <Text style={styles.emptyText}>{t('admin.alertsForm.noActiveAlerts')}</Text>
           </View>
         ) : (
           <ScrollView style={styles.alertsList}>
@@ -724,11 +725,11 @@ function AlertsForm() {
                     <Text style={styles.alertItemMessage}>{alert.message}</Text>
                     <View style={styles.alertItemMeta}>
                       <Text style={styles.alertItemType}>
-                        {alert.type === 'reminder' ? '⏰ תזכורת' : alert.type === 'push' ? '🔔 פוש' : '📢 הודעה'}
+                        {alert.type === 'reminder' ? t('admin.alertsForm.reminder') : alert.type === 'push' ? t('admin.alertsForm.push') : t('admin.alertsForm.announcement')}
                       </Text>
                       {hoursLeft !== null && hoursLeft > 0 && (
                         <Text style={styles.alertItemExpiry}>
-                          יימחק בעוד {hoursLeft} שעות
+                          {t('admin.alertsForm.expiresIn', { hoursLeft })}
                         </Text>
                       )}
                     </View>
@@ -747,19 +748,20 @@ function AlertsForm() {
       </View>
 
       <Text style={styles.note}>
-        💡 התראות נשמרות ב-Firestore, נשלחות כ-Push, ומופיעות במסך הבית. התראות נמחקות אוטומטית אחרי 24 שעות.
+        {t('admin.alertsForm.note')}
       </Text>
     </View>
   )
 }
 
-// ========== COURSES FORM ==========
+// ========== COURSES FORM ========== 
 function CoursesForm() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     title: 'ניגון ראשון',
     level: 'Beginner',
     duration: '6 פרקים • 3.5 שעות',
-    description: 'מבוא למס��ר ממושמע — הגדרת מטרות, ניהול סיכונים ובניית שגרה יומית.',
+    description: 'מבוא למסחר ממושמע — הגדרת מטרות, ניהול סיכונים ובניית שגרה יומית.',
     isPremium: false
   })
 
@@ -852,15 +854,16 @@ function CoursesForm() {
   )
 }
 
-// ========== CARDS FORM ==========
+// ========== CARDS FORM ========== 
 function CardsForm() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     key: 'daily-insight',
-    title: 'ערך יומי',
-    desc: 'תובנה מעוררת השראה ליום שלך',
+    title: t('admin.cardsForm.dailyValue'),
+    desc: t('admin.cardsForm.descriptionPlaceholder'),
     icon: 'bulb-outline',
     locked: false,
-    headerTitle: 'הרב אייל עמרמי',
+    headerTitle: t('home.rabbiName'),
     headerSubtitle: "הודו לה' כי טוב",
     imageUri: null,
     imageUrl: null,
@@ -876,7 +879,7 @@ function CardsForm() {
 
   const handleUploadImage = async () => {
     if (!form.imageUri) {
-      Alert.alert('שגיאה', 'אנא בחר תמונה תחילה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
       return
     }
 
@@ -887,9 +890,9 @@ function CardsForm() {
         console.log(`Upload progress: ${progress}%`)
       })
       setForm({ ...form, imageUrl: url })
-      Alert.alert('הצלחה!', 'התמונה הועלתה בהצלחה')
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן להעלות את התמונה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
       console.error(error)
     } finally {
       setUploading(false)
@@ -932,7 +935,7 @@ function CardsForm() {
 
   const handleSubmit = async () => {
     if (form.imageUri && !form.imageUrl) {
-      Alert.alert('שים לב', 'אנא העלה את התמונה לפני השמירה')
+      Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'))
       return
     }
 
@@ -959,12 +962,12 @@ function CardsForm() {
       await updateAppConfig(configData)
 
       Alert.alert(
-        'הצלחה! 🎴',
-        `כרטיס "${form.title}" עודכן בהצלחה!\nכותרת ראשית עודכנה גם כן.`
+        t('admin.lessonsForm.success'),
+        t('admin.cardsForm.cardUpdated', { title: form.title })
       )
     } catch (error) {
       console.error('Error updating card:', error)
-      Alert.alert('שגיאה', 'לא ניתן לעדכן את הכרטיס')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUpdatingCard'))
     } finally {
       setLoading(false)
     }
@@ -972,17 +975,17 @@ function CardsForm() {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>🎴 עריכת כרטיסיות ראשיות</Text>
+      <Text style={styles.formTitle}>{t('admin.cardsForm.title')}</Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>בחר כרטיס</Text>
+        <Text style={styles.label}>{t('admin.cardsForm.selectCard')}</Text>
         <View style={styles.radioGroup}>
-          {[
-            { value: 'daily-insight', label: 'ערך יומי' },
-            { value: 'community', label: 'קהילה' },
-            { value: 'books', label: 'ספרים' },
-            { value: 'institutions', label: 'מוסדות הרב' },
-            { value: 'live-alerts', label: 'התראות חמות' }
+          {[ 
+            { value: 'daily-insight', label: t('admin.cardsForm.dailyValue') },
+            { value: 'community', label: t('admin.cardsForm.community') },
+            { value: 'books', label: t('admin.cardsForm.books') },
+            { value: 'institutions', label: t('admin.cardsForm.rabbiInstitutions') },
+            { value: 'live-alerts', label: t('admin.cardsForm.hotAlerts') }
           ].map(option => (
             <Pressable
               key={option.value}
@@ -998,29 +1001,29 @@ function CardsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>כותרת הכרטיס</Text>
+        <Text style={styles.label}>{t('admin.cardsForm.cardTitle')}</Text>
         <TextInput
           style={styles.input}
           value={form.title}
           onChangeText={text => setForm({...form, title: text})}
-          placeholder="ערך יומי"
+          placeholder={t('admin.cardsForm.dailyValue')}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תיאור</Text>
+        <Text style={styles.label}>{t('admin.cardsForm.description')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={form.desc}
           onChangeText={text => setForm({...form, desc: text})}
-          placeholder="תובנה מעוררת השראה ליום שלך"
+          placeholder={t('admin.cardsForm.descriptionPlaceholder')}
           multiline
           numberOfLines={2}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>אייקון (Ionicons name)</Text>
+        <Text style={styles.label}>{t('admin.cardsForm.icon')}</Text>
         <TextInput
           style={styles.input}
           value={form.icon}
@@ -1038,19 +1041,19 @@ function CardsForm() {
           <View style={[styles.checkboxBox, form.locked && styles.checkboxBoxChecked]}>
             {form.locked && <Ionicons name="checkmark" size={16} color="#fff" />}
           </View>
-          <Text style={styles.checkboxLabel}>🔒 כרטיס נעול (רק למשתמשים רשומים)</Text>
+          <Text style={styles.checkboxLabel}>{t('admin.cardsForm.lockedCard')}</Text>
         </Pressable>
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תמונת רקע</Text>
+        <Text style={styles.label}>{t('admin.cardsForm.backgroundImage')}</Text>
         {form.imageUri && (
           <View style={styles.imagePreview}>
             <Image source={{ uri: form.imageUri }} style={styles.previewImage} />
             {form.imageUrl && (
               <View style={styles.uploadedBadge}>
                 <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-                <Text style={styles.uploadedText}>הועלה</Text>
+                <Text style={styles.uploadedText}>{t('admin.cardsForm.uploaded')}</Text>
               </View>
             )}
           </View>
@@ -1063,7 +1066,7 @@ function CardsForm() {
           >
             <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
             <Text style={styles.uploadButtonText}>
-              {form.imageUri ? 'בחר תמונה אחרת' : 'בחר תמונת רקע'}
+              {form.imageUri ? t('admin.cardsForm.selectAnotherImage') : t('admin.cardsForm.selectBackgroundImage')}
             </Text>
           </Pressable>
           {form.imageUri && !form.imageUrl && (
@@ -1078,7 +1081,7 @@ function CardsForm() {
                 <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
               )}
               <Text style={styles.uploadButtonText}>
-                {uploading ? 'מעלה...' : 'העלה תמונה'}
+                {uploading ? t('admin.cardsForm.uploading') : t('admin.cardsForm.uploadImage')}
               </Text>
             </Pressable>
           )}
@@ -1087,20 +1090,20 @@ function CardsForm() {
 
       <View style={styles.separator} />
 
-      <Text style={styles.sectionSubtitle}>כותרת ראשית מעל הכרטיסיות</Text>
+      <Text style={styles.sectionSubtitle}>{t('admin.cardsForm.mainHeader')}</Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>כותרת ראשית (Header)</Text>
+        <Text style={styles.label}>{t('admin.cardsForm.header')}</Text>
         <TextInput
           style={styles.input}
           value={form.headerTitle}
           onChangeText={text => setForm({...form, headerTitle: text})}
-          placeholder="הרב אייל עמרמי"
+          placeholder={t('home.rabbiName')}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>כתובית משנה (Subtitle)</Text>
+        <Text style={styles.label}>{t('admin.cardsForm.subtitle')}</Text>
         <TextInput
           style={styles.input}
           value={form.headerSubtitle}
@@ -1120,20 +1123,21 @@ function CardsForm() {
           <>
             <LinearGradient colors={[PRIMARY_RED, PRIMARY_GOLD]} style={StyleSheet.absoluteFill} />
             <Ionicons name="save" size={20} color="#fff" />
-            <Text style={styles.submitButtonText}>שמור שינויים</Text>
+            <Text style={styles.submitButtonText}>{t('admin.cardsForm.saveChanges')}</Text>
           </>
         )}
       </Pressable>
 
       <Text style={styles.note}>
-        💡 שינויים נשמרים ב-Firestore ומופיעים מיידית. התמונות נשמרות ב-Firebase Storage.
+        {t('admin.cardsForm.note')}
       </Text>
     </View>
   )
 }
 
-// ========== RECOMMENDATIONS FORM ==========
+// ========== RECOMMENDATIONS FORM ========== 
 function RecommendationsForm() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     title: 'למה אני לא משתמש ב-Stop Loss',
     type: 'video',
@@ -1155,7 +1159,7 @@ function RecommendationsForm() {
       <View style={styles.formGroup}>
         <Text style={styles.label}>סוג תוכן</Text>
         <View style={styles.radioGroup}>
-          {[
+          {[ 
             { value: 'video', label: '🎥 וידאו' },
             { value: 'article', label: '📰 מאמר' },
             { value: 'podcast', label: '🎙️ פודקאסט' }
@@ -1213,12 +1217,13 @@ function RecommendationsForm() {
   )
 }
 
-// ========== NEWS FORM ==========
+// ========== NEWS FORM ========== 
 function NewsForm() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
-    title: 'השוק בתנודתיות גבוהה',
+    title: '',
     category: 'chidushim',
-    content: 'המדדים הראשיים נסחרים בתנודתיות גבוהה...',
+    content: '',
     imageUri: null,
     imageUrl: null,
   })
@@ -1233,7 +1238,7 @@ function NewsForm() {
 
   const handleUploadImage = async () => {
     if (!form.imageUri) {
-      Alert.alert('שגיאה', 'אנא בחר תמונה תחילה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
       return
     }
 
@@ -1244,9 +1249,9 @@ function NewsForm() {
         console.log(`Upload progress: ${progress}%`)
       })
       setForm({ ...form, imageUrl: url })
-      Alert.alert('הצלחה!', 'התמונה הועלתה בהצלחה')
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן להעלות את התמונה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
       console.error(error)
     } finally {
       setUploading(false)
@@ -1272,12 +1277,12 @@ function NewsForm() {
 
   const handleSubmit = async () => {
     if (!form.title || !form.content) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות הנדרשים')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.alertsForm.errorFillAllFields'))
       return
     }
 
     if (form.imageUri && !form.imageUrl) {
-      Alert.alert('שים לב', 'אנא העלה את התמונה לפני הפרסום')
+      Alert.alert(t('admin.cardsForm.notice'), t('admin.newsForm.errorUploadImage'))
       return
     }
 
@@ -1311,10 +1316,10 @@ function NewsForm() {
 
       if (editingNews) {
         await updateNews(editingNews.id, newsData)
-        Alert.alert('הצלחה! 📰', 'חדשה עודכנה בהצלחה!')
+        Alert.alert(t('admin.lessonsForm.success'), t('admin.newsForm.newsUpdated'))
       } else {
         await createNews(newsData)
-        Alert.alert('הצלחה! 📰', 'חדשה פורסמה בהצלחה!')
+        Alert.alert(t('admin.lessonsForm.success'), t('admin.newsForm.newsPublished'))
       }
 
       // Reset form
@@ -1330,7 +1335,7 @@ function NewsForm() {
       await loadNews()
     } catch (error) {
       console.error('Error saving news:', error)
-      Alert.alert('שגיאה', 'לא ניתן לפרסם את החדשה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.newsForm.errorPublishingNews'))
     } finally {
       setLoading(false)
     }
@@ -1359,22 +1364,22 @@ function NewsForm() {
 
   const handleDelete = (newsItem) => {
     Alert.alert(
-      'מחיקת חדשה',
-      `האם אתה בטוח שברצונך למחוק את החדשה "${newsItem.title}"?`,
+      t('admin.newsForm.deleteNewsTitle'),
+      t('admin.newsForm.deleteNewsMessage', { title: newsItem.title }),
       [
-        { text: 'ביטול', style: 'cancel' },
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
         {
-          text: 'מחק',
+          text: t('admin.lessonsForm.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true)
               await deleteNews(newsItem.id)
-              Alert.alert('הצלחה!', 'החדשה נמחקה')
+              Alert.alert(t('admin.lessonsForm.success'), t('admin.newsForm.newsDeleted'))
               await loadNews()
             } catch (error) {
               console.error('Error deleting news:', error)
-              Alert.alert('שגיאה', 'לא ניתן למחוק את החדשה')
+              Alert.alert(t('admin.lessonsForm.error'), t('admin.newsForm.errorDeletingNews'))
             } finally {
               setLoading(false)
             }
@@ -1406,15 +1411,15 @@ function NewsForm() {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>📰 פרסום חדשה</Text>
+      <Text style={styles.formTitle}>{t('admin.newsForm.title')}</Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>קטגוריה</Text>
+        <Text style={styles.label}>{t('admin.newsForm.category')}</Text>
         <View style={styles.radioGroup}>
-          {[
-            { value: 'chidushim', label: '💡 חידושים' },
-            { value: 'crypto', label: '₿ קריפטו' },
-            { value: 'education', label: '📚 לימוד' }
+          {[ 
+            { value: 'chidushim', label: t('admin.newsForm.innovations') },
+            { value: 'crypto', label: t('admin.newsForm.crypto') },
+            { value: 'education', label: t('admin.newsForm.learning') }
           ].map(option => (
             <Pressable
               key={option.value}
@@ -1430,7 +1435,7 @@ function NewsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>כותרת</Text>
+        <Text style={styles.label}>{t('admin.newsForm.newsTitle')}</Text>
         <TextInput
           style={styles.input}
           value={form.title}
@@ -1439,7 +1444,7 @@ function NewsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תוכן</Text>
+        <Text style={styles.label}>{t('admin.newsForm.content')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={form.content}
@@ -1450,13 +1455,13 @@ function NewsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תאריך פרסום (אופציונלי)</Text>
+        <Text style={styles.label}>{t('admin.newsForm.publishDate')}</Text>
         <View style={styles.dateInputContainer}>
           <TextInput
             style={[styles.input, styles.dateInput]}
             value={form.customDate || ''}
             onChangeText={text => setForm({...form, customDate: text})}
-            placeholder="DD/MM/YYYY (למשל: 25/12/2024)"
+            placeholder={t('admin.newsForm.datePlaceholder')}
             placeholderTextColor="#9ca3af"
           />
           <Pressable
@@ -1464,21 +1469,21 @@ function NewsForm() {
             onPress={handleSetTodayDate}
           >
             <Ionicons name="calendar-outline" size={18} color={PRIMARY_RED} />
-            <Text style={styles.todayButtonText}>היום</Text>
+            <Text style={styles.todayButtonText}>{t('admin.newsForm.today')}</Text>
           </Pressable>
         </View>
-        <Text style={styles.helperText}>השאר ריק לשימוש בתאריך הנוכחי</Text>
+        <Text style={styles.helperText}>{t('admin.newsForm.helperText')}</Text>
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תמונה</Text>
+        <Text style={styles.label}>{t('admin.newsForm.image')}</Text>
         {form.imageUri && (
           <View style={styles.imagePreview}>
             <Image source={{ uri: form.imageUri }} style={styles.previewImage} />
             {form.imageUrl && (
               <View style={styles.uploadedBadge}>
                 <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-                <Text style={styles.uploadedText}>הועלה</Text>
+                <Text style={styles.uploadedText}>{t('admin.cardsForm.uploaded')}</Text>
               </View>
             )}
           </View>
@@ -1491,7 +1496,7 @@ function NewsForm() {
           >
             <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
             <Text style={styles.uploadButtonText}>
-              {form.imageUri ? 'בחר תמונה אחרת' : 'בחר תמונה'}
+              {form.imageUri ? t('admin.newsForm.selectAnotherImage') : t('admin.newsForm.selectImage')}
             </Text>
           </Pressable>
           {form.imageUri && !form.imageUrl && (
@@ -1506,7 +1511,7 @@ function NewsForm() {
                 <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
               )}
               <Text style={styles.uploadButtonText}>
-                {uploading ? 'מעלה...' : 'העלה תמונה'}
+                {uploading ? t('admin.newsForm.uploading') : t('admin.newsForm.uploadImage')}
               </Text>
             </Pressable>
           )}
@@ -1525,7 +1530,7 @@ function NewsForm() {
             <LinearGradient colors={[PRIMARY_RED, PRIMARY_GOLD]} style={StyleSheet.absoluteFill} />
             <Ionicons name={editingNews ? "checkmark-circle" : "newspaper"} size={20} color="#fff" />
             <Text style={styles.submitButtonText}>
-              {editingNews ? 'עדכן חדשה' : 'פרסם חדשה'}
+              {editingNews ? t('admin.newsForm.updateNews') : t('admin.newsForm.publishNews')}
             </Text>
           </>
         )}
@@ -1533,22 +1538,22 @@ function NewsForm() {
 
       {editingNews && (
         <Pressable style={styles.cancelButton} onPress={handleCancelEdit}>
-          <Text style={styles.cancelButtonText}>ביטול עריכה</Text>
+          <Text style={styles.cancelButtonText}>{t('admin.newsForm.cancelEdit')}</Text>
         </Pressable>
       )}
 
       {/* Existing News List */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>חדשות קיימות ({news.length})</Text>
+        <Text style={styles.label}>{t('admin.newsForm.existingNews', { count: news.length })}</Text>
         {loading && news.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={PRIMARY_RED} size="large" />
-            <Text style={styles.loadingText}>טוען חדשות...</Text>
+            <Text style={styles.loadingText}>{t('admin.newsForm.loadingNews')}</Text>
           </View>
         ) : news.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="newspaper-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>אין חדשות</Text>
+            <Text style={styles.emptyText}>{t('admin.newsForm.noNews')}</Text>
           </View>
         ) : (
           <ScrollView style={styles.lessonsList}>
@@ -1557,8 +1562,8 @@ function NewsForm() {
                 <View style={styles.lessonItemContent}>
                   <Text style={styles.lessonItemTitle}>{newsItem.title}</Text>
                   <Text style={styles.lessonItemCategory}>
-                    {newsItem.category === 'chidushim' ? '💡 חידושים' : 
-                     newsItem.category === 'crypto' ? '₿ קריפטו' : '📚 לימוד'}
+                    {newsItem.category === 'chidushim' ? t('admin.newsForm.innovations') : 
+                     newsItem.category === 'crypto' ? t('admin.newsForm.crypto') : t('admin.newsForm.learning')}
                   </Text>
                   {newsItem.publishedAt && (
                     <Text style={styles.lessonItemDate}>
@@ -1591,8 +1596,9 @@ function NewsForm() {
   )
 }
 
-// ========== PODCASTS FORM ==========
+// ========== PODCASTS FORM ========== 
 function PodcastsForm() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -1620,7 +1626,7 @@ function PodcastsForm() {
       setPodcasts(allPodcasts)
     } catch (error) {
       console.error('Error loading podcasts:', error)
-      Alert.alert('שגיאה', 'לא ניתן לטעון את הפודקאסטים')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.loadingPodcasts'))
     } finally {
       setLoading(false)
     }
@@ -1630,7 +1636,7 @@ function PodcastsForm() {
     const { pickImage } = await import('../utils/storage')
     // Note: For audio, you might want to use a different picker
     // For now, using image picker as placeholder
-    Alert.alert('בקרוב', 'בחירת קובץ אודיו תתווסף בקרוב')
+    Alert.alert(t('home.comingSoon'), t('admin.podcastsForm.audioSelectionComingSoon'))
   }
 
   const handlePickThumbnail = async () => {
@@ -1643,7 +1649,7 @@ function PodcastsForm() {
 
   const handleUploadAudio = async () => {
     if (!form.audioUri) {
-      Alert.alert('שגיאה', 'אנא בחר קובץ אודיו תחילה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.selectAudioFile'))
       return
     }
 
@@ -1654,9 +1660,9 @@ function PodcastsForm() {
         console.log(`Audio upload progress: ${progress}%`)
       })
       setForm({ ...form, audioUrl: url })
-      Alert.alert('הצלחה!', 'קובץ האודיו הועלה בהצלחה')
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.podcastsForm.audioUploaded'))
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן להעלות את קובץ האודיו')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.errorUploadingAudio'))
       console.error(error)
     } finally {
       setUploading(false)
@@ -1665,7 +1671,7 @@ function PodcastsForm() {
 
   const handleUploadThumbnail = async () => {
     if (!form.thumbnailUri) {
-      Alert.alert('שגיאה', 'אנא בחר תמונה תחילה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
       return
     }
 
@@ -1676,9 +1682,9 @@ function PodcastsForm() {
         console.log(`Thumbnail upload progress: ${progress}%`)
       })
       setForm({ ...form, thumbnailUrl: url })
-      Alert.alert('הצלחה!', 'התמונה הועלתה בהצלחה')
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן להעלות את התמונה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
       console.error(error)
     } finally {
       setUploading(false)
@@ -1687,7 +1693,7 @@ function PodcastsForm() {
 
   const handleSubmit = async () => {
     if (!form.title || !form.audioUrl) {
-      Alert.alert('שגיאה', 'יש למלא כותרת ולהעלות קובץ אודיו')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.errorFillTitleAndAudio'))
       return
     }
 
@@ -1696,11 +1702,11 @@ function PodcastsForm() {
       
       if (editingPodcast) {
         await updatePodcast(editingPodcast.id, form)
-        Alert.alert('הצלחה!', 'הפודקאסט עודכן בהצלחה')
+        Alert.alert(t('admin.lessonsForm.success'), t('admin.podcastsForm.podcastUpdated'))
         setEditingPodcast(null)
       } else {
         await createPodcast(form)
-        Alert.alert('הצלחה!', 'הפודקאסט נוסף בהצלחה')
+        Alert.alert(t('admin.lessonsForm.success'), t('admin.podcastsForm.podcastAdded'))
       }
       
       setForm({
@@ -1717,7 +1723,7 @@ function PodcastsForm() {
       await loadPodcasts()
     } catch (error) {
       console.error('Error saving podcast:', error)
-      Alert.alert('שגיאה', 'לא ניתן לשמור את הפודקאסט')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.errorSavingPodcast'))
     } finally {
       setLoading(false)
     }
@@ -1740,22 +1746,22 @@ function PodcastsForm() {
 
   const handleDelete = (podcast) => {
     Alert.alert(
-      'מחיקת פודקאסט',
-      `האם אתה בטוח שברצונך למחוק את הפודקאסט "${podcast.title}"?`,
+      t('admin.podcastsForm.deletePodcastTitle'),
+      t('admin.podcastsForm.deletePodcastMessage', { title: podcast.title }),
       [
-        { text: 'ביטול', style: 'cancel' },
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
         {
-          text: 'מחק',
+          text: t('admin.lessonsForm.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true)
               await deletePodcast(podcast.id)
-              Alert.alert('הצלחה!', 'הפודקאסט נמחק בהצלחה')
+              Alert.alert(t('admin.lessonsForm.success'), t('admin.podcastsForm.podcastDeleted'))
               await loadPodcasts()
             } catch (error) {
               console.error('Error deleting podcast:', error)
-              Alert.alert('שגיאה', 'לא ניתן למחוק את הפודקאסט')
+              Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.errorDeletingPodcast'))
             } finally {
               setLoading(false)
             }
@@ -1782,49 +1788,49 @@ function PodcastsForm() {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>🎙️ ניהול פודקאסטים</Text>
+      <Text style={styles.formTitle}>{t('admin.podcastsForm.title')}</Text>
       <Text style={styles.formDesc}>
-        העלה קבצי אודיו (MP3, M4A) שיופיעו במסך הפודקאסטים. הקבצים יועלו ל-Firebase Storage.
+        {t('admin.podcastsForm.description')}
       </Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>כותרת הפודקאסט</Text>
+        <Text style={styles.label}>{t('admin.podcastsForm.podcastTitle')}</Text>
         <TextInput
           style={styles.input}
           value={form.title}
           onChangeText={text => setForm({...form, title: text})}
-          placeholder="פודקאסט 1"
+          placeholder={t('admin.podcastsForm.podcastTitlePlaceholder')}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תיאור (אופציונלי)</Text>
+        <Text style={styles.label}>{t('admin.podcastsForm.descriptionOptional')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={form.description}
           onChangeText={text => setForm({...form, description: text})}
-          placeholder="תיאור קצר של הפודקאסט..."
+          placeholder={t('admin.podcastsForm.descriptionPlaceholder')}
           multiline
           numberOfLines={3}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>קטגוריה (אופציונלי)</Text>
+        <Text style={styles.label}>{t('admin.podcastsForm.categoryOptional')}</Text>
         <TextInput
           style={styles.input}
           value={form.category}
           onChangeText={text => setForm({...form, category: text})}
-          placeholder="כללי"
+          placeholder={t('admin.podcastsForm.categoryPlaceholder')}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>קובץ אודיו</Text>
+        <Text style={styles.label}>{t('admin.podcastsForm.audioFile')}</Text>
         {form.audioUrl && (
           <View style={styles.uploadedBadge}>
             <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-            <Text style={styles.uploadedText}>קובץ אודיו הועלה</Text>
+            <Text style={styles.uploadedText}>{t('admin.podcastsForm.audioFileUploaded')}</Text>
           </View>
         )}
         <View style={styles.uploadSection}>
@@ -1835,7 +1841,7 @@ function PodcastsForm() {
           >
             <Ionicons name="musical-notes-outline" size={24} color={PRIMARY_RED} />
             <Text style={styles.uploadButtonText}>
-              {form.audioUri ? 'בחר קובץ אחר' : 'בחר קובץ אודיו'}
+              {form.audioUri ? t('admin.podcastsForm.selectAnotherFile') : t('admin.podcastsForm.selectAudioFile')}
             </Text>
           </Pressable>
           {form.audioUri && !form.audioUrl && (
@@ -1850,7 +1856,7 @@ function PodcastsForm() {
                 <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
               )}
               <Text style={styles.uploadButtonText}>
-                {uploading ? 'מעלה...' : 'העלה אודיו'}
+                {uploading ? t('admin.cardsForm.uploading') : t('admin.podcastsForm.uploadAudio')}
               </Text>
             </Pressable>
           )}
@@ -1858,14 +1864,14 @@ function PodcastsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תמונת כריכה (אופציונלי)</Text>
+        <Text style={styles.label}>{t('admin.podcastsForm.coverImageOptional')}</Text>
         {form.thumbnailUri && (
           <View style={styles.imagePreview}>
             <Image source={{ uri: form.thumbnailUri }} style={styles.previewImage} />
             {form.thumbnailUrl && (
               <View style={styles.uploadedBadge}>
                 <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-                <Text style={styles.uploadedText}>הועלה</Text>
+                <Text style={styles.uploadedText}>{t('admin.cardsForm.uploaded')}</Text>
               </View>
             )}
           </View>
@@ -1878,7 +1884,7 @@ function PodcastsForm() {
           >
             <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
             <Text style={styles.uploadButtonText}>
-              {form.thumbnailUri ? 'בחר תמונה אחרת' : 'בחר תמונת כריכה'}
+              {form.thumbnailUri ? t('admin.cardsForm.selectAnotherImage') : t('admin.podcastsForm.selectCoverImage')}
             </Text>
           </Pressable>
           {form.thumbnailUri && !form.thumbnailUrl && (
@@ -1893,7 +1899,7 @@ function PodcastsForm() {
                 <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
               )}
               <Text style={styles.uploadButtonText}>
-                {uploading ? 'מעלה...' : 'העלה תמונה'}
+                {uploading ? t('admin.cardsForm.uploading') : t('admin.cardsForm.uploadImage')}
               </Text>
             </Pressable>
           )}
@@ -1908,7 +1914,7 @@ function PodcastsForm() {
           <View style={[styles.checkboxBox, form.isActive && styles.checkboxBoxChecked]}>
             {form.isActive && <Ionicons name="checkmark" size={16} color="#fff" />}
           </View>
-          <Text style={styles.checkboxLabel}>✅ פודקאסט פעיל (יופיע למשתמשים)</Text>
+          <Text style={styles.checkboxLabel}>{t('admin.podcastsForm.activePodcast')}</Text>
         </Pressable>
       </View>
 
@@ -1923,28 +1929,28 @@ function PodcastsForm() {
           <Ionicons name={editingPodcast ? "checkmark-circle" : "add-circle-outline"} size={22} color="#fff" />
         )}
         <Text style={styles.submitButtonText}>
-          {editingPodcast ? 'עדכן פודקאסט' : 'הוסף פודקאסט'}
+          {editingPodcast ? t('admin.podcastsForm.updatePodcast') : t('admin.podcastsForm.addPodcast')}
         </Text>
       </Pressable>
 
       {editingPodcast && (
         <Pressable style={styles.cancelButton} onPress={handleCancelEdit}>
-          <Text style={styles.cancelButtonText}>ביטול עריכה</Text>
+          <Text style={styles.cancelButtonText}>{t('admin.lessonsForm.cancelEdit')}</Text>
         </Pressable>
       )}
 
       {/* Existing Podcasts List */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>פודקאסטים קיימים ({podcasts.length})</Text>
+        <Text style={styles.label}>{t('admin.podcastsForm.existingPodcasts', { count: podcasts.length })}</Text>
         {loading && podcasts.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={PRIMARY_RED} size="large" />
-            <Text style={styles.loadingText}>טוען פודקאסטים...</Text>
+            <Text style={styles.loadingText}>{t('admin.podcastsForm.loadingPodcasts')}</Text>
           </View>
         ) : podcasts.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="headset-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>אין פודקאסטים</Text>
+            <Text style={styles.emptyText}>{t('admin.podcastsForm.noPodcasts')}</Text>
           </View>
         ) : (
           <ScrollView style={styles.lessonsList}>
@@ -1960,7 +1966,7 @@ function PodcastsForm() {
                   <View style={styles.lessonItemDate}>
                     <Ionicons name={podcast.isActive ? "checkmark-circle" : "close-circle"} size={14} color={podcast.isActive ? "#16a34a" : "#dc2626"} />
                     <Text style={[styles.lessonItemDate, { marginLeft: 4 }]}>
-                      {podcast.isActive ? 'פעיל' : 'לא פעיל'}
+                      {podcast.isActive ? t('admin.podcastsForm.active') : t('admin.podcastsForm.inactive')}
                     </Text>
                   </View>
                 </View>
@@ -1987,10 +1993,11 @@ function PodcastsForm() {
   )
 }
 
-// ========== DAILY VIDEOS FORM ==========
+// ========== DAILY VIDEOS FORM ========== 
 function DailyVideosForm() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
-    title: 'זריקת אמונה יומית',
+    title: t('admin.dailyVideosForm.videoTitlePlaceholder'),
     description: '',
     videoUri: null,
     videoUrl: null,
@@ -2004,8 +2011,7 @@ function DailyVideosForm() {
 
   useEffect(() => {
     loadVideos()
-    // Clean up expired videos on mount
-    cleanupExpiredVideos().catch(console.error)
+    cleanupExpiredVideos()
   }, [])
 
   const loadVideos = async () => {
@@ -2015,21 +2021,20 @@ function DailyVideosForm() {
       setVideos(allVideos)
     } catch (error) {
       console.error('Error loading videos:', error)
-      Alert.alert('שגיאה', 'לא ניתן לטעון את הסרטונים')
     } finally {
       setLoading(false)
     }
   }
 
   const handlePickVideo = async () => {
-    const video = await pickVideo({ videoMaxDuration: 60 })
+    const video = await pickVideo()
     if (video) {
       setForm({ ...form, videoUri: video.uri })
     }
   }
 
   const handlePickThumbnail = async () => {
-    const image = await pickImage({ aspect: [16, 9] })
+    const image = await pickImage({ aspect: [9, 16] })
     if (image) {
       setForm({ ...form, thumbnailUri: image.uri })
     }
@@ -2037,46 +2042,43 @@ function DailyVideosForm() {
 
   const handleUploadVideo = async () => {
     if (!form.videoUri) {
-      Alert.alert('שגיאה', 'אנא בחר סרטון תחילה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.dailyVideosForm.errorFillTitleAndVideo'))
       return
     }
 
     setUploading(true)
     setUploadProgress(0)
     try {
-      const date = new Date()
-      const path = generateDailyVideoPath(date, `video_${Date.now()}.mp4`)
-      const url = await uploadVideoToStorage(form.videoUri, path, (progress) => {
+      const videoId = 'daily-video-' + Date.now()
+      const url = await uploadVideoToStorage(form.videoUri, generateDailyVideoPath(videoId), (progress) => {
         setUploadProgress(progress)
       })
       setForm({ ...form, videoUrl: url })
-      Alert.alert('הצלחה!', 'הסרטון הועלה בהצלחה')
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.dailyVideosForm.videoUploaded'))
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן להעלות את הסרטון')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.dailyVideosForm.errorUploadingVideo'))
       console.error(error)
     } finally {
       setUploading(false)
-      setUploadProgress(0)
     }
   }
 
   const handleUploadThumbnail = async () => {
     if (!form.thumbnailUri) {
-      Alert.alert('שגיאה', 'אנא בחר תמונה תחילה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
       return
     }
 
     setUploading(true)
     try {
-      const date = new Date()
-      const path = generateDailyVideoThumbnailPath(date, `thumb_${Date.now()}.jpg`)
-      const url = await uploadImageToStorage(form.thumbnailUri, path, (progress) => {
+      const videoId = 'daily-video-' + Date.now()
+      const url = await uploadImageToStorage(form.thumbnailUri, generateDailyVideoThumbnailPath(videoId), (progress) => {
         console.log(`Thumbnail upload progress: ${progress}%`)
       })
       setForm({ ...form, thumbnailUrl: url })
-      Alert.alert('הצלחה!', 'התמונה הועלתה בהצלחה')
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן להעלות את התמונה')
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
       console.error(error)
     } finally {
       setUploading(false)
@@ -2084,36 +2086,32 @@ function DailyVideosForm() {
   }
 
   const handleSubmit = async () => {
-    if (!form.videoUrl) {
-      Alert.alert('שגיאה', 'אנא העלה סרטון לפני השמירה')
+    if (!form.title || !form.videoUrl) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.dailyVideosForm.errorFillTitleAndVideo'))
       return
     }
 
     try {
       setLoading(true)
+      
       await createDailyVideo({
-        title: form.title,
-        description: form.description,
-        videoUrl: form.videoUrl,
-        thumbnailUrl: form.thumbnailUrl,
+        ...form,
+        createdAt: new Date(),
       })
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.dailyVideosForm.videoAdded'))
       
-      Alert.alert('הצלחה! 🎬', 'סרטון יומי נוסף בהצלחה! הסרטון יופיע במסך זריקת אמונה וימחק אוטומטית אחרי 24 שעות.')
-      
-      // Reset form
       setForm({
-        title: 'זריקת אמונה יומית',
+        title: t('admin.dailyVideosForm.videoTitlePlaceholder'),
         description: '',
         videoUri: null,
         videoUrl: null,
         thumbnailUri: null,
         thumbnailUrl: null,
       })
-      
       await loadVideos()
     } catch (error) {
-      console.error('Error creating video:', error)
-      Alert.alert('שגיאה', 'לא ניתן לשמור את הסרטון')
+      console.error('Error saving video:', error)
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.dailyVideosForm.errorSavingVideo'))
     } finally {
       setLoading(false)
     }
@@ -2121,22 +2119,22 @@ function DailyVideosForm() {
 
   const handleDelete = (video) => {
     Alert.alert(
-      'מחיקת סרטון',
-      `האם אתה בטוח שברצונך למחוק את הסרטון "${video.title}"?`,
+      t('admin.dailyVideosForm.deleteVideoTitle'),
+      t('admin.dailyVideosForm.deleteVideoMessage', { title: video.title }),
       [
-        { text: 'ביטול', style: 'cancel' },
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
         {
-          text: 'מחק',
+          text: t('admin.lessonsForm.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true)
               await deleteDailyVideo(video.id)
-              Alert.alert('הצלחה!', 'הסרטון נמחק')
+              Alert.alert(t('admin.lessonsForm.success'), t('admin.dailyVideosForm.videoDeleted'))
               await loadVideos()
             } catch (error) {
               console.error('Error deleting video:', error)
-              Alert.alert('שגיאה', 'לא ניתן למחוק את הסרטון')
+              Alert.alert(t('admin.lessonsForm.error'), t('admin.dailyVideosForm.errorDeletingVideo'))
             } finally {
               setLoading(false)
             }
@@ -2148,45 +2146,39 @@ function DailyVideosForm() {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>🎬 ניהול סרטונים יומיים</Text>
+      <Text style={styles.formTitle}>{t('admin.dailyVideosForm.title')}</Text>
       <Text style={styles.formDesc}>
-        העלה סרטונים קצרים (עד 60 שניות) שיופיעו במסך זריקת אמונה. הסרטונים נמחקים אוטומטית אחרי 24 שעות.
+        {t('admin.dailyVideosForm.description')}
       </Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>כותרת הסרטון</Text>
+        <Text style={styles.label}>{t('admin.dailyVideosForm.videoTitle')}</Text>
         <TextInput
           style={styles.input}
           value={form.title}
           onChangeText={text => setForm({...form, title: text})}
-          placeholder="זריקת אמונה יומית"
+          placeholder={t('admin.dailyVideosForm.videoTitlePlaceholder')}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תיאור (אופציונלי)</Text>
+        <Text style={styles.label}>{t('admin.dailyVideosForm.descriptionOptional')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={form.description}
           onChangeText={text => setForm({...form, description: text})}
-          placeholder="תיאור קצר של הסרטון..."
+          placeholder={t('admin.dailyVideosForm.descriptionPlaceholder')}
           multiline
-          numberOfLines={2}
+          numberOfLines={3}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>סרטון (עד 60 שניות)</Text>
-        {form.videoUri && (
-          <View style={styles.videoPreview}>
-            <Ionicons name="videocam" size={32} color={PRIMARY_RED} />
-            <Text style={styles.previewText}>סרטון נבחר</Text>
-            {form.videoUrl && (
-              <View style={styles.uploadedBadge}>
-                <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-                <Text style={styles.uploadedText}>הועלה</Text>
-              </View>
-            )}
+        <Text style={styles.label}>{t('admin.dailyVideosForm.videoFile')}</Text>
+        {form.videoUrl && (
+          <View style={styles.uploadedBadge}>
+            <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+            <Text style={styles.uploadedText}>{t('admin.dailyVideosForm.videoFileUploaded')}</Text>
           </View>
         )}
         <View style={styles.uploadSection}>
@@ -2197,7 +2189,7 @@ function DailyVideosForm() {
           >
             <Ionicons name="videocam-outline" size={24} color={PRIMARY_RED} />
             <Text style={styles.uploadButtonText}>
-              {form.videoUri ? 'בחר סרטון אחר' : 'בחר סרטון'}
+              {form.videoUri ? t('admin.podcastsForm.selectAnotherFile') : t('admin.dailyVideosForm.selectVideoFile')}
             </Text>
           </Pressable>
           {form.videoUri && !form.videoUrl && (
@@ -2207,32 +2199,27 @@ function DailyVideosForm() {
               disabled={uploading}
             >
               {uploading ? (
-                <>
-                  <ActivityIndicator color={PRIMARY_RED} />
-                  <Text style={styles.uploadButtonText}>
-                    מעלה... {Math.round(uploadProgress)}%
-                  </Text>
-                </>
+                <ActivityIndicator color={PRIMARY_RED} />
               ) : (
-                <>
-                  <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
-                  <Text style={styles.uploadButtonText}>העלה סרטון</Text>
-                </>
+                <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
               )}
+              <Text style={styles.uploadButtonText}>
+                {uploading ? `${t('admin.cardsForm.uploading')} ${uploadProgress.toFixed(0)}%` : t('admin.dailyVideosForm.uploadVideo')}
+              </Text>
             </Pressable>
           )}
         </View>
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תמונת תצוגה מקדימה (אופציונלי)</Text>
+        <Text style={styles.label}>{t('admin.dailyVideosForm.thumbnailOptional')}</Text>
         {form.thumbnailUri && (
           <View style={styles.imagePreview}>
             <Image source={{ uri: form.thumbnailUri }} style={styles.previewImage} />
             {form.thumbnailUrl && (
               <View style={styles.uploadedBadge}>
                 <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-                <Text style={styles.uploadedText}>הועלה</Text>
+                <Text style={styles.uploadedText}>{t('admin.cardsForm.uploaded')}</Text>
               </View>
             )}
           </View>
@@ -2245,7 +2232,7 @@ function DailyVideosForm() {
           >
             <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
             <Text style={styles.uploadButtonText}>
-              {form.thumbnailUri ? 'בחר תמונה אחרת' : 'בחר תמונת תצוגה'}
+              {form.thumbnailUri ? t('admin.cardsForm.selectAnotherImage') : t('admin.dailyVideosForm.selectThumbnail')}
             </Text>
           </Pressable>
           {form.thumbnailUri && !form.thumbnailUrl && (
@@ -2260,7 +2247,7 @@ function DailyVideosForm() {
                 <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
               )}
               <Text style={styles.uploadButtonText}>
-                {uploading ? 'מעלה...' : 'העלה תמונה'}
+                {uploading ? t('admin.cardsForm.uploading') : t('admin.dailyVideosForm.uploadImage')}
               </Text>
             </Pressable>
           )}
@@ -2268,52 +2255,49 @@ function DailyVideosForm() {
       </View>
 
       <Pressable 
-        style={[styles.submitButton, (loading || !form.videoUrl) && styles.submitButtonDisabled]} 
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
         onPress={handleSubmit}
-        disabled={loading || !form.videoUrl}
+        disabled={loading}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <>
-            <LinearGradient colors={[PRIMARY_RED, PRIMARY_GOLD]} style={StyleSheet.absoluteFill} />
-            <Ionicons name="add-circle-outline" size={22} color="#fff" />
-            <Text style={styles.submitButtonText}>הוסף סרטון יומי</Text>
-          </>
+          <Ionicons name="add-circle-outline" size={22} color="#fff" />
         )}
+        <Text style={styles.submitButtonText}>
+          {t('admin.dailyVideosForm.addVideo')}
+        </Text>
       </Pressable>
 
       {/* Existing Videos List */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>סרטונים פעילים ({videos.length})</Text>
+        <Text style={styles.label}>{t('admin.dailyVideosForm.existingVideos', { count: videos.length })}</Text>
         {loading && videos.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={PRIMARY_RED} size="large" />
-            <Text style={styles.loadingText}>טוען סרטונים...</Text>
+            <Text style={styles.loadingText}>{t('admin.dailyVideosForm.loadingVideos')}</Text>
           </View>
         ) : videos.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="videocam-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>אין סרטונים פעילים</Text>
+            <Text style={styles.emptyText}>{t('admin.dailyVideosForm.noVideos')}</Text>
           </View>
         ) : (
           <ScrollView style={styles.lessonsList}>
             {videos.map((video) => {
-              const createdAt = video.createdAt?.toDate ? video.createdAt.toDate() : new Date(video.createdAt)
-              const hoursLeft = Math.round((24 * 60 * 60 * 1000 - (Date.now() - createdAt.getTime())) / (1000 * 60 * 60))
+              const createdAt = video.createdAt ? video.createdAt.toDate() : new Date()
+              const expiresAt = new Date(createdAt.getTime() + 24 * 60 * 60 * 1000)
+              const hoursLeft = Math.round((expiresAt - new Date()) / (1000 * 60 * 60))
               
               return (
                 <View key={video.id} style={styles.lessonItem}>
                   <View style={styles.lessonItemContent}>
                     <Text style={styles.lessonItemTitle}>{video.title}</Text>
-                    {video.description && (
-                      <Text style={styles.lessonItemCategory} numberOfLines={2}>
-                        {video.description}
+                    {hoursLeft > 0 && (
+                      <Text style={styles.alertItemExpiry}>
+                        {t('admin.dailyVideosForm.expiresIn', { hoursLeft })}
                       </Text>
                     )}
-                    <Text style={styles.lessonItemDate}>
-                      {hoursLeft > 0 ? `יימחק בעוד ${hoursLeft} שעות` : 'פג תוקף'}
-                    </Text>
                   </View>
                   <Pressable
                     style={styles.deleteButton}
@@ -2327,141 +2311,275 @@ function DailyVideosForm() {
           </ScrollView>
         )}
       </View>
-
-      <Text style={styles.note}>
-        💡 סרטונים נשמרים ב-Firestore, מועלים ל-Firebase Storage, ומופיעים במסך זריקת אמונה. סרטונים נמחקים אוטומטית אחרי 24 שעות.
-      </Text>
     </View>
   )
 }
 
-// ========== INSTITUTIONS FORM ==========
+// ========== INSTITUTIONS FORM ========== 
 function InstitutionsForm() {
-  const [selectedActivity, setSelectedActivity] = useState('kindergarten')
+  const { t } = useTranslation();
   const [form, setForm] = useState({
-    title: '',
-    content: '',
-  })
-  const [loading, setLoading] = useState(false)
-
-  const ACTIVITIES = [
-    { value: 'kindergarten', label: 'גני ילדים' },
-    { value: 'talmud-torah', label: 'תלמוד תורה' },
-    { value: 'girls-school', label: 'בית ספר לבנות' },
-    { value: 'small-yeshiva', label: "ישיבה קטנה 'אמרי שפר'" },
-    { value: 'large-yeshiva', label: 'ישיבה גדולה' },
-    { value: 'kollel', label: 'כולל אברכים' },
-    { value: 'women-lessons', label: 'שיעורים לנשים' },
-    { value: 'community', label: 'פעילות קהילתית' },
-    { value: 'youth-club', label: 'מועדונית לנוער' },
-  ]
+    kindergarten: {
+      title: t('admin.institutionsForm.kindergartenTitle'),
+      description: t('admin.institutionsForm.kindergartenDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+    talmudTorah: {
+      title: t('admin.institutionsForm.talmudTorahTitle'),
+      description: t('admin.institutionsForm.talmudTorahDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+    girlsSchool: {
+      title: t('admin.institutionsForm.girlsSchoolTitle'),
+      description: t('admin.institutionsForm.girlsSchoolDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+    smallYeshiva: {
+      title: t('admin.institutionsForm.smallYeshivaTitle'),
+      description: t('admin.institutionsForm.smallYeshivaDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+    largeYeshiva: {
+      title: t('admin.institutionsForm.largeYeshivaTitle'),
+      description: t('admin.institutionsForm.largeYeshivaDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+    kollel: {
+      title: t('admin.institutionsForm.kollelTitle'),
+      description: t('admin.institutionsForm.kollelDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+    womenLessons: {
+      title: t('admin.institutionsForm.womenLessonsTitle'),
+      description: t('admin.institutionsForm.womenLessonsDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+    communityActivities: {
+      title: t('admin.institutionsForm.communityActivitiesTitle'),
+      description: t('admin.institutionsForm.communityActivitiesDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+    youthClub: {
+      title: t('admin.institutionsForm.youthClubTitle'),
+      description: t('admin.institutionsForm.youthClubDescription'),
+      imageUrl: null,
+      imageUri: null,
+    },
+  });
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [activeInstitution, setActiveInstitution] = useState('kindergarten');
 
   useEffect(() => {
-    loadContent()
-  }, [selectedActivity])
+    loadInstitutionContent();
+  }, [activeInstitution]);
 
-  const loadContent = async () => {
+  const loadInstitutionContent = async () => {
     try {
-      setLoading(true)
-      const content = await getInstitutionContent(selectedActivity)
+      setLoading(true);
+      const content = await getInstitutionContent(activeInstitution);
       if (content) {
-        setForm({
-          title: content.title || '',
-          content: content.content || '',
-        })
-      } else {
-        setForm({
-          title: '',
-          content: '',
-        })
+        setForm(prev => ({
+          ...prev,
+          [activeInstitution]: {
+            ...prev[activeInstitution],
+            title: content.title || prev[activeInstitution].title,
+            description: content.description || prev[activeInstitution].description,
+            imageUrl: content.imageUrl || null,
+          }
+        }));
       }
     } catch (error) {
-      console.error('Error loading content:', error)
-      setForm({
-        title: '',
-        content: '',
-      })
+      console.error('Error loading institution content:', error);
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.institutionsForm.errorLoadingContent'));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const handlePickImage = async () => {
+    const image = await pickImage({ aspect: [16, 9] });
+    if (image) {
+      setForm(prev => ({
+        ...prev,
+        [activeInstitution]: {
+          ...prev[activeInstitution],
+          imageUri: image.uri,
+        }
+      }));
+    }
+  };
+
+  const handleUploadImage = async () => {
+    const currentInstitution = form[activeInstitution];
+    if (!currentInstitution.imageUri) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'));
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const path = generateStoragePath(`institutions/${activeInstitution}/image.jpg`);
+      const url = await uploadImageToStorage(currentInstitution.imageUri, path, (progress) => {
+        console.log(`Upload progress: ${progress}%`);
+      });
+      setForm(prev => ({
+        ...prev,
+        [activeInstitution]: {
+          ...prev[activeInstitution],
+          imageUrl: url,
+        }
+      }));
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'));
+    } catch (error) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'));
+      console.error(error);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!form.title || !form.content) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות הנדרשים')
-      return
+    const currentInstitution = form[activeInstitution];
+    if (!currentInstitution.title || !currentInstitution.description) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.alertsForm.errorFillAllFields'));
+      return;
+    }
+    if (currentInstitution.imageUri && !currentInstitution.imageUrl) {
+      Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'));
+      return;
     }
 
     try {
-      setLoading(true)
-      await saveInstitutionContent(selectedActivity, {
-        title: form.title,
-        content: form.content,
-      })
-      Alert.alert(
-        'הצלחה! 🏛️',
-        `תוכן "${ACTIVITIES.find(a => a.value === selectedActivity)?.label}" נשמר בהצלחה ב-Firestore!`
-      )
+      setLoading(true);
+      await saveInstitutionContent(activeInstitution, {
+        title: currentInstitution.title,
+        description: currentInstitution.description,
+        imageUrl: currentInstitution.imageUrl,
+      });
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.institutionsForm.contentUpdated'));
     } catch (error) {
-      console.error('Error saving content:', error)
-      Alert.alert('שגיאה', 'לא ניתן לשמור את התוכן')
+      console.error('Error saving institution content:', error);
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.institutionsForm.errorSavingContent'));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const institutionOptions = [
+    { id: 'kindergarten', label: t('admin.institutionsForm.kindergarten') },
+    { id: 'talmudTorah', label: t('admin.institutionsForm.talmudTorah') },
+    { id: 'girlsSchool', label: t('admin.institutionsForm.girlsSchool') },
+    { id: 'smallYeshiva', label: t('admin.institutionsForm.smallYeshiva') },
+    { id: 'largeYeshiva', label: t('admin.institutionsForm.largeYeshiva') },
+    { id: 'kollel', label: t('admin.institutionsForm.kollel') },
+    { id: 'womenLessons', label: t('admin.institutionsForm.womenLessons') },
+    { id: 'communityActivities', label: t('admin.institutionsForm.communityActivities') },
+    { id: 'youthClub', label: t('admin.institutionsForm.youthClub') },
+  ];
+
+  const currentInstitution = form[activeInstitution];
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>🏛️ עריכת תוכן המוסדות</Text>
-      <Text style={styles.note}>
-        💡 כאן תוכל לערוך את התוכן של כל מסכי הפעילויות. התוכן יישמר ב-Firestore ויוצג במסכים.
-      </Text>
+      <Text style={styles.formTitle}>{t('admin.institutionsForm.title')}</Text>
+      <Text style={styles.formDesc}>{t('admin.institutionsForm.description')}</Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>בחר פעילות לעריכה</Text>
-        <View style={styles.radioGroup}>
-          {ACTIVITIES.map(activity => (
+        <Text style={styles.label}>{t('admin.institutionsForm.selectInstitution')}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
+          {institutionOptions.map(option => (
             <Pressable
-              key={activity.value}
-              style={[styles.radioButton, selectedActivity === activity.value && styles.radioButtonActive]}
-              onPress={() => setSelectedActivity(activity.value)}
+              key={option.id}
+              style={[styles.categoryPill, activeInstitution === option.id && styles.categoryPillActive]}
+              onPress={() => setActiveInstitution(option.id)}
             >
-              <Text style={[styles.radioText, selectedActivity === activity.value && styles.radioTextActive]}>
-                {activity.label}
+              <Text style={[styles.categoryPillText, activeInstitution === option.id && styles.categoryPillTextActive]}>
+                {option.label}
               </Text>
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>כותרת</Text>
+        <Text style={styles.label}>{t('admin.institutionsForm.institutionTitle')}</Text>
         <TextInput
           style={styles.input}
-          value={form.title}
-          onChangeText={text => setForm({...form, title: text})}
-          placeholder="כותרת המסך"
+          value={currentInstitution.title}
+          onChangeText={text => setForm(prev => ({
+            ...prev,
+            [activeInstitution]: { ...prev[activeInstitution], title: text }
+          }))}
+          placeholder={t('admin.institutionsForm.institutionTitlePlaceholder')}
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>תוכן (HTML או טקסט רגיל)</Text>
+        <Text style={styles.label}>{t('admin.institutionsForm.institutionDescription')}</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          value={form.content}
-          onChangeText={text => setForm({...form, content: text})}
-          placeholder="הכנס את התוכן כאן..."
+          value={currentInstitution.description}
+          onChangeText={text => setForm(prev => ({
+            ...prev,
+            [activeInstitution]: { ...prev[activeInstitution], description: text }
+          }))}
+          placeholder={t('admin.institutionsForm.institutionDescriptionPlaceholder')}
           multiline
-          numberOfLines={12}
+          numberOfLines={4}
         />
       </View>
 
-      {loading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={PRIMARY_RED} size="large" />
-          <Text style={styles.loadingText}>טוען תוכן...</Text>
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.institutionsForm.institutionImage')}</Text>
+        {currentInstitution.imageUri && (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: currentInstitution.imageUri }} style={styles.previewImage} />
+            {currentInstitution.imageUrl && (
+              <View style={styles.uploadedBadge}>
+                <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+                <Text style={styles.uploadedText}>{t('admin.cardsForm.uploaded')}</Text>
+              </View>
+            )}
+          </View>
+        )}
+        <View style={styles.uploadSection}>
+          <Pressable
+            style={styles.uploadButton}
+            onPress={handlePickImage}
+            disabled={uploading}
+          >
+            <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
+            <Text style={styles.uploadButtonText}>
+              {currentInstitution.imageUri ? t('admin.cardsForm.selectAnotherImage') : t('admin.institutionsForm.selectImage')}
+            </Text>
+          </Pressable>
+          {currentInstitution.imageUri && !currentInstitution.imageUrl && (
+            <Pressable
+              style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+              onPress={handleUploadImage}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color={PRIMARY_RED} />
+              ) : (
+                <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
+              )}
+              <Text style={styles.uploadButtonText}>
+                {uploading ? t('admin.cardsForm.uploading') : t('admin.cardsForm.uploadImage')}
+              </Text>
+            </Pressable>
+          )}
         </View>
-      )}
+      </View>
 
       <Pressable 
         style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
@@ -2474,16 +2592,85 @@ function InstitutionsForm() {
           <>
             <LinearGradient colors={[PRIMARY_RED, PRIMARY_GOLD]} style={StyleSheet.absoluteFill} />
             <Ionicons name="save" size={20} color="#fff" />
-            <Text style={styles.submitButtonText}>שמור תוכן</Text>
+            <Text style={styles.submitButtonText}>{t('admin.cardsForm.saveChanges')}</Text>
           </>
         )}
       </Pressable>
 
       <Text style={styles.note}>
-        💡 התוכן נשמר ב-Firestore תחת collection: institutionsContent/{selectedActivity} ומופיע במסכים מיידית.
+        {t('admin.institutionsForm.note')}
       </Text>
     </View>
-  )
+  );
+}
+
+// ========== DEBUG FORM ========== 
+function DebugForm({ navigation }) {
+  const { t } = useTranslation();
+  const [showClearDataOptions, setShowClearDataOptions] = useState(false);
+
+  const handleClearConsent = async () => {
+    Alert.alert(
+      t('admin.debugForm.clearConsentTitle'),
+      t('admin.debugForm.clearConsentMessage'),
+      [
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
+        {
+          text: t('admin.debugForm.clear'),
+          style: 'destructive',
+          onPress: async () => {
+            await clearConsent();
+            Alert.alert(t('admin.lessonsForm.success'), t('admin.debugForm.consentCleared'));
+            navigation.navigate('TermsAndConsent');
+          }
+        }
+      ]
+    );
+  };
+
+  const handleClearAllData = async () => {
+    Alert.alert(
+      t('admin.debugForm.clearAllDataTitle'),
+      t('admin.debugForm.clearAllDataMessage'),
+      [
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
+        {
+          text: t('admin.debugForm.clear'),
+          style: 'destructive',
+          onPress: async () => {
+            await clearAllAppData();
+            Alert.alert(t('admin.lessonsForm.success'), t('admin.debugForm.allDataCleared'));
+            navigation.navigate('TermsAndConsent');
+          }
+        }
+      ]
+    );
+  };
+
+  return (
+    <View style={styles.formContainer}>
+      <Text style={styles.formTitle}>{t('admin.debugForm.title')}</Text>
+      <Text style={styles.formDesc}>{t('admin.debugForm.description')}</Text>
+
+      <Pressable style={styles.debugButton} onPress={() => setShowClearDataOptions(prev => !prev)}>
+        <Ionicons name="trash-outline" size={20} color={PRIMARY_RED} />
+        <Text style={styles.debugButtonText}>{t('admin.debugForm.clearAppData')}</Text>
+      </Pressable>
+
+      {showClearDataOptions && (
+        <View style={styles.clearDataOptions}>
+          <Pressable style={styles.clearDataButton} onPress={handleClearConsent}>
+            <Text style={styles.clearDataButtonText}>{t('admin.debugForm.clearConsent')}</Text>
+          </Pressable>
+          <Pressable style={styles.clearDataButton} onPress={handleClearAllData}>
+            <Text style={styles.clearDataButtonText}>{t('admin.debugForm.clearAll')}</Text>
+          </Pressable>
+        </View>
+      )}
+
+      <Text style={styles.note}>{t('admin.debugForm.note')}</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -2496,8 +2683,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.select({ ios: 12, android: 12, default: 12 }),
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 6,
   },
   backBtn: {
     width: 36,
@@ -2505,109 +2692,249 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(212,175,55,0.12)',
+    backgroundColor: 'rgba(220,38,38,0.12)',
   },
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Poppins_600SemiBold',
-    color: DEEP_BLUE,
+    color: PRIMARY_RED,
   },
   tabsContainer: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(11,27,58,0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    marginBottom: 10,
   },
   tabs: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
+    paddingHorizontal: 10,
+    paddingBottom: 5,
   },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(11,27,58,0.04)',
-    marginRight: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    marginHorizontal: 5,
+    backgroundColor: '#f3f4f6',
   },
   tabActive: {
-    backgroundColor: 'rgba(212,175,55,0.15)',
+    backgroundColor: PRIMARY_RED,
   },
   tabText: {
+    marginLeft: 5,
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: '#6b7280',
   },
   tabTextActive: {
-    color: PRIMARY_RED,
+    color: '#fff',
   },
   content: {
     flex: 1,
+    paddingHorizontal: 16,
   },
   formContainer: {
-    padding: 16,
-    gap: 20,
+    backgroundColor: BG,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   formTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: 'Poppins_700Bold',
     color: DEEP_BLUE,
+    marginBottom: 10,
     textAlign: 'right',
-    marginBottom: 8,
+  },
+  formDesc: {
+    fontSize: 13,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    marginBottom: 15,
+    textAlign: 'right',
   },
   formGroup: {
-    gap: 8,
-  },
-  formRow: {
-    flexDirection: 'row',
-    gap: 12,
+    marginBottom: 15,
   },
   label: {
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: DEEP_BLUE,
+    marginBottom: 5,
     textAlign: 'right',
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: DEEP_BLUE,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(11,27,58,0.1)',
     textAlign: 'right',
   },
   textArea: {
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  charCount: {
+  categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
+  },
+  categoryPillActive: {
+    backgroundColor: PRIMARY_RED,
+  },
+  categoryPillText: {
+    marginLeft: 5,
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
+  },
+  categoryPillTextActive: {
+    color: '#fff',
+  },
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: PRIMARY_RED,
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: 10,
+    overflow: 'hidden',
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
+    marginLeft: 10,
+  },
+  cancelButton: {
+    marginTop: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: PRIMARY_RED,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    backgroundColor: '#f9fafb',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  emptyText: {
+    marginTop: 10,
+    fontSize: 15,
+    fontFamily: 'Poppins_500Medium',
+    color: '#9ca3af',
+  },
+  lessonsList: {
+    maxHeight: 300,
+  },
+  lessonItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  lessonItemContent: {
+    flex: 1,
+  },
+  lessonItemTitle: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+    textAlign: 'right',
+  },
+  lessonItemCategory: {
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    textAlign: 'right',
+  },
+  lessonItemDate: {
+    fontSize: 11,
+    fontFamily: 'Poppins_400Regular',
     color: '#9ca3af',
-    textAlign: 'left',
+    textAlign: 'right',
+  },
+  lessonItemActions: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  editButton: {
+    padding: 5,
+  },
+  deleteButton: {
+    padding: 5,
+  },
+  viewLibraryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    borderRadius: 10,
+  },
+  viewLibraryText: {
+    color: PRIMARY_RED,
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    marginLeft: 8,
   },
   radioGroup: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
+    marginTop: 5,
+    justifyContent: 'flex-end',
   },
   radioButton: {
-    flex: 1,
-    minWidth: 100,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: 'rgba(11,27,58,0.04)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'transparent',
-    alignItems: 'center',
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
   },
   radioButtonActive: {
-    backgroundColor: 'rgba(212,175,55,0.15)',
+    backgroundColor: PRIMARY_RED,
     borderColor: PRIMARY_RED,
   },
   radioText: {
@@ -2616,24 +2943,26 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   radioTextActive: {
-    color: PRIMARY_RED,
+    color: '#fff',
   },
   checkboxGroup: {
-    gap: 12,
+    marginTop: 5,
+    alignItems: 'flex-end',
   },
   checkbox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 8,
   },
   checkboxBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 4,
     borderWidth: 2,
     borderColor: '#d1d5db',
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 10,
   },
   checkboxBoxChecked: {
     backgroundColor: PRIMARY_RED,
@@ -2644,442 +2973,45 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: DEEP_BLUE,
   },
-  uploadSection: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  uploadButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: PRIMARY_RED,
-    borderStyle: 'dashed',
-    backgroundColor: 'rgba(212,175,55,0.05)',
-  },
-  uploadButtonText: {
-    fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
-    color: PRIMARY_RED,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: 8,
-    backgroundColor: PRIMARY_RED,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#fff',
-  },
-  note: {
+  charCount: {
     fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6b7280',
-    textAlign: 'right',
-    lineHeight: 18,
-    backgroundColor: 'rgba(212,175,55,0.08)',
-    padding: 12,
-    borderRadius: 10,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(11,27,58,0.12)',
-    marginVertical: 8,
-  },
-  sectionSubtitle: {
-    fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
-    color: DEEP_BLUE,
-    textAlign: 'right',
-    marginBottom: 4,
-  },
-  imagePreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(212,175,55,0.2)',
-    position: 'relative',
-  },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  uploadedBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  uploadedText: {
-    fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#16a34a',
-  },
-  uploadButtonDisabled: {
-    opacity: 0.5,
-  },
-  // Lessons Form Styles
-  formDesc: {
-    fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6b7280',
-    textAlign: 'right',
-    lineHeight: 20,
-    marginTop: -10,
-  },
-  categoryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(220,38,38,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.2)',
-    marginRight: 8,
-  },
-  categoryPillActive: {
-    backgroundColor: PRIMARY_RED,
-    borderColor: PRIMARY_RED,
-  },
-  categoryPillText: {
-    fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
-    color: PRIMARY_RED,
-  },
-  categoryPillTextActive: {
-    color: '#fff',
-  },
-  successBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: 'rgba(22,163,74,0.1)',
-    borderRadius: 8,
-  },
-  successText: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    color: '#16a34a',
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    padding: 14,
-    backgroundColor: 'rgba(212,175,55,0.1)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,55,0.3)',
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6b7280',
-    textAlign: 'right',
-    lineHeight: 19,
-  },
-  infoBold: {
-    fontFamily: 'Poppins_600SemiBold',
-    color: DEEP_BLUE,
-  },
-  viewLibraryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    backgroundColor: 'rgba(220,38,38,0.08)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.2)',
-  },
-  viewLibraryText: {
-    fontSize: 15,
-    fontFamily: 'Poppins_600SemiBold',
-    color: PRIMARY_RED,
-  },
-  // New styles for lessons list
-  filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(11,27,58,0.08)',
-    borderWidth: 1,
-    borderColor: 'transparent',
-    marginRight: 8,
-  },
-  filterPillActive: {
-    backgroundColor: PRIMARY_RED,
-    borderColor: PRIMARY_RED,
-  },
-  filterPillText: {
-    fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#6b7280',
-  },
-  filterPillTextActive: {
-    color: '#fff',
-  },
-  lessonsList: {
-    maxHeight: 400,
-    marginTop: 8,
-  },
-  lessonItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(11,27,58,0.1)',
-  },
-  lessonItemContent: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  lessonItemTitle: {
-    fontSize: 15,
-    fontFamily: 'Poppins_600SemiBold',
-    color: DEEP_BLUE,
-    marginBottom: 4,
-  },
-  lessonItemCategory: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    color: PRIMARY_RED,
-    marginBottom: 2,
-  },
-  lessonItemDate: {
-    fontSize: 11,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6b7280',
-  },
-  lessonItemActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginLeft: 12,
-  },
-  editButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(220,38,38,0.1)',
-  },
-  deleteButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(220,38,38,0.1)',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontFamily: 'Poppins_500Medium',
-    color: '#6b7280',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  emptyText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontFamily: 'Poppins_500Medium',
     color: '#9ca3af',
-  },
-  cancelButton: {
-    marginTop: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: 'rgba(11,27,58,0.08)',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: DEEP_BLUE,
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  // Podcasts form styles
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  dateInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dateInput: {
-    flex: 1,
-  },
-  todayButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(220,38,38,0.08)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.2)',
-  },
-  todayButtonText: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: PRIMARY_RED,
-  },
-  helperText: {
-    fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-    color: '#9ca3af',
-    marginTop: 4,
-    textAlign: 'right',
-  },
-  uploadSection: {
-    gap: 12,
-    marginTop: 8,
-  },
-  uploadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(220,38,38,0.08)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(220,38,38,0.2)',
-  },
-  uploadButtonDisabled: {
-    opacity: 0.6,
-  },
-  uploadButtonText: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: PRIMARY_RED,
-  },
-  uploadedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: 'rgba(22,163,74,0.1)',
-    borderRadius: 8,
-  },
-  uploadedText: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    color: '#16a34a',
-  },
-  imagePreview: {
-    marginTop: 8,
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  previewImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(11,27,58,0.1)',
-  },
-  checkbox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  checkboxBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: PRIMARY_RED,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxBoxChecked: {
-    backgroundColor: PRIMARY_RED,
-  },
-  checkboxLabel: {
-    fontSize: 14,
-    fontFamily: 'Poppins_500Medium',
-    color: DEEP_BLUE,
-  },
-  // Alerts Form Styles
-  alertsList: {
-    maxHeight: 400,
-    marginTop: 8,
+    textAlign: 'left',
+    marginTop: 5,
   },
   alertItem: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
+    alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 8,
+    padding: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(11,27,58,0.1)',
+    borderColor: '#e5e7eb',
   },
   alertItemContent: {
     flex: 1,
-    alignItems: 'flex-end',
   },
   alertItemTitle: {
     fontSize: 15,
     fontFamily: 'Poppins_600SemiBold',
     color: DEEP_BLUE,
-    marginBottom: 4,
+    textAlign: 'right',
   },
   alertItemMessage: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Poppins_400Regular',
     color: '#6b7280',
-    marginBottom: 6,
     textAlign: 'right',
+    marginTop: 2,
   },
   alertItemMeta: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    gap: 12,
+    marginTop: 5,
+    gap: 10,
   },
   alertItemType: {
     fontSize: 11,
@@ -3091,24 +3023,157 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: '#9ca3af',
   },
-  // Daily Videos Form Styles
-  videoPreview: {
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-    backgroundColor: 'rgba(220,38,38,0.08)',
-    borderWidth: 2,
-    borderColor: 'rgba(220,38,38,0.2)',
-    borderStyle: 'dashed',
+  note: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    marginTop: 10,
+    textAlign: 'right',
+    lineHeight: 18,
+  },
+  uploadSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 10,
+    justifyContent: 'flex-end',
+  },
+  uploadButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  uploadButtonDisabled: {
+    opacity: 0.6,
+  },
+  uploadButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: DEEP_BLUE,
+  },
+  imagePreview: {
+    marginTop: 10,
+    alignItems: 'flex-end',
     position: 'relative',
   },
-  previewText: {
+  previewImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  uploadedBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(22,163,74,0.9)',
+    borderRadius: 15,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  uploadedText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+    marginLeft: 5,
+  },
+  successBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(22,163,74,0.1)',
+    borderRadius: 8,
+  },
+  successText: {
+    color: '#16a34a',
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    marginLeft: 5,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 20,
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+    marginBottom: 10,
+    textAlign: 'right',
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  dateInput: {
+    flex: 1,
+  },
+  todayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  todayButtonText: {
+    marginLeft: 5,
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: PRIMARY_RED,
-    marginTop: 8,
   },
-})
+  helperText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'right',
+    marginTop: 5,
+  },
+  debugButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: 10,
+  },
+  debugButtonText: {
+    color: PRIMARY_RED,
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
+    marginLeft: 10,
+  },
+  clearDataOptions: {
+    marginTop: 10,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    backgroundColor: '#f9fafb',
+  },
+  clearDataButton: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  clearDataButtonText: {
+    color: DEEP_BLUE,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+  },
+});

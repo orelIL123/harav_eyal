@@ -44,7 +44,7 @@ export default function TermsOfServiceScreen({ navigation }) {
 
           <Text style={styles.sectionTitle}>3. תוכן</Text>
           <Text style={styles.text}>
-            כל התוכן באפליקציה, כולל טקסטים, תמונות, סרטונים וקבצי אודיו, הינם בבעלות מוסדות הרב אייל עמרמי או בעלי זכויות אחרים. כל הזכויות שמורות.
+            כל התוכן באפליקציה, כולל טקסטים, תמונות, סרטונים וקבצי אודיו, הינם בבעלות מוסדות כאייל תערוג או בעלי זכויות אחרים. כל הזכויות שמורות למוסדות כאייל תערוג.
           </Text>
 
           <Text style={styles.sectionTitle}>4. פרטיות</Text>

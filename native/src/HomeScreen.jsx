@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { Grayscale } from 'react-native-color-matrix-image-filters'
 import { useTranslation } from 'react-i18next'
+import i18n from './config/i18n'
 import { getAlerts, updateAlert } from './services/alertsService'
 
 const PRIMARY_RED = '#DC2626'
@@ -263,7 +264,7 @@ export default function HomeScreen({ navigation }) {
           )}
         </Pressable>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>{t('home.rabbiName')}</Text>
+          <Text style={[styles.title, i18n.language === 'en' && styles.titleEnglish]}>{t('home.rabbiName')}</Text>
           <Text style={styles.subtitle}>{t('home.tagline')}</Text>
         </View>
       </View>
@@ -592,11 +593,16 @@ const styles = StyleSheet.create({
     color: BLACK,
     fontSize: 28,
     fontWeight: '700',
+    maxWidth: '70%',
     fontFamily: 'CinzelDecorative_700Bold',
     letterSpacing: 3,
     textShadowColor: 'rgba(220,38,38,0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
+  },
+  titleEnglish: {
+    fontSize: 20,
+    letterSpacing: 1,
   },
   subtitle: {
     marginTop: 8,

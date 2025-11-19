@@ -5,10 +5,12 @@ import { View, ActivityIndicator, Image, Animated } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import * as Notifications from 'expo-notifications'
+import * as Updates from 'expo-updates'
 import HomeScreen from './src/HomeScreen'
 import DailyInsightScreen from './src/screens/DailyInsightScreen'
 import CoursesScreen from './src/screens/CoursesScreen'
 import NewsScreen from './src/screens/NewsScreen'
+import NewsDetailScreen from './src/screens/NewsDetailScreen'
 import ProfileScreen from './src/screens/ProfileScreen'
 import LiveAlertsScreen from './src/screens/LiveAlertsScreen'
 import AdminScreen from './src/screens/AdminScreen'
@@ -21,6 +23,7 @@ import SideMenuScreen from './src/screens/SideMenuScreen'
 import DonationScreen from './src/screens/DonationScreen'
 import FlyersScreen from './src/screens/FlyersScreen'
 import AboutScreen from './src/screens/AboutScreen'
+import LanguageScreen from './src/screens/LanguageScreen'
 import CommunityNewsScreen from './src/screens/CommunityNewsScreen'
 import FaithLearningScreen from './src/screens/FaithLearningScreen'
 import BooksScreen from './src/screens/BooksScreen'
@@ -71,6 +74,23 @@ export default function App() {
   })
 
   useEffect(() => {
+    // Check for updates
+    const checkForUpdates = async () => {
+      if (__DEV__) {
+        return // Skip updates in development
+      }
+      try {
+        const update = await Updates.checkForUpdateAsync()
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync()
+          await Updates.reloadAsync()
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error)
+      }
+    }
+    checkForUpdates()
+
     // Check if user has accepted consent
     const checkConsent = async () => {
       try {
@@ -133,6 +153,7 @@ export default function App() {
             <Stack.Screen name="DailyInsight" component={DailyInsightScreen} />
             <Stack.Screen name="Courses" component={CoursesScreen} />
             <Stack.Screen name="News" component={NewsScreen} />
+            <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="LiveAlerts" component={LiveAlertsScreen} />
             <Stack.Screen name="Admin" component={AdminScreen} />
@@ -145,6 +166,7 @@ export default function App() {
             <Stack.Screen name="Donation" component={DonationScreen} />
             <Stack.Screen name="Flyers" component={FlyersScreen} />
             <Stack.Screen name="About" component={AboutScreen} />
+            <Stack.Screen name="Language" component={LanguageScreen} />
             <Stack.Screen name="CommunityNews" component={CommunityNewsScreen} />
             <Stack.Screen name="FaithLearning" component={FaithLearningScreen} />
             <Stack.Screen name="Books" component={BooksScreen} />

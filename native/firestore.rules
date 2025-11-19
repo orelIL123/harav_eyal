@@ -103,6 +103,42 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ========== LESSONS COLLECTION ==========
+
+    match /lessons/{lessonId} {
+      // All signed-in users can read lessons
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== PODCASTS COLLECTION ==========
+
+    match /podcasts/{podcastId} {
+      // All signed-in users can read active podcasts
+      allow read: if isSignedIn() && (resource.data.isActive == true || isAdmin());
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== DAILY VIDEOS COLLECTION ==========
+
+    match /dailyVideos/{videoId} {
+      // All signed-in users can read videos
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== INSTITUTIONS COLLECTION ==========
+
+    match /institutions/{institutionId} {
+      // Public read for all
+      allow read: if true;
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
     // ========== LEADS COLLECTION ==========
 
     match /leads/{leadId} {

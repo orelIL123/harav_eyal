@@ -166,8 +166,7 @@ export default function NewsScreen({ navigation }) {
                 key={article.id}
                 style={[styles.articleCard, idx === 0 && styles.articleCardFirst]}
                 onPress={() => {
-                  // Navigate to news detail or show full content
-                  Alert.alert(article.title, article.content || articleSummary)
+                  navigation.navigate('NewsDetail', { article })
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={`כתבה ${article.title}`}

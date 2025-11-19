@@ -2,9 +2,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if user is admin
+    // ========== HELPER FUNCTIONS ==========
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
     function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+      return isSignedIn() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     // ========== USERS COLLECTION ==========
@@ -60,6 +66,72 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // ========== LESSONS COLLECTION ==========
+    match /lessons/{lessonId} {
+      // All signed-in users can read lessons
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== PODCASTS COLLECTION ==========
+    match /podcasts/{podcastId} {
+      // All signed-in users can read active podcasts
+      allow read: if isSignedIn() && (resource.data.isActive == true || isAdmin());
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== DAILY VIDEOS COLLECTION ==========
+    match /dailyVideos/{videoId} {
+      // All signed-in users can read videos
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== NEWS COLLECTION ==========
+    match /news/{newsId} {
+      // Only published news can be read by signed-in users
+      allow read: if isSignedIn() && resource.data.isPublished == true;
+      // Admins can read all (including drafts)
+      allow read: if isAdmin();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== ALERTS COLLECTION ==========
+    match /alerts/{alertId} {
+      // All signed-in users can read alerts
+      allow read: if isSignedIn();
+      // Only admins can create, update, delete
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== HOME CARDS COLLECTION ==========
+    match /homeCards/{cardId} {
+      // Public read for all
+      allow read: if true;
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== APP CONFIG COLLECTION ==========
+    match /appConfig/config {
+      // Public read
+      allow read: if true;
+      // Only admins can modify
+      allow write: if isAdmin();
+    }
+
+    // ========== INSTITUTIONS COLLECTION ==========
+    match /institutions/{institutionId} {
+      // Public read for all
+      allow read: if true;
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
     // ========== LEADS COLLECTION ==========
     match /leads/{leadId} {
       // Anyone can create a lead (for contact forms)

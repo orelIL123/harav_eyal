@@ -61,6 +61,13 @@ const MENU_ITEMS = [
     screen: 'About',
   },
   {
+    id: 'language',
+    title: 'sideMenu.language',
+    icon: 'language',
+    color: PRIMARY_RED,
+    screen: 'Language',
+  },
+  {
     id: 'community-news',
     title: 'sideMenu.communityNews',
     icon: 'newspaper',
@@ -70,7 +77,7 @@ const MENU_ITEMS = [
 ]
 
 export default function SideMenuScreen({ navigation }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const handleMenuItemPress = (item) => {
     if (item.url) {
@@ -84,9 +91,6 @@ export default function SideMenuScreen({ navigation }) {
     }
   }
 
-  const changeLanguage = (lng) => {
-    i18n.changeLanguage(lng);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -105,15 +109,6 @@ export default function SideMenuScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.languageSwitcher}>
-          <Pressable onPress={() => changeLanguage('en')} style={[styles.langButton, i18n.language === 'en' && styles.langButtonActive]}>
-            <Text style={[styles.langButtonText, i18n.language === 'en' && styles.langButtonTextActive]}>English</Text>
-          </Pressable>
-          <Pressable onPress={() => changeLanguage('fr')} style={[styles.langButton, i18n.language === 'fr' && styles.langButtonActive]}>
-            <Text style={[styles.langButtonText, i18n.language === 'fr' && styles.langButtonTextActive]}>Français</Text>
-          </Pressable>
-        </View>
-
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.faithSectionTitle}>{t('sideMenu.faithLearningTitle')}</Text>
           <Text style={styles.faithSectionSubtitle}>{t('sideMenu.faithLearningSubtitle')}</Text>
@@ -185,29 +180,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 32,
     gap: 16,
-  },
-  languageSwitcher: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  langButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: PRIMARY_RED,
-  },
-  langButtonActive: {
-    backgroundColor: PRIMARY_RED,
-  },
-  langButtonText: {
-    color: PRIMARY_RED,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  langButtonTextActive: {
-    color: '#FFFFFF',
   },
   sectionHeaderRow: {
     alignItems: 'flex-end',
