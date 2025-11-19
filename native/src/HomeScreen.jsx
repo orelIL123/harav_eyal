@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform, Dimens
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { Grayscale } from 'react-native-color-matrix-image-filters'
+import { useTranslation } from 'react-i18next'
+import { getAlerts, updateAlert } from './services/alertsService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -11,11 +13,11 @@ const DEEP_BLUE = '#0b1b3a'
 const BLACK = '#000000'
 
 const CARDS = [
-  { key: 'faith-daily', title: 'זריקת אמונה', desc: 'מערך יומי לאמונה וחיזוק', icon: 'sparkles-outline', image: require('../assets/photos/זריקת אמונה.png') },
-  { key: 'books', title: 'ספרים', desc: 'ספרי תורה וחידושים', icon: 'book-outline', image: require('../assets/photos/ספרים/hbooks183_06072020180826.jpg') },
-  { key: 'institutions', title: 'מוסדות הרב', desc: 'מידע על המוסדות, תמונות ועוד', icon: 'school-outline', image: require('../assets/icon.png') },
-  { key: 'lessons', title: 'ספריית שיעורים', desc: 'כל השיעורים במקום אחד', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
-  { key: 'faith-stories', title: 'סיפורי אמונה', desc: 'סרטונים קצרים על אמונה', icon: 'videocam-outline', image: require('../assets/photos/artworks-f5GgAyzhR486zQ8F-9vQqvw-t500x500.jpg') },
+  { key: 'faith-daily', title: 'home.faithBoost', desc: 'home.faithBoostDesc', icon: 'sparkles-outline', image: require('../assets/photos/זריקת אמונה.png') },
+  { key: 'books', title: 'home.books', desc: 'home.booksDesc', icon: 'book-outline', image: require('../assets/photos/ספרים/hbooks183_06072020180826.jpg') },
+  { key: 'institutions', title: 'home.rabbiInstitutions', desc: 'home.rabbiInstitutionsDesc', icon: 'school-outline', image: require('../assets/icon.png') },
+  { key: 'lessons', title: 'home.lessonsLibrary', desc: 'home.lessonsLibraryDesc', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
+  { key: 'faith-stories', title: 'home.faithStories', desc: 'home.faithStoriesDesc', icon: 'videocam-outline', image: require('../assets/photos/artworks-f5GgAyzhR486zQ8F-9vQqvw-t500x500.jpg') },
 ]
 
 // Carousel image order
@@ -36,6 +38,7 @@ function useFadeIn(delay = 0) {
 
 
 function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, onPress }) {
+  const { t } = useTranslation();
   const fade = useFadeIn(index * 80)
   const pressAnim = React.useRef(new Animated.Value(0)).current
 
@@ -62,22 +65,22 @@ function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, on
   return (
     <View style={[styles.cardItemContainer, { width: CARD_WIDTH, marginRight: -OVERLAP }]}>
       <View style={styles.cardLabelContainer}>
-        <Text style={[styles.cardLabelTitle, { textAlign: 'right' }]}>{item.title}</Text>
-        <Text style={[styles.cardLabelDesc, { textAlign: 'right' }]} numberOfLines={2}>{item.desc}</Text>
+        <Text style={[styles.cardLabelTitle, { textAlign: 'right' }]}>{t(item.title)}</Text>
+        <Text style={[styles.cardLabelDesc, { textAlign: 'right' }]} numberOfLines={2}>{t(item.desc)}</Text>
       </View>
       <Pressable
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onPress={() => {
           if (item.locked) {
-            Alert.alert('תוכן נעול', 'התוכן מיועד למשתמשים רשומים בלבד')
+            Alert.alert(t('home.lockedContent'), t('home.lockedContentMessage'))
             return
           }
           onPress?.(item)
         }}
         style={styles.cardPressable}
         accessibilityRole="button"
-        accessibilityLabel={`${item.title} - ${item.desc}`}
+        accessibilityLabel={`${t(item.title)} - ${t(item.desc)}`}
       >
         <Animated.View style={[styles.card, animatedStyle]}>
           <ImageBackground
@@ -107,6 +110,7 @@ function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, on
 }
 
 export default function HomeScreen({ navigation }) {
+  const { t } = useTranslation();
   const { width } = Dimensions.get('window')
   const SPACING = 12
   const CARD_WIDTH = Math.min(width * 0.76, 360)
@@ -136,12 +140,68 @@ export default function HomeScreen({ navigation }) {
       { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 2.0] }) },
     ],
   }
-  const quote = 'ציטוט יומי'
-  const quoteText = 'אין בריאה בעולם שיכולה להיטיב לך או להרע לך זולתי גזרת הבורא יתברך'
+  const quote = t('home.dailyQuote')
+  const quoteText = t('home.quoteText')
   const [unreadCount, setUnreadCount] = React.useState(0)
+  const [activeAlerts, setActiveAlerts] = React.useState([])
+
+  // Load and filter alerts
+  React.useEffect(() => {
+    const loadAlerts = async () => {
+      try {
+        const allAlerts = await getAlerts(true)
+        const now = new Date()
+        
+        // Filter active alerts that haven't expired
+        const validAlerts = allAlerts.filter(alert => {
+          if (!alert.expiresAt) return true
+          const expiresAt = alert.expiresAt.toDate ? alert.expiresAt.toDate() : new Date(alert.expiresAt)
+          return expiresAt > now
+        })
+
+        // Auto-deactivate expired alerts
+        const expiredAlerts = allAlerts.filter(alert => {
+          if (!alert.expiresAt) return false
+          const expiresAt = alert.expiresAt.toDate ? alert.expiresAt.toDate() : new Date(alert.expiresAt)
+          return expiresAt <= now && alert.isActive
+        })
+
+        // Deactivate expired alerts
+        for (const alert of expiredAlerts) {
+          try {
+            await updateAlert(alert.id, { isActive: false })
+          } catch (error) {
+            console.error('Error deactivating expired alert:', error)
+          }
+        }
+
+        setActiveAlerts(validAlerts)
+        setUnreadCount(validAlerts.length)
+      } catch (error) {
+        console.error('Error loading alerts:', error)
+      }
+    }
+
+    loadAlerts()
+    // Refresh every 5 minutes
+    const interval = setInterval(loadAlerts, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleDismissAlert = async (alertId) => {
+    try {
+      await updateAlert(alertId, { isActive: false })
+      setActiveAlerts(prev => prev.filter(a => a.id !== alertId))
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } catch (error) {
+      console.error('Error dismissing alert:', error)
+    }
+  }
 
   const onShareQuote = React.useCallback(() => {
-    Share.share({ message: `"${quote}"\n\n"${quoteText}"` }).catch(() => {})
+    Share.share({ message: `"${quote}"
+
+"${quoteText}"` }).catch(() => {})
   }, [quote, quoteText])
 
   const handleCardPress = React.useCallback((key) => {
@@ -162,21 +222,21 @@ export default function HomeScreen({ navigation }) {
       return
     }
     if (key === 'faith-stories') {
-      Alert.alert('בקרוב', 'סיפורי אמונה יופיעו כאן')
+      Alert.alert(t('home.comingSoon'), t('home.faithStoriesComingSoon'))
       return
     }
-    Alert.alert('בקרוב', 'המסך הזה עדיין בפיתוח')
-  }, [navigation])
+    Alert.alert(t('home.comingSoon'), t('home.screenInDevelopment'))
+  }, [navigation, t])
 
   const handleNotificationPress = React.useCallback(() => {
-    Alert.alert('בקרוב', 'מערכת התראות תתווסף בקרוב')
-  }, [])
+    Alert.alert(t('home.comingSoon'), t('home.notificationsComingSoon'))
+  }, [t])
 
   const openSocialLink = React.useCallback((url) => {
     Linking.openURL(url).catch(() => {
-      Alert.alert('שגיאה', 'לא ניתן לפתוח את הקישור')
+      Alert.alert(t('home.error'), t('home.linkError'))
     })
-  }, [])
+  }, [t])
 
   return (
     <View style={styles.screen}>
@@ -203,10 +263,44 @@ export default function HomeScreen({ navigation }) {
           )}
         </Pressable>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>הרב אייל עמרמי</Text>
-          <Text style={styles.subtitle}>כאייל תערוג</Text>
+          <Text style={styles.title}>{t('home.rabbiName')}</Text>
+          <Text style={styles.subtitle}>{t('home.tagline')}</Text>
         </View>
       </View>
+
+      {/* Active Alerts Banner */}
+      {activeAlerts.length > 0 && (
+        <View style={styles.alertsBanner}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.alertsScrollContent}>
+            {activeAlerts.map((alert) => {
+              const priorityColors = {
+                high: { bg: '#fee2e2', border: '#dc2626', text: '#991b1b' },
+                medium: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+                low: { bg: '#f3f4f6', border: '#6b7280', text: '#374151' }
+              }
+              const colors = priorityColors[alert.priority] || priorityColors.medium
+              
+              return (
+                <View key={alert.id} style={[styles.alertBanner, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  <View style={styles.alertBannerContent}>
+                    <Text style={[styles.alertBannerTitle, { color: colors.text }]}>{alert.title}</Text>
+                    <Text style={[styles.alertBannerMessage, { color: colors.text }]} numberOfLines={1}>
+                      {alert.message}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.alertDismissButton}
+                    onPress={() => handleDismissAlert(alert.id)}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close" size={18} color={colors.text} />
+                  </Pressable>
+                </View>
+              )
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       <View style={styles.main}>
         <ScrollView
@@ -244,7 +338,7 @@ export default function HomeScreen({ navigation }) {
           {/* Quote */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>כאייל תערוג</Text>
+              <Text style={styles.sectionTitle}>{t('home.tagline')}</Text>
             </View>
             <View style={styles.quoteCard}>
               <Text style={styles.quoteText}>"{quote}"</Text>
@@ -252,7 +346,7 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.quoteFooter}>
                 <Pressable onPress={onShareQuote} style={styles.shareBtn} accessibilityRole="button">
                   <Ionicons name="share-social-outline" size={16} color="#ffffff" />
-                  <Text style={styles.shareBtnText}>שיתוף</Text>
+                  <Text style={styles.shareBtnText}>{t('home.share')}</Text>
                 </Pressable>
               </View>
               <Pressable 
@@ -264,7 +358,7 @@ export default function HomeScreen({ navigation }) {
                 accessibilityRole="button"
               >
                 <Ionicons name="heart" size={18} color={PRIMARY_RED} />
-                <Text style={styles.donationLinkText}>תרומה לחיזוק מוסדות הרב</Text>
+                <Text style={styles.donationLinkText}>{t('home.donation')}</Text>
               </Pressable>
             </View>
           </View>
@@ -272,7 +366,7 @@ export default function HomeScreen({ navigation }) {
           {/* YouTube Link */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>יוטיוב</Text>
+              <Text style={styles.sectionTitle}>{t('home.youtube')}</Text>
             </View>
             <Pressable
               style={styles.youtubeCard}
@@ -290,7 +384,7 @@ export default function HomeScreen({ navigation }) {
               />
               <View style={styles.youtubeOverlay}>
                 <Ionicons name="logo-youtube" size={40} color={PRIMARY_RED} />
-                <Text style={styles.youtubeText}>ערוץ יוטיוב</Text>
+                <Text style={styles.youtubeText}>{t('home.youtubeChannel')}</Text>
               </View>
             </Pressable>
           </View>
@@ -302,7 +396,7 @@ export default function HomeScreen({ navigation }) {
                 style={styles.socialIconBtn}
                 onPress={() => openSocialLink('https://www.instagram.com/harav_eyal_amrami?igsh=aWRqeDVmZXQ2cW44')}
                 accessibilityRole="button"
-                accessibilityLabel="אינסטגרם"
+                accessibilityLabel={t('home.instagram')}
               >
                 <Ionicons name="logo-instagram" size={32} color="#E4405F" />
               </Pressable>
@@ -310,7 +404,7 @@ export default function HomeScreen({ navigation }) {
                 style={styles.socialIconBtn}
                 onPress={() => openSocialLink('https://www.facebook.com/share/1DU65z7iee/?mibextid=wwXIfr')}
                 accessibilityRole="button"
-                accessibilityLabel="פייסבוק"
+                accessibilityLabel={t('home.facebook')}
               >
                 <Ionicons name="logo-facebook" size={32} color="#1877F2" />
               </Pressable>
@@ -318,7 +412,7 @@ export default function HomeScreen({ navigation }) {
                 style={styles.socialIconBtn}
                 onPress={() => openSocialLink('https://youtube.com/@rabbieyalamrami?si=aeiBPpBARJfBq5jF')}
                 accessibilityRole="button"
-                accessibilityLabel="יוטיוב"
+                accessibilityLabel={t('home.youtube')}
               >
                 <Ionicons name="logo-youtube" size={32} color="#FF0000" />
               </Pressable>
@@ -326,7 +420,7 @@ export default function HomeScreen({ navigation }) {
                 style={styles.socialIconBtn}
                 onPress={() => openSocialLink('https://chat.whatsapp.com/H4t7m6NfuBD9GgEuw80EeP')}
                 accessibilityRole="button"
-                accessibilityLabel="וואטסאפ"
+                accessibilityLabel={t('home.whatsapp')}
               >
                 <Ionicons name="logo-whatsapp" size={32} color="#25D366" />
               </Pressable>
@@ -336,19 +430,19 @@ export default function HomeScreen({ navigation }) {
           {/* Podcasts */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>פודקאסטים</Text>
+              <Text style={styles.sectionTitle}>{t('home.podcasts')}</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.podcastRow}>
               {[1,2,3].map(i => (
                 <Pressable
                   key={`podcast-${i}`}
                   style={styles.podcastCard}
-                  onPress={() => Alert.alert('בקרוב', 'פודקאסטים - קבצי אודיו ארוכים או רילסים יופיעו כאן')}
+                  onPress={() => Alert.alert(t('home.comingSoon'), t('home.podcastDesc'))}
                   accessibilityRole="button"
                 >
                   <Ionicons name="headset-outline" size={34} color={PRIMARY_RED} />
-                  <Text style={styles.podcastTitle}>פודקאסט {i}</Text>
-                  <Text style={styles.podcastDesc} numberOfLines={1}>קבצי אודיו / רילסים</Text>
+                  <Text style={styles.podcastTitle}>{t('home.podcast', { i })}</Text>
+                  <Text style={styles.podcastDesc} numberOfLines={1}>{t('home.podcastDesc')}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -369,7 +463,7 @@ export default function HomeScreen({ navigation }) {
               <Animated.View style={[styles.pulseRing, pulseStyle]} />
               <Ionicons name="home-outline" size={22} color={activeTab === 'home' ? PRIMARY_RED : '#B3B3B3'} />
             </View>
-            <Text style={[styles.navLabel, { color: activeTab === 'home' ? PRIMARY_RED : '#B3B3B3' }]}>בית</Text>
+            <Text style={[styles.navLabel, { color: activeTab === 'home' ? PRIMARY_RED : '#B3B3B3' }]}>{t('home.homeTab')}</Text>
           </Pressable>
         </View>
 
@@ -383,7 +477,7 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.iconBox}>
               <Ionicons name="mail-outline" size={22} color={activeTab === 'contact' ? PRIMARY_RED : '#B3B3B3'} />
             </View>
-            <Text style={[styles.navLabel, { color: activeTab === 'contact' ? PRIMARY_RED : '#B3B3B3' }]}>כתיבה לרב</Text>
+            <Text style={[styles.navLabel, { color: activeTab === 'contact' ? PRIMARY_RED : '#B3B3B3' }]}>{t('home.contactTab')}</Text>
           </Pressable>
         </View>
 
@@ -418,7 +512,7 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.iconBox}>
               <Ionicons name="newspaper-outline" size={22} color={activeTab === 'community' ? PRIMARY_RED : '#B3B3B3'} />
             </View>
-            <Text style={[styles.navLabel, { color: activeTab === 'community' ? PRIMARY_RED : '#B3B3B3' }]}>חדשות</Text>
+            <Text style={[styles.navLabel, { color: activeTab === 'community' ? PRIMARY_RED : '#B3B3B3' }]}>{t('home.newsTab')}</Text>
           </Pressable>
         </View>
 
@@ -432,13 +526,14 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.iconBox}>
               <Ionicons name="person-circle-outline" size={22} color={activeTab === 'profile' ? PRIMARY_RED : '#B3B3B3'} />
             </View>
-            <Text style={[styles.navLabel, { color: activeTab === 'profile' ? PRIMARY_RED : '#B3B3B3' }]}>פרופיל</Text>
+            <Text style={[styles.navLabel, { color: activeTab === 'profile' ? PRIMARY_RED : '#B3B3B3' }]}>{t('home.profileTab')}</Text>
           </Pressable>
         </View>
       </View>
     </View>
   )
 }
+
 
 const styles = StyleSheet.create({
   screen: {
@@ -1046,8 +1141,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
   },
   spinningIcon: {
-    width: 90,
-    height: 90,
+    width: 140,
+    height: 140,
   },
   cardSmallImageContainer: {
     position: 'absolute',
@@ -1068,6 +1163,47 @@ const styles = StyleSheet.create({
   cardSmallImage: {
     width: '100%',
     height: '100%',
+  },
+  alertsBanner: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: BG,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(11,27,58,0.08)',
+  },
+  alertsScrollContent: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  alertBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginRight: 8,
+    minWidth: 280,
+    maxWidth: 320,
+  },
+  alertBannerContent: {
+    flex: 1,
+    alignItems: 'flex-end',
+    marginRight: 8,
+  },
+  alertBannerTitle: {
+    fontSize: 14,
+    fontFamily: 'Poppins_700Bold',
+    marginBottom: 2,
+  },
+  alertBannerMessage: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    opacity: 0.9,
+  },
+  alertDismissButton: {
+    padding: 4,
+    borderRadius: 12,
   },
 })
 

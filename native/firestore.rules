@@ -103,6 +103,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ========== LEADS COLLECTION ==========
+
+    match /leads/{leadId} {
+      // Anyone can create a lead (for contact forms)
+      allow create: if true;
+      // Only admins can read leads
+      allow read: if isAdmin();
+      // Only admins can update/delete leads
+      allow update, delete: if isAdmin();
+    }
+
     // ========== DEFAULT DENY ==========
 
     // Deny all other requests

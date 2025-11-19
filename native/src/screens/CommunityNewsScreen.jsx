@@ -1,7 +1,10 @@
-import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Share } from 'react-native'
+import React, { useState, useRef } from 'react'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Share, Alert, Modal } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import ViewShot from 'react-native-view-shot'
+import { createAndShareStory } from '../utils/storyShare'
+import StoryCard from '../components/StoryCard'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -15,22 +18,50 @@ const COMMUNITY_NEWS = [
     title: 'חדשות הקהילה',
     date: new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }),
     summary: 'עדכונים וחדשות מהקהילה',
-    image: require('../../assets/icon.png'),
+    imageUrl: null,
   },
   {
     id: 'news-2',
-    title: 'אירוע קהילתי',
-    date: new Date(Date.now() - 86400000).toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }),
-    summary: 'אירועים ופעילויות קהילתיות',
-    image: require('../../assets/icon.png'),
+    title: 'אירוע קהילתי קרוב',
+    date: new Date(Date.now() + 7 * 86400000).toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }),
+    summary: 'אירועים ופעילויות קהילתיות קרובות',
+    imageUrl: null,
+    isEvent: true,
   },
 ]
 
 export default function CommunityNewsScreen({ navigation }) {
+  const [sharingStory, setSharingStory] = useState(false)
+  const [selectedArticle, setSelectedArticle] = useState(null)
+  const storyRef = useRef(null)
+
   const handleShare = (article) => {
     Share.share({
       message: `${article.title}\n${article.summary}`
     }).catch(() => {})
+  }
+
+  const handleShareStory = async (article) => {
+    try {
+      setSelectedArticle(article)
+      setSharingStory(true)
+      
+      // Wait a bit for the view to render
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      if (storyRef.current) {
+        const success = await createAndShareStory(storyRef.current)
+        if (success) {
+          Alert.alert('הצלחה!', 'הסטורי מוכן לשיתוף')
+        }
+      }
+    } catch (error) {
+      console.error('Error sharing story:', error)
+      Alert.alert('שגיאה', 'לא ניתן ליצור את הסטורי')
+    } finally {
+      setSharingStory(false)
+      setTimeout(() => setSelectedArticle(null), 1000)
+    }
   }
 
   return (
@@ -63,12 +94,20 @@ export default function CommunityNewsScreen({ navigation }) {
                 <Text style={styles.articleDate}>{article.date}</Text>
                 <Text style={styles.articleSummary}>{article.summary}</Text>
               </View>
-              <Pressable
-                style={styles.shareButton}
-                onPress={() => handleShare(article)}
-              >
-                <Ionicons name="share-social-outline" size={20} color={PRIMARY_RED} />
-              </Pressable>
+              <View style={styles.shareButtons}>
+                <Pressable
+                  style={[styles.shareButton, styles.storyShareButton]}
+                  onPress={() => handleShareStory(article)}
+                >
+                  <Ionicons name="logo-instagram" size={20} color="#E4405F" />
+                </Pressable>
+                <Pressable
+                  style={styles.shareButton}
+                  onPress={() => handleShare(article)}
+                >
+                  <Ionicons name="share-social-outline" size={20} color={PRIMARY_RED} />
+                </Pressable>
+              </View>
             </View>
           </Pressable>
         ))}
@@ -83,6 +122,20 @@ export default function CommunityNewsScreen({ navigation }) {
           </View>
         </View>
       </ScrollView>
+
+      {/* Story Generation Modal (Hidden) */}
+      {selectedArticle && (
+        <Modal visible={sharingStory} transparent animationType="none">
+          <View style={styles.storyModal}>
+            <ViewShot ref={storyRef} options={{ format: 'png', quality: 1.0 }}>
+              <StoryCard 
+                article={selectedArticle?.isEvent ? null : selectedArticle} 
+                event={selectedArticle?.isEvent ? selectedArticle : null} 
+              />
+            </ViewShot>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   )
 }
@@ -169,8 +222,23 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 4,
   },
+  shareButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   shareButton: {
     padding: 8,
+  },
+  storyShareButton: {
+    backgroundColor: 'rgba(228,64,95,0.1)',
+    borderRadius: 8,
+  },
+  storyModal: {
+    position: 'absolute',
+    opacity: 0,
+    width: 1,
+    height: 1,
+    overflow: 'hidden',
   },
   footerCard: {
     marginTop: 8,

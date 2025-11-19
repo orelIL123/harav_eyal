@@ -1,8 +1,9 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, Pressable, ScrollView, Share, TextInput, Modal, Dimensions, Alert } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, Pressable, ScrollView, Share, TextInput, Modal, Dimensions, Alert, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { Audio, Video } from 'expo-av'
+import { getDailyVideos } from '../services/dailyVideosService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -64,14 +65,44 @@ export default function DailyInsightScreen({ navigation }) {
     { id: 'a2', title: 'הקלטה יומית 2', uri: demoAudio },
   ], [])
 
-  // Stories-like daily clips: expire after 24h
-  const now = React.useMemo(() => Date.now(), [])
-  const stories = React.useMemo(() => [
-    { id: 's1', uri: demoVideo, createdAt: now - 60 * 60 * 1000 }, // 1h ago
-    { id: 's2', uri: demoVideo, createdAt: now - 5 * 60 * 60 * 1000 }, // 5h ago
-    { id: 's3', uri: demoVideo, createdAt: now - 26 * 60 * 60 * 1000 }, // 26h ago (expired)
-  ], [now])
-  const validStories = React.useMemo(() => stories.filter(s => (now - s.createdAt) < 24 * 60 * 60 * 1000), [stories, now])
+  // Stories-like daily clips: load from Firestore
+  const [stories, setStories] = React.useState([])
+  const [loadingStories, setLoadingStories] = React.useState(true)
+  
+  React.useEffect(() => {
+    loadDailyVideos()
+  }, [])
+  
+  const loadDailyVideos = async () => {
+    try {
+      setLoadingStories(true)
+      const videos = await getDailyVideos()
+      // Convert to stories format
+      const storiesData = videos.map(video => ({
+        id: video.id,
+        uri: video.videoUrl,
+        thumbnailUrl: video.thumbnailUrl,
+        title: video.title,
+        description: video.description,
+        createdAt: video.createdAt?.toDate ? video.createdAt.toDate().getTime() : new Date(video.createdAt).getTime(),
+      }))
+      setStories(storiesData)
+    } catch (error) {
+      console.error('Error loading daily videos:', error)
+      // Fallback to empty array on error
+      setStories([])
+    } finally {
+      setLoadingStories(false)
+    }
+  }
+  
+  const validStories = React.useMemo(() => {
+    const now = Date.now()
+    return stories.filter(s => {
+      const hoursSinceCreation = (now - s.createdAt) / (1000 * 60 * 60)
+      return hoursSinceCreation < 24
+    })
+  }, [stories])
   const [currentStoryIndex, setCurrentStoryIndex] = React.useState(0)
   const [isStoryModalVisible, setIsStoryModalVisible] = React.useState(false)
   const openStory = React.useCallback((index) => {
@@ -355,14 +386,21 @@ export default function DailyInsightScreen({ navigation }) {
         </View>
 
         {/* Stories-like daily clips strip */}
-        {validStories.length > 0 && (
+        {loadingStories ? (
+          <View style={styles.storiesSection}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={PRIMARY_RED} size="large" />
+              <Text style={styles.loadingText}>טוען סרטונים...</Text>
+            </View>
+          </View>
+        ) : validStories.length > 0 ? (
           <View style={styles.storiesSection}>
             <View style={styles.storiesHeader}>
               <Text style={styles.storiesTitle}>סרטונים יומיים (סטורי)</Text>
               <Text style={styles.storiesSub}>נמחקים לאחר 24 שעות</Text>
               {isAdminMode && (
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable accessibilityRole="button" style={styles.storyActionBtn} onPress={() => Alert.alert('העלאת וידאו', 'נחבר בחירה מקבצים בקרוב')}>
+                  <Pressable accessibilityRole="button" style={styles.storyActionBtn} onPress={() => navigation?.navigate('Admin', { initialTab: 'daily-videos' })}>
                     <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
                     <Text style={styles.storyActionText}>העלה</Text>
                   </Pressable>
@@ -383,7 +421,7 @@ export default function DailyInsightScreen({ navigation }) {
               ))}
             </ScrollView>
           </View>
-        )}
+        ) : null}
 
         {/* Stories modal player */}
         <Modal visible={isStoryModalVisible} transparent animationType="fade" onRequestClose={closeStory}>
@@ -878,5 +916,16 @@ const styles = StyleSheet.create({
     color: DEEP_BLUE,
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
   },
 })

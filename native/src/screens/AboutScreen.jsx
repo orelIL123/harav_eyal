@@ -2,6 +2,7 @@ import React from 'react'
 import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -9,6 +10,8 @@ const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
 export default function AboutScreen({ navigation }) {
+  const { t } = useTranslation();
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient colors={[BG, '#f5f5f5']} style={StyleSheet.absoluteFill} />
@@ -20,7 +23,7 @@ export default function AboutScreen({ navigation }) {
         >
           <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
-        <Text style={styles.headerTitle}>אודות</Text>
+        <Text style={styles.headerTitle}>{t('about.about')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -29,73 +32,73 @@ export default function AboutScreen({ navigation }) {
           <Ionicons name="information-circle" size={64} color={PRIMARY_RED} />
         </View>
 
-        <Text style={styles.title}>מוסדות כאייל תערוג</Text>
-        <Text style={styles.subtitle}>הרב אייל עמרמי שליט"א</Text>
+        <Text style={styles.title}>{t('about.institutionsName')}</Text>
+        <Text style={styles.subtitle}>{t('about.rabbiName')}</Text>
 
         <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>אודות הרב אייל עמרמי שליט"א</Text>
+          <Text style={styles.sectionTitle}>{t('about.aboutRabbi')}</Text>
           <Text style={styles.sectionText}>
-            ראש מוסדות "כאיל תערוג" בהר חומה, ירושלים
+            {t('about.rabbiTitle')}
           </Text>
           <Text style={styles.sectionText}>
-            הרב אייל עמרמי שליט"א הוא מהדמויות המרכזיות והמוערכות בתחום הפצת האמונה וחיזוק הלבבות בדורנו. מאות שיעורים שנמסרים על ידו מדי שנה בארץ ובעולם, מצליחים לגעת באלפי יהודים מכל גווני הקשת, לעורר חיבור עמוק לאמונה, ולהחזיר אור פנימי לחיים.
+            {t('about.rabbiBio1')}
           </Text>
           <Text style={styles.sectionText}>
-            שיעוריו של הרב מאופיינים בבהירות, חום לב, גישה ישירה ואמיתית, ובעיקר – ביכולת נדירה להנגיש את יסודות האמונה גם למי שרחוקים ממנה. הרב מכתת רגליו ממקום למקום במסירות עצומה מתוך שליחות אחת: לחזק כל יהודי באשר הוא בארץ או בעולם.
+            {t('about.rabbiBio2')}
           </Text>
         </View>
 
         <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>הפצת אמונה – לב ליבה של השליחות</Text>
+          <Text style={styles.sectionTitle}>{t('about.spreadingFaith')}</Text>
           <Text style={styles.sectionText}>
-            שיעוריו של הרב אייל עמרמי שליט"א מהווים תחנת מפנה עבור רבים. הם שזורים בדברי תורה, אמונה, חיזוק ותובנות עמוקות לחיים – ומוגשים בגישה חמה, ישירה ונוגעת ללב. התגובות הרבות והעדויות האישיות מעידות על עומק ההשפעה: אנשים מספרים כיצד מילה אחת, שיעור אחד, או מבט של חום ואמת – שינו להם את החיים, חיזקו את האמונה והעניקו להם כוחות מחודשים להתמודדות ולצמיחה.
+            {t('about.spreadingFaithDesc')}
           </Text>
         </View>
 
         <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>מוסדות "כאיל תערוג"</Text>
-          <Text style={styles.sectionSubtitle}>חממה לחינוך ולקירוב לבבות</Text>
+          <Text style={styles.sectionTitle}>{t('about.institutionsTitle')}</Text>
+          <Text style={styles.sectionSubtitle}>{t('about.institutionsSubtitle')}</Text>
           <Text style={styles.sectionText}>
-            לצד פעילותו האישית המרשימה, עומד הרב עמרמי בראש מערך חינוכי-רוחני רחב היקף. מוסדות "כאיל תערוג", הפועלים בשכונת הר חומה בירושלים, כוללים:
+            {t('about.institutionsDesc')}
           </Text>
-          <Text style={styles.bulletText}>• גני ילדים</Text>
-          <Text style={styles.bulletText}>• תלמוד תורה</Text>
-          <Text style={styles.bulletText}>• בית ספר לבנות</Text>
-          <Text style={styles.bulletText}>• ישיבה קטנה וגדולה</Text>
-          <Text style={styles.bulletText}>• כולל אברכים</Text>
-          <Text style={styles.bulletText}>• ועוד</Text>
+          <Text style={styles.bulletText}>{t('about.kindergartens')}</Text>
+          <Text style={styles.bulletText}>{t('about.talmudTorah')}</Text>
+          <Text style={styles.bulletText}>{t('about.girlsSchool')}</Text>
+          <Text style={styles.bulletText}>{t('about.yeshiva')}</Text>
+          <Text style={styles.bulletText}>{t('about.kollel')}</Text>
+          <Text style={styles.bulletText}>{t('about.more')}</Text>
           <Text style={styles.sectionText}>
-            המוסדות פועלים מתוך חזון ברור: להעניק לכל יהודי סביבה תומכת ומרוממת, המחברת בין חינוך, רוח ואמונה – באהבה ובכבוד.
+            {t('about.institutionsVision')}
           </Text>
         </View>
 
         <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>צרו קשר</Text>
+          <Text style={styles.sectionTitle}>{t('about.contact')}</Text>
           <View style={styles.contactInfo}>
             <View style={styles.contactRow}>
               <Ionicons name="call-outline" size={20} color={PRIMARY_RED} />
-              <Text style={styles.contactText}>למזכירות המוסד: 1599-50-20-51</Text>
+              <Text style={styles.contactText}>{t('about.office')}</Text>
             </View>
             <View style={styles.contactRow}>
               <Ionicons name="print-outline" size={20} color={PRIMARY_RED} />
-              <Text style={styles.contactText}>פקס: 02-5023504</Text>
+              <Text style={styles.contactText}>{t('about.fax')}</Text>
             </View>
             <View style={styles.contactRow}>
               <Ionicons name="mail-outline" size={20} color={PRIMARY_RED} />
-              <Text style={styles.contactText}>דוא"ל: orhaemuna1@gmail.com</Text>
+              <Text style={styles.contactText}>{t('about.email')}</Text>
             </View>
             <View style={styles.contactRow}>
               <Ionicons name="location-outline" size={20} color={PRIMARY_RED} />
-              <Text style={styles.contactText}>כתובת בית הכנסת "חסדי שמואל":</Text>
+              <Text style={styles.contactText}>{t('about.address')}</Text>
             </View>
-            <Text style={styles.addressText}>ירושלים, הר חומה, רחוב הרב מן ההר 4</Text>
+            <Text style={styles.addressText}>{t('about.addressDetails')}</Text>
           </View>
           <Pressable
             style={styles.contactButton}
             onPress={() => navigation.navigate('ContactRabbi')}
           >
             <Ionicons name="mail-outline" size={20} color={PRIMARY_RED} />
-            <Text style={styles.contactButtonText}>צרו קשר</Text>
+            <Text style={styles.contactButtonText}>{t('about.contact')}</Text>
           </Pressable>
         </View>
       </ScrollView>

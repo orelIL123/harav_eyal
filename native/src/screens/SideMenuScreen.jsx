@@ -2,6 +2,7 @@ import React from 'react'
 import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next';
 import { FAITH_TOPICS } from '../data/faithTopics'
 
 const PRIMARY_RED = '#DC2626'
@@ -12,56 +13,56 @@ const DEEP_BLUE = '#0b1b3a'
 const MENU_ITEMS = [
   {
     id: 'lessons-library',
-    title: 'ספריית שיעורים מלאה',
+    title: 'sideMenu.lessonsLibrary',
     icon: 'library',
     color: PRIMARY_GOLD,
     screen: 'LessonsLibrary',
   },
   {
     id: 'donation',
-    title: 'תרומה לחיזוק מוסדות הרב',
+    title: 'sideMenu.donation',
     icon: 'heart',
     color: PRIMARY_RED,
     screen: 'Donation',
   },
   {
     id: 'whatsapp',
-    title: 'הצטרפות לקבוצת וואטסאפ',
+    title: 'sideMenu.whatsapp',
     icon: 'logo-whatsapp',
     color: '#25D366',
     url: 'https://chat.whatsapp.com/H4t7m6NfuBD9GgEuw80EeP',
   },
   {
     id: 'flyers',
-    title: 'עלונים להדפסה',
+    title: 'sideMenu.flyers',
     icon: 'document-text',
     color: PRIMARY_RED,
     screen: 'Flyers',
   },
   {
     id: 'contact',
-    title: 'צרו קשר',
+    title: 'sideMenu.contact',
     icon: 'mail',
     color: PRIMARY_RED,
     screen: 'ContactRabbi',
   },
   {
     id: 'institutions',
-    title: 'מוסדות הרב',
+    title: 'sideMenu.institutions',
     icon: 'school',
     color: PRIMARY_RED,
     screen: 'Institutions',
   },
   {
     id: 'about',
-    title: 'אודות',
+    title: 'sideMenu.about',
     icon: 'information-circle',
     color: PRIMARY_RED,
     screen: 'About',
   },
   {
     id: 'community-news',
-    title: 'חדשות הקהילה',
+    title: 'sideMenu.communityNews',
     icon: 'newspaper',
     color: PRIMARY_RED,
     screen: 'CommunityNews',
@@ -69,17 +70,23 @@ const MENU_ITEMS = [
 ]
 
 export default function SideMenuScreen({ navigation }) {
+  const { t, i18n } = useTranslation();
+
   const handleMenuItemPress = (item) => {
     if (item.url) {
       Linking.openURL(item.url).catch(() => {
-        Alert.alert('שגיאה', 'לא ניתן לפתוח את הקישור')
+        Alert.alert(t('error'), t('linkError'))
       })
     } else if (item.screen) {
       navigation.navigate(item.screen)
     } else {
-      Alert.alert('בקרוב', `${item.title} יופיע כאן בקרוב`)
+      Alert.alert(t('comingSoon'), t('comingSoonMessage', { title: t(item.title) }))
     }
   }
+
+  const changeLanguage = (lng) => {
+    i18n.changeLanguage(lng);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -89,18 +96,27 @@ export default function SideMenuScreen({ navigation }) {
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="חזרה"
+          accessibilityLabel={t('back')}
         >
           <Ionicons name="close" size={24} color={PRIMARY_RED} />
         </Pressable>
-        <Text style={styles.headerTitle}>תפריט</Text>
+        <Text style={styles.headerTitle}>{t('sideMenu.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.languageSwitcher}>
+          <Pressable onPress={() => changeLanguage('en')} style={[styles.langButton, i18n.language === 'en' && styles.langButtonActive]}>
+            <Text style={[styles.langButtonText, i18n.language === 'en' && styles.langButtonTextActive]}>English</Text>
+          </Pressable>
+          <Pressable onPress={() => changeLanguage('fr')} style={[styles.langButton, i18n.language === 'fr' && styles.langButtonActive]}>
+            <Text style={[styles.langButtonText, i18n.language === 'fr' && styles.langButtonTextActive]}>Français</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.faithSectionTitle}>לימוד אמונה</Text>
-          <Text style={styles.faithSectionSubtitle}>בחרו נושא ופתחו אותו מיד</Text>
+          <Text style={styles.faithSectionTitle}>{t('sideMenu.faithLearningTitle')}</Text>
+          <Text style={styles.faithSectionSubtitle}>{t('sideMenu.faithLearningSubtitle')}</Text>
         </View>
         <View style={styles.faithTopicsGrid}>
           {FAITH_TOPICS.map(topic => (
@@ -113,8 +129,8 @@ export default function SideMenuScreen({ navigation }) {
               <View style={styles.faithTopicIcon}>
                 <Ionicons name="sparkles-outline" size={20} color={topic.color} />
               </View>
-              <Text style={styles.faithTopicTitle}>{topic.title}</Text>
-              <Text style={styles.faithTopicHint}>לימוד ממוקד</Text>
+              <Text style={styles.faithTopicTitle}>{t(topic.title)}</Text>
+              <Text style={styles.faithTopicHint}>{t('sideMenu.focusedLearning')}</Text>
             </Pressable>
           ))}
         </View>
@@ -129,7 +145,7 @@ export default function SideMenuScreen({ navigation }) {
               <Ionicons name={item.icon} size={28} color={item.color} />
             </View>
             <View style={styles.menuTextBlock}>
-              <Text style={styles.menuTitle}>{item.title}</Text>
+              <Text style={styles.menuTitle}>{t(item.title)}</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
           </Pressable>
@@ -169,6 +185,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 32,
     gap: 16,
+  },
+  languageSwitcher: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  langButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: PRIMARY_RED,
+  },
+  langButtonActive: {
+    backgroundColor: PRIMARY_RED,
+  },
+  langButtonText: {
+    color: PRIMARY_RED,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  langButtonTextActive: {
+    color: '#FFFFFF',
   },
   sectionHeaderRow: {
     alignItems: 'flex-end',

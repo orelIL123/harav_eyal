@@ -29,6 +29,8 @@
       "package": "com.raveialamrami.app",
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE"
       ]
     },
@@ -44,6 +46,10 @@
       "eas": {
         "projectId": "429bf080-b8a2-42be-a2f6-ba6d3a70cff2"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/429bf080-b8a2-42be-a2f6-ba6d3a70cff2"
     }
   }
 }

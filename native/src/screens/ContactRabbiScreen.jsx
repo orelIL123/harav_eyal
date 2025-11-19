@@ -1,117 +1,101 @@
 import React, { useState } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { createLead } from '../services/leadsService'
 
 const PRIMARY_RED = '#DC2626'
-const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
 export default function ContactRabbiScreen({ navigation }) {
   const [form, setForm] = useState({
-    email: '',
+    name: '',
     phone: '',
-    title: '',
     message: '',
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const contacts = [
+    { label: 'מוקד מזכירות המוסד', value: '1599-50-20-51', icon: 'call-outline' },
+    { label: 'פקס', value: '02-5023504', icon: 'print-outline' },
+    { label: 'דוא״ל', value: 'orhaemuna1@gmail.com', icon: 'mail-outline' },
+    { label: 'כתובת בית הכנסת "חסדי שמואל"', value: 'ירושלים, הר חומה, רחוב הרב מן ההר 4', icon: 'location-outline' },
+  ]
 
   const handleSubmit = async () => {
-    // Validate form
-    if (!form.email || !form.phone || !form.title || !form.message) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות')
+    if (!form.name || !form.phone) {
+      Alert.alert('שגיאה', 'אנא מלא שם ומספר טלפון')
       return
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(form.email)) {
-      Alert.alert('שגיאה', 'אנא הכנס כתובת אימייל תקינה')
-      return
-    }
-
-    // Validate phone format (basic)
-    const phoneRegex = /^[0-9]{9,10}$/
-    if (!phoneRegex.test(form.phone.replace(/\D/g, ''))) {
-      Alert.alert('שגיאה', 'אנא הכנס מספר טלפון תקין')
-      return
-    }
-
-    setIsSubmitting(true)
-
+    setLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      Alert.alert(
-        'נשלח בהצלחה! ✅',
-        'ההודעה שלך נשלחה להרב אייל עמרמי. תקבל תשובה בהקדם האפשרי.',
-        [
-          {
-            text: 'אישור',
-            onPress: () => {
-              // Reset form
-              setForm({ email: '', phone: '', title: '', message: '' })
-              navigation.goBack()
-            },
-          },
-        ]
-      )
+      const { error } = await createLead({
+        name: form.name,
+        phone: form.phone,
+        message: form.message,
+        source: 'app',
+      })
+
+      if (error) {
+        Alert.alert('שגיאה', error)
+      } else {
+        Alert.alert('הצלחה!', 'פנייתך נשלחה בהצלחה. נחזור אליך בהקדם.', [
+          { text: 'אישור', onPress: () => {
+            setForm({ name: '', phone: '', message: '' })
+          }}
+        ])
+      }
     } catch (error) {
-      Alert.alert('שגיאה', 'אירעה שגיאה בשליחת ההודעה. אנא נסה שוב.')
+      Alert.alert('שגיאה', 'אירעה שגיאה בשליחת הפנייה. נסה שוב מאוחר יותר.')
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient colors={[BG, '#f5f5f5']} style={StyleSheet.absoluteFill} />
+      <View style={styles.header}>
+        <Pressable
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+        >
+          <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
+        </Pressable>
+        <Text style={styles.headerTitle}>צור קשר</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
-        <View style={styles.header}>
-          <Pressable
-            style={styles.backBtn}
-            onPress={() => navigation.goBack()}
-            accessibilityRole="button"
-            accessibilityLabel="חזרה"
-          >
-            <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
-          </Pressable>
-          <Text style={styles.headerTitle}>כתיבה לרב</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.introCard}>
-            <Ionicons name="mail-outline" size={32} color={PRIMARY_RED} />
-            <Text style={styles.introTitle}>כתוב ל</Text>
-            <Text style={styles.introText}>
-              מלא את הטופס ונשלח את ההודעה שלך. תקבל תשובה בהקדם האפשרי.
-            </Text>
-          </View>
-
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Contact Form */}
           <View style={styles.formCard}>
+            <View style={styles.formHeader}>
+              <Ionicons name="send-outline" size={28} color={PRIMARY_RED} />
+              <Text style={styles.formTitle}>שלח פנייה</Text>
+            </View>
+            <Text style={styles.formDesc}>
+              מלא את הפרטים ונחזור אליך בהקדם
+            </Text>
+
             <View style={styles.formGroup}>
-              <Text style={styles.label}>כתובת אימייל *</Text>
+              <Text style={styles.label}>שם מלא *</Text>
               <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color={PRIMARY_RED} style={styles.inputIcon} />
+                <Ionicons name="person-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="your.email@example.com"
+                  placeholder="הזן שם מלא"
                   placeholderTextColor="#9ca3af"
-                  value={form.email}
-                  onChangeText={(text) => setForm({ ...form, email: text })}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
+                  value={form.name}
+                  onChangeText={(text) => setForm({...form, name: text})}
+                  textContentType="name"
                 />
               </View>
             </View>
@@ -119,78 +103,75 @@ export default function ContactRabbiScreen({ navigation }) {
             <View style={styles.formGroup}>
               <Text style={styles.label}>מספר טלפון *</Text>
               <View style={styles.inputContainer}>
-                <Ionicons name="call-outline" size={20} color={PRIMARY_RED} style={styles.inputIcon} />
+                <Ionicons name="call-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="050-1234567"
+                  placeholder="הזן מספר טלפון"
                   placeholderTextColor="#9ca3af"
                   value={form.phone}
-                  onChangeText={(text) => setForm({ ...form, phone: text })}
+                  onChangeText={(text) => setForm({...form, phone: text})}
                   keyboardType="phone-pad"
+                  textContentType="telephoneNumber"
                 />
               </View>
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>כותרת *</Text>
-              <View style={styles.inputContainer}>
-                <Ionicons name="document-text-outline" size={20} color={PRIMARY_RED} style={styles.inputIcon} />
+              <Text style={styles.label}>הודעה (אופציונלי)</Text>
+              <View style={[styles.inputContainer, styles.textAreaContainer]}>
                 <TextInput
-                  style={styles.input}
-                  placeholder="נושא ההודעה"
-                  placeholderTextColor="#9ca3af"
-                  value={form.title}
-                  onChangeText={(text) => setForm({ ...form, title: text })}
-                />
-              </View>
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>הודעה *</Text>
-              <View style={styles.textAreaContainer}>
-                <TextInput
-                  style={styles.textArea}
-                  placeholder="כתוב כאן את ההודעה שלך..."
+                  style={[styles.input, styles.textArea]}
+                  placeholder="כתוב את הודעתך כאן..."
                   placeholderTextColor="#9ca3af"
                   value={form.message}
-                  onChangeText={(text) => setForm({ ...form, message: text })}
+                  onChangeText={(text) => setForm({...form, message: text})}
                   multiline
-                  numberOfLines={8}
+                  numberOfLines={4}
                   textAlignVertical="top"
                 />
               </View>
             </View>
 
             <Pressable
-              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
               onPress={handleSubmit}
-              disabled={isSubmitting}
-              accessibilityRole="button"
+              disabled={loading}
             >
-              <LinearGradient
-                colors={[PRIMARY_RED, PRIMARY_GOLD]}
-                style={styles.submitGradient}
-              >
-                {isSubmitting ? (
-                  <Text style={styles.submitButtonText}>שולח...</Text>
-                ) : (
-                  <>
-                    <Ionicons name="send-outline" size={20} color="#fff" />
-                    <Text style={styles.submitButtonText}>שלח הודעה</Text>
-                  </>
-                )}
-              </LinearGradient>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="send" size={20} color="#ffffff" />
+                  <Text style={styles.submitButtonText}>שלח פנייה</Text>
+                </>
+              )}
             </Pressable>
           </View>
 
-          <View style={styles.footerCard}>
-            <Ionicons name="information-circle-outline" size={24} color={PRIMARY_RED} />
-            <View style={styles.footerTextBlock}>
-              <Text style={styles.footerTitle}>הערה חשובה</Text>
-              <Text style={styles.footerDesc}>
-                ההודעה תישלח להרב אייל עמרמי. תקבל תשובה בהקדם האפשרי. בהמשך נחבר את זה באופן אמיתי.
-              </Text>
+          {/* Contact Info */}
+          <View style={styles.introCard}>
+            <Ionicons name="information-circle-outline" size={32} color={PRIMARY_RED} />
+            <Text style={styles.introTitle}>לשאלות, צילום, ותיאומים</Text>
+            <Text style={styles.introText}>
+              נשמח לסייע בכל פנייה — הטלפון זמין למזכירות, והצוות יענה בהקדם.
+            </Text>
+          </View>
+
+          {contacts.map((item) => (
+            <View key={item.label} style={styles.contactRow}>
+              <Ionicons name={item.icon} size={24} color={PRIMARY_RED} />
+              <View style={styles.contactTextBlock}>
+                <Text style={styles.contactLabel}>{item.label}</Text>
+                <Text style={styles.contactValue}>{item.value}</Text>
+              </View>
             </View>
+          ))}
+
+          <View style={styles.noteCard}>
+            <Ionicons name="chatbubbles-outline" size={24} color={PRIMARY_RED} />
+            <Text style={styles.noteText}>
+              ניתן גם לנצל את הטפסים באתר או לשלוח הודעה דרך האדמין למידע נוסף על שיעורים ופעילויות.
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -203,15 +184,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG,
   },
-  keyboardView: {
-    flex: 1,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(11,27,58,0.1)',
@@ -232,40 +210,86 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
+    gap: 16,
   },
   introCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    marginBottom: 20,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(11,27,58,0.1)',
     shadowColor: '#000',
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   introTitle: {
+    marginTop: 12,
     fontSize: 18,
     fontFamily: 'Poppins_600SemiBold',
     color: DEEP_BLUE,
-    marginTop: 12,
-    marginBottom: 8,
   },
   introText: {
+    marginTop: 4,
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 20,
   },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(11,27,58,0.1)',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+    gap: 12,
+  },
+  contactTextBlock: {
+    flex: 1,
+  },
+  contactLabel: {
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+    textAlign: 'right',
+  },
+  contactValue: {
+    marginTop: 4,
+    fontSize: 15,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
+    textAlign: 'right',
+  },
+  noteCard: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(220,38,38,0.08)',
+    borderRadius: 14,
+    padding: 16,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    lineHeight: 20,
+  },
   formCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(11,27,58,0.1)',
     shadowColor: '#000',
@@ -274,8 +298,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-  formGroup: {
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  formTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+  },
+  formDesc: {
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
     marginBottom: 20,
+    textAlign: 'right',
+  },
+  formGroup: {
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
@@ -291,39 +333,35 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(11,27,58,0.1)',
-    paddingHorizontal: 12,
-    minHeight: 50,
+    paddingHorizontal: 16,
+    minHeight: 56,
   },
   inputIcon: {
-    marginRight: 8,
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: 'Poppins_400Regular',
     color: DEEP_BLUE,
     textAlign: 'right',
-    paddingVertical: 12,
   },
   textAreaContainer: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(11,27,58,0.1)',
-    minHeight: 150,
-    padding: 12,
+    minHeight: 120,
+    alignItems: 'flex-start',
+    paddingVertical: 12,
   },
   textArea: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: 'Poppins_400Regular',
-    color: DEEP_BLUE,
-    textAlign: 'right',
-    lineHeight: 22,
+    minHeight: 100,
   },
   submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: PRIMARY_RED,
+    paddingVertical: 16,
     borderRadius: 12,
-    overflow: 'hidden',
     marginTop: 8,
     shadowColor: PRIMARY_RED,
     shadowOpacity: 0.3,
@@ -334,42 +372,10 @@ const styles = StyleSheet.create({
   submitButtonDisabled: {
     opacity: 0.6,
   },
-  submitGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-  },
   submitButtonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
-  },
-  footerCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: 'rgba(30,58,138,0.08)',
-    borderRadius: 14,
-    padding: 16,
-  },
-  footerTextBlock: {
-    flex: 1,
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  footerTitle: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: DEEP_BLUE,
-  },
-  footerDesc: {
-    fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6b7280',
-    textAlign: 'right',
-    lineHeight: 18,
+    color: '#ffffff',
   },
 })
 

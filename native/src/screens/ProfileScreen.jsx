@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert, Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useAuth } from '../utils/AuthContext'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -10,13 +11,27 @@ const DEEP_BLUE = '#0b1b3a'
 const BLACK = '#000000'
 
 export default function ProfileScreen({ navigation }) {
-  // TODO: Check if user is admin from Firestore
-  const isAdmin = true // Mock - replace with actual admin check
-  const [isLoggedIn, setIsLoggedIn] = useState(false) // TODO: Replace with actual auth state
+  const { user, userData, isAdmin, logout } = useAuth()
+  const isLoggedIn = !!user
 
   const handleLogin = () => {
-    // TODO: Implement login with phone and password
-    Alert.alert('התחברות', 'מערכת ההתחברות עם טלפון וסיסמה תתווסף בקרוב')
+    navigation.navigate('Login')
+  }
+
+  const handleLogout = () => {
+    Alert.alert('התנתקות', 'האם אתה בטוח שברצונך להתנתק?', [
+      { text: 'ביטול', style: 'cancel' },
+      { 
+        text: 'התנתק', 
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await logout()
+          if (error) {
+            Alert.alert('שגיאה', error)
+          }
+        }
+      }
+    ])
   }
 
   return (
@@ -63,10 +78,20 @@ export default function ProfileScreen({ navigation }) {
         {isLoggedIn && (
           <View style={styles.avatarSection}>
             <View style={styles.avatarCircle}>
-              <Ionicons name="person" size={60} color={PRIMARY_RED} />
+              {userData?.photoURL ? (
+                <Image source={{ uri: userData.photoURL }} style={styles.avatarImage} />
+              ) : (
+                <Ionicons name="person" size={60} color={PRIMARY_RED} />
+              )}
             </View>
-            <Text style={styles.userName}>משתמש אורח</Text>
-            <Text style={styles.userEmail}>guest@naorbaruch.com</Text>
+            <Text style={styles.userName}>{userData?.displayName || user?.email?.split('@')[0] || 'משתמש'}</Text>
+            <Text style={styles.userEmail}>{user?.email || ''}</Text>
+            {isAdmin && (
+              <View style={styles.adminBadge}>
+                <Ionicons name="shield-checkmark" size={16} color={PRIMARY_RED} />
+                <Text style={styles.adminBadgeText}>אדמין</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -264,16 +289,7 @@ export default function ProfileScreen({ navigation }) {
             <Pressable 
               style={styles.logoutButton} 
               accessibilityRole="button"
-              onPress={() => {
-                Alert.alert('התנתקות', 'האם אתה בטוח שברצונך להתנתק?', [
-                  { text: 'ביטול', style: 'cancel' },
-                  { 
-                    text: 'התנתק', 
-                    style: 'destructive',
-                    onPress: () => setIsLoggedIn(false)
-                  }
-                ])
-              }}
+              onPress={handleLogout}
             >
               <Ionicons name="log-out-outline" size={22} color={PRIMARY_RED} />
               <Text style={styles.logoutText}>התנתק</Text>
@@ -531,6 +547,26 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: PRIMARY_RED,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    borderRadius: 999,
+  },
+  adminBadgeText: {
+    fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: PRIMARY_RED,
   },

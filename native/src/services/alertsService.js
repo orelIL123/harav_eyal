@@ -1,10 +1,11 @@
 import { 
-  getDocuments, 
+  getAllDocuments, 
   getDocument, 
   setDocument, 
   updateDocument, 
   deleteDocument 
 } from './firestore'
+import { getOrFetch, CACHE_KEYS, CACHE_TTL, removeCached } from '../utils/cache'
 import { db } from '../config/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
@@ -13,17 +14,28 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
  */
 
 /**
- * Get all alerts, optionally filtered by status
+ * Get all alerts, optionally filtered by status (with caching)
  */
 export async function getAlerts(isActive = null) {
   try {
-    const filters = []
-    if (isActive !== null) {
-      filters.push({ field: 'isActive', operator: '==', value: isActive })
-    }
+    const cacheKey = isActive !== null 
+      ? `${CACHE_KEYS.ACTIVE_ALERTS}_${isActive}` 
+      : CACHE_KEYS.ACTIVE_ALERTS
     
-    const alerts = await getDocuments('alerts', filters, 'createdAt', 'desc')
-    return alerts
+    return await getOrFetch(
+      cacheKey,
+      async () => {
+        const filters = []
+        if (isActive !== null) {
+          filters.push({ field: 'isActive', operator: '==', value: isActive })
+        }
+        
+        // Limit to 20 most recent alerts for cost optimization
+        const alerts = await getAllDocuments('alerts', filters, 'createdAt', 'desc', 20)
+        return alerts
+      },
+      CACHE_TTL.SHORT // 5 minutes - alerts change frequently
+    )
   } catch (error) {
     console.error('Error getting alerts:', error)
     throw error
@@ -62,9 +74,14 @@ export async function createAlert(alertData) {
     // Add document with auto-generated ID
     const docRef = await addDoc(collection(db, 'alerts'), {
       ...alert,
+      expiresAt: alertData.expiresAt || null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     })
+    
+    // Invalidate cache
+    await removeCached(CACHE_KEYS.ACTIVE_ALERTS)
+    await removeCached(`${CACHE_KEYS.ACTIVE_ALERTS}_true`)
     
     return docRef.id
   } catch (error) {
@@ -79,6 +96,12 @@ export async function createAlert(alertData) {
 export async function updateAlert(alertId, alertData) {
   try {
     await updateDocument('alerts', alertId, alertData)
+    
+    // Invalidate cache
+    await removeCached(CACHE_KEYS.ACTIVE_ALERTS)
+    await removeCached(`${CACHE_KEYS.ACTIVE_ALERTS}_true`)
+    await removeCached(`${CACHE_KEYS.ACTIVE_ALERTS}_false`)
+    
     return alertId
   } catch (error) {
     console.error('Error updating alert:', error)
@@ -92,6 +115,12 @@ export async function updateAlert(alertId, alertData) {
 export async function deleteAlert(alertId) {
   try {
     await deleteDocument('alerts', alertId)
+    
+    // Invalidate cache
+    await removeCached(CACHE_KEYS.ACTIVE_ALERTS)
+    await removeCached(`${CACHE_KEYS.ACTIVE_ALERTS}_true`)
+    await removeCached(`${CACHE_KEYS.ACTIVE_ALERTS}_false`)
+    
     return true
   } catch (error) {
     console.error('Error deleting alert:', error)
