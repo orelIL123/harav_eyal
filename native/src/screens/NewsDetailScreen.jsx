@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, ImageBackground, Share, Linking, Dimensions } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
+import { Analytics } from '../services/analyticsService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -13,6 +14,13 @@ const { width } = Dimensions.get('window')
 export default function NewsDetailScreen({ navigation, route }) {
   const { t } = useTranslation()
   const article = route?.params?.article
+
+  // Track news view in Analytics
+  useEffect(() => {
+    if (article?.id) {
+      Analytics.viewNews(article.id)
+    }
+  }, [article])
 
   if (!article) {
     return (
@@ -45,6 +53,9 @@ export default function NewsDetailScreen({ navigation, route }) {
     const content = article.content || article.summary || ''
     Share.share({
       message: `${article.title}\n\n${content}`
+    }).then(() => {
+      // Track share event
+      Analytics.shareContent('news', article.id)
     }).catch(() => {})
   }
 

@@ -2,6 +2,7 @@ import React from 'react'
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import { logError } from '../services/analyticsService'
 
 const PRIMARY_RED = '#DC2626'
 const BG = '#FFFFFF'
@@ -37,10 +38,8 @@ class ErrorBoundary extends React.Component {
       errorInfo
     })
 
-    // כאן אפשר להוסיף שליחה ל-Crashlytics או שירות אחר
-    // if (!__DEV__) {
-    //   // Send to Crashlytics
-    // }
+    // שלח ל-Crashlytics/Analytics
+    logError(error, `ErrorBoundary: ${errorInfo.componentStack || 'Unknown component'}`)
   }
 
   handleReset = () => {

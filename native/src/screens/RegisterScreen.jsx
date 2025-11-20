@@ -3,6 +3,7 @@ import { SafeAreaView, View, Text, StyleSheet, TextInput, Pressable, Alert, Acti
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../utils/AuthContext'
+import { validateEmail, validatePassword, validateName } from '../utils/validation'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -22,16 +23,28 @@ export default function RegisterScreen({ navigation }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const handleRegister = async () => {
-    if (!form.displayName || !form.email || !form.password || !form.confirmPassword) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות')
+    // Validate display name
+    const nameValidation = validateName(form.displayName, { minLength: 2, maxLength: 100, required: true })
+    if (!nameValidation.valid) {
+      Alert.alert('שגיאה', nameValidation.error)
       return
     }
 
-    if (form.password.length < 6) {
-      Alert.alert('שגיאה', 'הסיסמה חייבת להכיל לפחות 6 תווים')
+    // Validate email
+    const emailValidation = validateEmail(form.email)
+    if (!emailValidation.valid) {
+      Alert.alert('שגיאה', emailValidation.error)
       return
     }
 
+    // Validate password
+    const passwordValidation = validatePassword(form.password, { minLength: 6 })
+    if (!passwordValidation.valid) {
+      Alert.alert('שגיאה', passwordValidation.error)
+      return
+    }
+
+    // Validate password confirmation
     if (form.password !== form.confirmPassword) {
       Alert.alert('שגיאה', 'הסיסמאות לא תואמות')
       return
@@ -39,7 +52,7 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true)
     try {
-      const { user, error } = await register(form.email, form.password, form.displayName)
+      const { user, error } = await register(form.email, form.password, nameValidation.sanitized)
       if (error) {
         Alert.alert('שגיאה', error)
       } else {

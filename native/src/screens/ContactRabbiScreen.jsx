@@ -3,6 +3,7 @@ import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, TextInput,
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { createLead } from '../services/leadsService'
+import { validateName, validatePhone, validateMessage } from '../utils/validation'
 
 const PRIMARY_RED = '#DC2626'
 const BG = '#FFFFFF'
@@ -24,17 +25,33 @@ export default function ContactRabbiScreen({ navigation }) {
   ]
 
   const handleSubmit = async () => {
-    if (!form.name || !form.phone) {
-      Alert.alert('שגיאה', 'אנא מלא שם ומספר טלפון')
+    // Validate name
+    const nameValidation = validateName(form.name, { minLength: 2, maxLength: 100, required: true })
+    if (!nameValidation.valid) {
+      Alert.alert('שגיאה', nameValidation.error)
+      return
+    }
+
+    // Validate phone
+    const phoneValidation = validatePhone(form.phone)
+    if (!phoneValidation.valid) {
+      Alert.alert('שגיאה', phoneValidation.error)
+      return
+    }
+
+    // Validate message (optional)
+    const messageValidation = validateMessage(form.message, { maxLength: 2000, required: false })
+    if (!messageValidation.valid) {
+      Alert.alert('שגיאה', messageValidation.error)
       return
     }
 
     setLoading(true)
     try {
       const { error } = await createLead({
-        name: form.name,
-        phone: form.phone,
-        message: form.message,
+        name: nameValidation.sanitized,
+        phone: form.phone.trim(),
+        message: messageValidation.sanitized,
         source: 'app',
       })
 
@@ -96,6 +113,7 @@ export default function ContactRabbiScreen({ navigation }) {
                   value={form.name}
                   onChangeText={(text) => setForm({...form, name: text})}
                   textContentType="name"
+                  maxLength={100}
                 />
               </View>
             </View>
@@ -112,6 +130,7 @@ export default function ContactRabbiScreen({ navigation }) {
                   onChangeText={(text) => setForm({...form, phone: text})}
                   keyboardType="phone-pad"
                   textContentType="telephoneNumber"
+                  maxLength={20}
                 />
               </View>
             </View>
@@ -128,6 +147,7 @@ export default function ContactRabbiScreen({ navigation }) {
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
+                  maxLength={2000}
                 />
               </View>
             </View>

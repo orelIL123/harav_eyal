@@ -16,6 +16,7 @@ import { createBook, getBooks, updateBook, deleteBook } from '../services/booksS
 import { createFlyer, getFlyers, updateFlyer, deleteFlyer } from '../services/flyersService'
 import { createCommunityPost, getCommunityPosts, updateCommunityPost, deleteCommunityPost } from '../services/communityPostsService'
 import { clearConsent, clearAllAppData } from '../utils/storage'
+import { validateText, validateURL, sanitizeText } from '../utils/validation'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -151,9 +152,27 @@ function LessonsForm({ navigation }) {
   }
 
   const handleSubmit = async () => {
-    if (!form.title || !form.url) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.lessonsForm.errorFillFields'))
+    // Validate title
+    const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
+    if (!titleValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
       return
+    }
+
+    // Validate URL
+    const urlValidation = validateURL(form.url, { required: true })
+    if (!urlValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), urlValidation.error)
+      return
+    }
+
+    // Validate date if provided
+    if (form.date) {
+      const dateValidation = validateText(form.date, { maxLength: 50, required: false })
+      if (!dateValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), dateValidation.error)
+        return
+      }
     }
 
     try {
@@ -164,20 +183,25 @@ function LessonsForm({ navigation }) {
         return
       }
 
+      // Sanitize inputs
+      const sanitizedForm = {
+        ...form,
+        title: titleValidation.sanitized,
+        url: form.url.trim(),
+        date: form.date ? sanitizeText(form.date) : '',
+        category: form.category,
+        videoId: form.videoId ? sanitizeText(form.videoId) : '',
+        thumbnailUrl: form.thumbnailUrl,
+      }
+
       if (editingLesson) {
         // Update existing lesson
-        await updateLesson(editingLesson.id, {
-          ...form,
-          thumbnailUrl: form.thumbnailUrl,
-        })
+        await updateLesson(editingLesson.id, sanitizedForm)
         Alert.alert(t('admin.lessonsForm.success'), t('admin.lessonsForm.lessonUpdated'))
         setEditingLesson(null)
       } else {
         // Add new lesson
-        await addLesson({
-          ...form,
-          thumbnailUrl: form.thumbnailUrl,
-        })
+        await addLesson(sanitizedForm)
         Alert.alert(t('admin.lessonsForm.success'), t('admin.lessonsForm.lessonAdded'))
       }
       
@@ -543,8 +567,17 @@ function AlertsForm() {
   }
 
   const handleSubmit = async () => {
-    if (!form.title || !form.message) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.alertsForm.errorFillAllFields'))
+    // Validate title
+    const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
+    if (!titleValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
+      return
+    }
+
+    // Validate message
+    const messageValidation = validateText(form.message, { minLength: 1, maxLength: 1000, required: true })
+    if (!messageValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), messageValidation.error)
       return
     }
 
@@ -555,11 +588,11 @@ function AlertsForm() {
       const expiresAt = new Date()
       expiresAt.setHours(expiresAt.getHours() + 24)
 
-      // Save to Firestore
+      // Save to Firestore (sanitize inputs)
       const alertData = {
-        title: form.title,
+        title: titleValidation.sanitized,
         type: form.type,
-        message: form.message,
+        message: messageValidation.sanitized,
         priority: form.priority,
         sendType: form.sendType,
         scheduledTime: form.sendType === 'scheduled' ? new Date(form.scheduledTime).toISOString() : null,
@@ -1381,9 +1414,27 @@ function NewsForm() {
   }
 
   const handleSubmit = async () => {
-    if (!form.title || !form.content) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.alertsForm.errorFillAllFields'))
+    // Validate title
+    const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
+    if (!titleValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
       return
+    }
+
+    // Validate content
+    const contentValidation = validateText(form.content, { minLength: 1, maxLength: 10000, required: true })
+    if (!contentValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), contentValidation.error)
+      return
+    }
+
+    // Validate imageUrl if provided
+    if (form.imageUrl) {
+      const imageUrlValidation = validateURL(form.imageUrl, { required: false })
+      if (!imageUrlValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), imageUrlValidation.error)
+        return
+      }
     }
 
     if (form.imageUri && !form.imageUrl) {
@@ -1411,9 +1462,9 @@ function NewsForm() {
       }
 
       const newsData = {
-        title: form.title,
+        title: titleValidation.sanitized,
         category: form.category,
-        content: form.content,
+        content: contentValidation.sanitized,
         imageUrl: form.imageUrl || null,
         isPublished: true,
         publishedAt: publishedAt || new Date(), // Use custom date or current date
@@ -1765,10 +1816,32 @@ function BooksForm() {
   }
 
   const handleSubmit = async () => {
-    if (!form.title) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorFillTitle'))
+    // Validate title
+    const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
+    if (!titleValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
       return
     }
+
+    // Validate description if provided
+    let descriptionValidation = { valid: true, sanitized: '' }
+    if (form.description) {
+      descriptionValidation = validateText(form.description, { maxLength: 2000, required: false })
+      if (!descriptionValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), descriptionValidation.error)
+        return
+      }
+    }
+
+    // Validate purchase link if provided
+    if (form.purchaseLink) {
+      const linkValidation = validateURL(form.purchaseLink, { required: false })
+      if (!linkValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), linkValidation.error)
+        return
+      }
+    }
+
     if (form.imageUri && !form.imageUrl) {
       Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'))
       return
@@ -1780,10 +1853,10 @@ function BooksForm() {
       if (editingBook) {
         // Update existing book
         await updateBook(editingBook.id, {
-          title: form.title,
-          description: form.description,
+          title: titleValidation.sanitized,
+          description: descriptionValidation.sanitized,
           imageUrl: form.imageUrl,
-          purchaseLink: form.purchaseLink,
+          purchaseLink: form.purchaseLink ? form.purchaseLink.trim() : '',
           isActive: form.isActive,
         })
         Alert.alert(t('admin.lessonsForm.success'), t('admin.booksForm.bookUpdated'))
@@ -1791,10 +1864,10 @@ function BooksForm() {
       } else {
         // Add new book
         await createBook({
-          title: form.title,
-          description: form.description,
+          title: titleValidation.sanitized,
+          description: descriptionValidation.sanitized,
           imageUrl: form.imageUrl,
-          purchaseLink: form.purchaseLink,
+          purchaseLink: form.purchaseLink ? form.purchaseLink.trim() : '',
           isActive: form.isActive,
         })
         Alert.alert(t('admin.lessonsForm.success'), t('admin.booksForm.bookAdded'))
@@ -2102,10 +2175,32 @@ function FlyersForm() {
   }
 
   const handleSubmit = async () => {
-    if (!form.title) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorFillTitle'))
+    // Validate title
+    const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
+    if (!titleValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
       return
     }
+
+    // Validate description if provided
+    let descriptionValidation = { valid: true, sanitized: '' }
+    if (form.description) {
+      descriptionValidation = validateText(form.description, { maxLength: 2000, required: false })
+      if (!descriptionValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), descriptionValidation.error)
+        return
+      }
+    }
+
+    // Validate date
+    if (form.date) {
+      const dateValidation = validateText(form.date, { maxLength: 50, required: false })
+      if (!dateValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), dateValidation.error)
+        return
+      }
+    }
+
     if (form.pdfUri && !form.pdfUrl) {
       Alert.alert(t('admin.cardsForm.notice'), t('admin.flyersForm.errorUploadPDF'))
       return
@@ -2119,8 +2214,8 @@ function FlyersForm() {
       if (editingFlyer) {
         // Update existing flyer
         await updateFlyer(editingFlyer.id, {
-          title: form.title,
-          description: form.description,
+          title: titleValidation.sanitized,
+          description: descriptionValidation.sanitized,
           date: dateObj,
           pdfUrl: form.pdfUrl,
           isActive: form.isActive,
@@ -2130,8 +2225,8 @@ function FlyersForm() {
       } else {
         // Add new flyer
         await createFlyer({
-          title: form.title,
-          description: form.description,
+          title: titleValidation.sanitized,
+          description: descriptionValidation.sanitized,
           date: dateObj,
           pdfUrl: form.pdfUrl,
           isActive: form.isActive,
@@ -2449,10 +2544,41 @@ function CommunityPostsForm() {
   }
 
   const handleSubmit = async () => {
-    if (!form.title) {
-      Alert.alert(t('admin.lessonsForm.error'), 'יש למלא כותרת')
+    // Validate title
+    const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
+    if (!titleValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
       return
     }
+
+    // Validate summary if provided
+    let summaryValidation = { valid: true, sanitized: '' }
+    if (form.summary) {
+      summaryValidation = validateText(form.summary, { maxLength: 2000, required: false })
+      if (!summaryValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), summaryValidation.error)
+        return
+      }
+    }
+
+    // Validate imageUrl if provided
+    if (form.imageUrl) {
+      const imageUrlValidation = validateURL(form.imageUrl, { required: false })
+      if (!imageUrlValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), imageUrlValidation.error)
+        return
+      }
+    }
+
+    // Validate date
+    if (form.date) {
+      const dateValidation = validateText(form.date, { maxLength: 50, required: false })
+      if (!dateValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), dateValidation.error)
+        return
+      }
+    }
+
     if (form.imageUri && !form.imageUrl) {
       Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'))
       return
@@ -2466,8 +2592,8 @@ function CommunityPostsForm() {
       if (editingPost) {
         // Update existing post
         await updateCommunityPost(editingPost.id, {
-          title: form.title,
-          summary: form.summary,
+          title: titleValidation.sanitized,
+          summary: summaryValidation.sanitized,
           imageUrl: form.imageUrl,
           isEvent: form.isEvent,
           date: dateObj,
@@ -2478,8 +2604,8 @@ function CommunityPostsForm() {
       } else {
         // Add new post
         await createCommunityPost({
-          title: form.title,
-          summary: form.summary,
+          title: titleValidation.sanitized,
+          summary: summaryValidation.sanitized,
           imageUrl: form.imageUrl,
           isEvent: form.isEvent,
           date: dateObj,
@@ -2856,7 +2982,42 @@ function PodcastsForm() {
   }
 
   const handleSubmit = async () => {
-    if (!form.title || !form.audioUrl) {
+    // Validate title
+    const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
+    if (!titleValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
+      return
+    }
+
+    // Validate description if provided
+    let descriptionValidation = { valid: true, sanitized: '' }
+    if (form.description) {
+      descriptionValidation = validateText(form.description, { maxLength: 2000, required: false })
+      if (!descriptionValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), descriptionValidation.error)
+        return
+      }
+    }
+
+    // Validate thumbnailUrl if provided
+    if (form.thumbnailUrl) {
+      const thumbnailUrlValidation = validateURL(form.thumbnailUrl, { required: false })
+      if (!thumbnailUrlValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), thumbnailUrlValidation.error)
+        return
+      }
+    }
+
+    // Validate audioUrl if provided
+    if (form.audioUrl) {
+      const audioUrlValidation = validateURL(form.audioUrl, { required: false })
+      if (!audioUrlValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), audioUrlValidation.error)
+        return
+      }
+    }
+
+    if (!form.audioUrl) {
       Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.errorFillTitleAndAudio'))
       return
     }
@@ -2864,12 +3025,20 @@ function PodcastsForm() {
     try {
       setLoading(true)
       
+      // Sanitize form data
+      const sanitizedForm = {
+        ...form,
+        title: titleValidation.sanitized,
+        description: descriptionValidation.sanitized,
+        category: form.category ? sanitizeText(form.category) : '',
+      }
+      
       if (editingPodcast) {
-        await updatePodcast(editingPodcast.id, form)
+        await updatePodcast(editingPodcast.id, sanitizedForm)
         Alert.alert(t('admin.lessonsForm.success'), t('admin.podcastsForm.podcastUpdated'))
         setEditingPodcast(null)
       } else {
-        await createPodcast(form)
+        await createPodcast(sanitizedForm)
         Alert.alert(t('admin.lessonsForm.success'), t('admin.podcastsForm.podcastAdded'))
       }
       

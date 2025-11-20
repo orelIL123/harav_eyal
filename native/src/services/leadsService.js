@@ -1,4 +1,5 @@
 import { setDocument } from './firestore'
+import { validateName, validatePhone, validateMessage, sanitizeText } from '../utils/validation'
 
 /**
  * Leads Service - שמירת לידים ופניות
@@ -12,21 +13,30 @@ export async function createLead(leadData) {
   try {
     const { name, phone, message = '', source = 'app' } = leadData
     
-    if (!name || !phone) {
-      return { error: 'שם וטלפון הם שדות חובה' }
+    // Validate name
+    const nameValidation = validateName(name, { minLength: 2, maxLength: 100, required: true })
+    if (!nameValidation.valid) {
+      return { error: nameValidation.error }
     }
 
-    // Validate phone (basic validation)
-    const phoneRegex = /^[0-9\-\+\(\)\s]+$/
-    if (!phoneRegex.test(phone)) {
-      return { error: 'מספר טלפון לא תקין' }
+    // Validate phone
+    const phoneValidation = validatePhone(phone)
+    if (!phoneValidation.valid) {
+      return { error: phoneValidation.error }
     }
 
+    // Validate message (optional)
+    const messageValidation = validateMessage(message, { maxLength: 2000, required: false })
+    if (!messageValidation.valid) {
+      return { error: messageValidation.error }
+    }
+
+    // Sanitize all inputs
     const lead = {
-      name: name.trim(),
+      name: nameValidation.sanitized,
       phone: phone.trim(),
-      message: message.trim(),
-      source, // 'app', 'website', etc.
+      message: messageValidation.sanitized,
+      source: sanitizeText(source) || 'app', // 'app', 'website', etc.
       status: 'new', // 'new', 'contacted', 'converted', 'archived'
       // createdAt and updatedAt will be added by setDocument
     }

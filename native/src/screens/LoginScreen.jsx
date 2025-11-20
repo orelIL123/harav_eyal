@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../utils/AuthContext'
 import { getCredentials, saveCredentials } from '../utils/storage'
+import { validateEmail, validatePassword } from '../utils/validation'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -36,19 +37,28 @@ export default function LoginScreen({ navigation }) {
   }, [])
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות')
+    // Validate email
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.valid) {
+      Alert.alert('שגיאה', emailValidation.error)
+      return
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password, { minLength: 6 })
+    if (!passwordValidation.valid) {
+      Alert.alert('שגיאה', passwordValidation.error)
       return
     }
 
     setLoading(true)
     try {
-      const { user, error } = await login(email, password)
+      const { user, error } = await login(email.trim(), password)
       if (error) {
         Alert.alert('שגיאה', error)
       } else {
         // Save email for next time (password is never stored)
-        await saveCredentials(email)
+        await saveCredentials(email.trim())
         // Navigation will be handled by AuthContext
         navigation.goBack()
       }
@@ -111,6 +121,7 @@ export default function LoginScreen({ navigation }) {
                     keyboardType="email-address"
                     textContentType="emailAddress"
                     autoComplete="email"
+                    maxLength={254}
                   />
                 </View>
 
@@ -125,6 +136,7 @@ export default function LoginScreen({ navigation }) {
                     secureTextEntry={!showPassword}
                     textContentType="password"
                     autoComplete="password"
+                    maxLength={128}
                   />
                   <Pressable
                     style={styles.eyeButton}

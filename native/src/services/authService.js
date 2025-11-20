@@ -12,6 +12,8 @@ import {
   EmailAuthProvider
 } from 'firebase/auth'
 import { setDocument, getDocument } from './firestore'
+import { validateEmail, validatePassword } from '../utils/validation'
+import { Analytics, setUserPropertiesCustom, setCrashlyticsUser } from './analyticsService'
 
 /**
  * Authentication Service - כל פונקציות ה-Auth
@@ -22,6 +24,18 @@ import { setDocument, getDocument } from './firestore'
  */
 export async function register(email, password, displayName = '') {
   try {
+    // Validate email
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.valid) {
+      return { user: null, error: emailValidation.error }
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password, { minLength: 6 })
+    if (!passwordValidation.valid) {
+      return { user: null, error: passwordValidation.error }
+    }
+
     // Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
@@ -47,6 +61,11 @@ export async function register(email, password, displayName = '') {
       }
     }, false) // false = don't merge, create new
     
+    // Track registration in Analytics
+    Analytics.userRegister()
+    setUserPropertiesCustom(user.uid, { email: user.email })
+    setCrashlyticsUser(user.uid, user.email)
+    
     return { user, error: null }
   } catch (error) {
     console.error('Registration error:', error)
@@ -59,6 +78,17 @@ export async function register(email, password, displayName = '') {
  */
 export async function login(email, password) {
   try {
+    // Validate email
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.valid) {
+      return { user: null, error: emailValidation.error }
+    }
+
+    // Password is validated by Firebase, but we can add basic check
+    if (!password || password.length === 0) {
+      return { user: null, error: 'סיסמה נדרשת' }
+    }
+
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
     
@@ -90,6 +120,11 @@ export async function login(email, password) {
       lastLoginAt: new Date()
     }, true) // true = merge
     
+    // Track login in Analytics
+    Analytics.userLogin('email')
+    setUserPropertiesCustom(user.uid, { email: user.email })
+    setCrashlyticsUser(user.uid, user.email)
+    
     return { user, error: null }
   } catch (error) {
     console.error('Login error:', error)
@@ -102,6 +137,9 @@ export async function login(email, password) {
  */
 export async function logout() {
   try {
+    // Track logout in Analytics before signing out
+    Analytics.userLogout()
+    
     await signOut(auth)
     return { error: null }
   } catch (error) {
@@ -115,6 +153,12 @@ export async function logout() {
  */
 export async function resetPassword(email) {
   try {
+    // Validate email
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.valid) {
+      return { error: emailValidation.error }
+    }
+
     await sendPasswordResetEmail(auth, email)
     return { error: null }
   } catch (error) {
@@ -197,6 +241,12 @@ export async function changePassword(currentPassword, newPassword) {
     const user = auth.currentUser
     if (!user || !user.email) {
       return { error: 'משתמש לא מחובר' }
+    }
+
+    // Validate new password
+    const passwordValidation = validatePassword(newPassword, { minLength: 6 })
+    if (!passwordValidation.valid) {
+      return { error: passwordValidation.error }
     }
     
     // Re-authenticate
