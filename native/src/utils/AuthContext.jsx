@@ -22,21 +22,46 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser)
+        console.log('🔄 Auth state changed - user logged in:', firebaseUser.uid)
+        
+        // Clear cache first to ensure fresh data
+        try {
+          const { clearAllCache } = await import('../utils/cache')
+          await clearAllCache()
+          console.log('🧹 Cache cleared in AuthContext')
+        } catch (cacheError) {
+          console.warn('Warning: Could not clear cache:', cacheError)
+        }
         
         // Get user data from Firestore
         try {
           const { userData: data } = await getUserData(firebaseUser.uid)
           setUserData(data)
+          console.log('📋 User data loaded:', { 
+            uid: firebaseUser.uid, 
+            email: data?.email, 
+            role: data?.role,
+            tier: data?.tier,
+            displayName: data?.displayName
+          })
           
-          // Check if admin
+          // Check if admin - use direct check without cache
           const admin = await isUserAdmin(firebaseUser.uid)
+          console.log('🔐 Admin check result:', admin, 'Role from data:', data?.role)
           setIsAdmin(admin)
+          
+          if (admin) {
+            console.log('✅ User is ADMIN - admin panel should be visible!')
+          } else {
+            console.log('❌ User is NOT admin - role:', data?.role)
+          }
         } catch (error) {
-          console.error('Error loading user data:', error)
+          console.error('❌ Error loading user data:', error)
           setUserData(null)
           setIsAdmin(false)
         }
       } else {
+        console.log('🔄 Auth state changed - user logged out')
         setUser(null)
         setUserData(null)
         setIsAdmin(false)

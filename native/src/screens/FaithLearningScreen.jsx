@@ -3,12 +3,14 @@ import { SafeAreaView, View, Text, StyleSheet, Pressable, ScrollView } from 'rea
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { FAITH_TOPICS } from '../data/faithTopics'
+import { useAuth } from '../utils/AuthContext'
 
 const PRIMARY_RED = '#DC2626'
 const BG = '#FFFFFF'
 const CHIP_BG = 'rgba(220,38,38,0.08)'
 
 export default function FaithLearningScreen({ navigation, route }) {
+  const { isAdmin } = useAuth()
   const initialCategory = route?.params?.category || FAITH_TOPICS[0].key
   const [activeCategory, setActiveCategory] = React.useState(initialCategory)
 
@@ -102,10 +104,6 @@ export default function FaithLearningScreen({ navigation, route }) {
             <Pressable accessibilityRole="button" style={styles.ctaBtnPrimary} onPress={() => navigation.navigate('DailyInsight')}>
               <Ionicons name="flame-outline" size={18} color="#fff" />
               <Text style={styles.ctaBtnPrimaryText}>זריקת אמונה</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" style={styles.ctaBtnSecondary} onPress={() => navigation.navigate('Admin')}>
-              <Ionicons name="construct-outline" size={18} color={PRIMARY_RED} />
-              <Text style={styles.ctaBtnSecondaryText}>מסך אדמין</Text>
             </Pressable>
           </View>
         </View>

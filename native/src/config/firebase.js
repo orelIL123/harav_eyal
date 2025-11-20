@@ -4,15 +4,14 @@ import { getAuth } from 'firebase/auth'
 import { getStorage } from 'firebase/storage'
 
 // Firebase configuration
-// TODO: Replace with your actual Firebase config from Firebase Console
-// Project Settings → General → Your apps → Add app → Web app
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyDpXIaHTcvamaoKXrl657nU3zFm9Nh389A",
   authDomain: "eyalamrami-1d69e.firebaseapp.com",
   projectId: "eyalamrami-1d69e",
-  storageBucket: "eyalamrami-1d69e.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  storageBucket: "eyalamrami-1d69e.firebasestorage.app",
+  messagingSenderId: "990847614280",
+  appId: "1:990847614280:web:431b7f340e07bd7f3b477d",
+  measurementId: "G-P7YM9RTHK6"
 }
 
 // Initialize Firebase

@@ -1,9 +1,10 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, Pressable, ScrollView, Share, TextInput, Modal, Dimensions, Alert, ActivityIndicator } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, Pressable, ScrollView, Share, TextInput, Modal, Dimensions, Alert, ActivityIndicator, Image } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { Audio, Video } from 'expo-av'
 import { getDailyVideos } from '../services/dailyVideosService'
+import { useAuth } from '../utils/AuthContext'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -48,6 +49,7 @@ const DEDICATION_LABELS = DEDICATION_TYPES.reduce((acc, curr) => {
 }, {})
 
 export default function DailyInsightScreen({ navigation }) {
+  const { isAdmin } = useAuth()
   const [isAdminMode, setIsAdminMode] = React.useState(false)
   // Content type selector: we keep it but reorder UI so text is primary
   const [activeType, setActiveType] = React.useState('text') // 'audio' | 'text'
@@ -194,14 +196,17 @@ export default function DailyInsightScreen({ navigation }) {
           </Pressable>
           <Text style={styles.headerTitle}>זריקת אמונה</Text>
         </View>
-        <View style={styles.roleToggle}>
-          <Pressable accessibilityRole="button" onPress={() => setIsAdminMode(false)} style={[styles.roleBtn, !isAdminMode && styles.roleBtnActive]}>
-            <Text style={[styles.roleBtnText, !isAdminMode && styles.roleBtnTextActive]}>אורח</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setIsAdminMode(true)} style={[styles.roleBtn, isAdminMode && styles.roleBtnActive]}>
-            <Text style={[styles.roleBtnText, isAdminMode && styles.roleBtnTextActive]}>אדמין</Text>
-          </Pressable>
-        </View>
+        {isAdmin && (
+          <View style={styles.roleToggle}>
+            <Pressable accessibilityRole="button" onPress={() => setIsAdminMode(false)} style={[styles.roleBtn, !isAdminMode && styles.roleBtnActive]}>
+              <Text style={[styles.roleBtnText, !isAdminMode && styles.roleBtnTextActive]}>אורח</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setIsAdminMode(true)} style={[styles.roleBtn, isAdminMode && styles.roleBtnActive]}>
+              <Text style={[styles.roleBtnText, isAdminMode && styles.roleBtnTextActive]}>אדמין</Text>
+            </Pressable>
+          </View>
+        )}
+        {!isAdmin && <View style={{ width: 36 }} />}
       </View>
 
       <ScrollView
@@ -415,7 +420,15 @@ export default function DailyInsightScreen({ navigation }) {
               {validStories.map((s, idx) => (
                 <Pressable key={s.id} accessibilityRole="button" style={styles.storyBubble} onPress={() => openStory(idx)}>
                   <View style={styles.storyRing}>
-                    <Ionicons name="videocam" size={22} color="#fff" />
+                    {s.thumbnailUrl ? (
+                      <Image 
+                        source={{ uri: s.thumbnailUrl }} 
+                        style={styles.storyThumbnail}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Ionicons name="videocam" size={22} color="#fff" />
+                    )}
                   </View>
                 </Pressable>
               ))}
@@ -869,6 +882,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.8)',
     borderWidth: 2,
     borderColor: PRIMARY_RED,
+    overflow: 'hidden',
+  },
+  storyThumbnail: {
+    width: '100%',
+    height: '100%',
   },
   storyModalBackdrop: {
     flex: 1,

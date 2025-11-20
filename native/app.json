@@ -39,9 +39,6 @@
       "androidMode": "default",
       "androidCollapsedTitle": "התראות ממוסדות הרב"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "extra": {
       "eas": {
         "projectId": "429bf080-b8a2-42be-a2f6-ba6d3a70cff2"

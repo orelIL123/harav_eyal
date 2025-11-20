@@ -227,6 +227,31 @@ export async function pickAudio() {
 }
 
 /**
+ * Pick a PDF file using document picker
+ */
+export async function pickPDF() {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf'],
+      copyToCacheDirectory: true,
+    })
+
+    if (result.canceled) return null
+
+    return {
+      uri: result.assets[0].uri,
+      name: result.assets[0].name,
+      mimeType: result.assets[0].mimeType,
+      size: result.assets[0].size,
+    }
+  } catch (error) {
+    console.error('Error picking PDF:', error)
+    Alert.alert('שגיאה', 'לא ניתן לבחור קובץ PDF')
+    return null
+  }
+}
+
+/**
  * Upload audio file to Firebase Storage
  */
 export async function uploadAudioToStorage(uri, path, onProgress) {
@@ -270,6 +295,54 @@ export async function uploadAudioToStorage(uri, path, onProgress) {
     })
   } catch (error) {
     console.error('Error uploading audio:', error)
+    throw error
+  }
+}
+
+/**
+ * Upload PDF file to Firebase Storage
+ */
+export async function uploadPDFToStorage(uri, path, onProgress) {
+  try {
+    const { storage } = await import('../config/firebase')
+    const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage')
+    
+    // Convert URI to blob for React Native
+    const response = await fetch(uri)
+    const blob = await response.blob()
+    
+    // Create storage reference
+    const storageRef = ref(storage, path)
+    
+    // Upload with progress tracking
+    const uploadTask = uploadBytesResumable(storageRef, blob, {
+      contentType: 'application/pdf',
+    })
+    
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+          onProgress?.(progress)
+        },
+        (error) => {
+          console.error('Upload error:', error)
+          reject(error)
+        },
+        async () => {
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+            resolve(downloadURL)
+          } catch (error) {
+            console.error('Error getting download URL:', error)
+            reject(error)
+          }
+        }
+      )
+    })
+  } catch (error) {
+    console.error('Error uploading PDF:', error)
     throw error
   }
 }

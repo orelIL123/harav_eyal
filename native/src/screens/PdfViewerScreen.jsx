@@ -10,15 +10,19 @@ const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 
 export default function PdfViewerScreen({ route, navigation }) {
-  const { pdf, title } = route.params || {}
+  const { pdf, pdfUrl, title } = route.params || {}
   const [pdfUri, setPdfUri] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
     const loadPdf = async () => {
       try {
-        if (pdf) {
-          // Get the asset URI
+        // Priority: pdfUrl (from Firestore) > pdf (local asset)
+        if (pdfUrl) {
+          // For remote PDFs, use the URL directly
+          setPdfUri(pdfUrl)
+        } else if (pdf) {
+          // Get the asset URI for local assets
           const asset = Image.resolveAssetSource(pdf)
           if (asset?.uri) {
             // For local assets, copy to cache directory
@@ -45,13 +49,15 @@ export default function PdfViewerScreen({ route, navigation }) {
         if (pdf) {
           const asset = Image.resolveAssetSource(pdf)
           setPdfUri(asset?.uri)
+        } else if (pdfUrl) {
+          setPdfUri(pdfUrl)
         }
       } finally {
         setLoading(false)
       }
     }
     loadPdf()
-  }, [pdf])
+  }, [pdf, pdfUrl])
 
   if (loading) {
     return (
@@ -91,23 +97,35 @@ export default function PdfViewerScreen({ route, navigation }) {
         <View style={styles.webviewContainer}>
           <WebView
             source={{ 
-              uri: Platform.OS === 'ios' 
-                ? pdfUri 
-                : `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUri)}&embedded=true`
+              uri: pdfUrl || pdfUri.includes('http') 
+                ? `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUri)}&embedded=true`
+                : Platform.OS === 'ios' 
+                  ? pdfUri 
+                  : `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUri)}&embedded=true`
             }}
             style={styles.webview}
             startInLoadingState={true}
+            scalesPageToFit={true}
+            showsVerticalScrollIndicator={true}
+            showsHorizontalScrollIndicator={false}
             renderLoading={() => (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={PRIMARY_RED} />
               </View>
             )}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent
+              console.error('WebView error: ', nativeEvent)
+            }}
           />
           <Pressable 
             style={styles.shareButton}
             onPress={async () => {
               try {
-                if (await Sharing.isAvailableAsync()) {
+                if (pdfUrl || pdfUri.includes('http')) {
+                  // For remote PDFs, open in browser or share URL
+                  await Linking.openURL(pdfUri)
+                } else if (await Sharing.isAvailableAsync()) {
                   await Sharing.shareAsync(pdfUri)
                 } else {
                   await Linking.openURL(pdfUri)

@@ -1,39 +1,40 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { getFlyers } from '../services/flyersService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
-// דוגמאות - בהמשך יגיעו מה-API
-const FLYERS = [
-  {
-    id: 'flyer-1',
-    title: 'עלון שבועי - פרשת השבוע',
-    date: '2024-01-15',
-    pdf: null, // יועלה בהמשך
-  },
-  {
-    id: 'flyer-2',
-    title: 'עלון שבועי - חיזוק אמונה',
-    date: '2024-01-08',
-    pdf: null,
-  },
-  {
-    id: 'flyer-3',
-    title: 'עלון שבועי - תובנות',
-    date: '2024-01-01',
-    pdf: null,
-  },
-]
-
 export default function FlyersScreen({ navigation }) {
+  const [flyers, setFlyers] = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    loadFlyers()
+  }, [])
+
+  const loadFlyers = async () => {
+    try {
+      setLoading(true)
+      const allFlyers = await getFlyers()
+      // Filter only active flyers
+      const activeFlyers = allFlyers.filter(flyer => flyer.isActive !== false)
+      setFlyers(activeFlyers)
+    } catch (error) {
+      console.error('Error loading flyers:', error)
+      Alert.alert('שגיאה', 'לא ניתן לטעון את העלונים')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleFlyerPress = (flyer) => {
-    if (flyer.pdf) {
-      navigation.navigate('PdfViewer', { pdf: flyer.pdf, title: flyer.title })
+    if (flyer.pdfUrl) {
+      navigation.navigate('PdfViewer', { pdfUrl: flyer.pdfUrl, title: flyer.title })
     } else {
       Alert.alert('בקרוב', `עלון ${flyer.title} יופיע כאן בקרוב`)
     }
@@ -57,25 +58,42 @@ export default function FlyersScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>עלונים שבועיים של המוסדות</Text>
 
-        {FLYERS.map((flyer, idx) => (
-          <Pressable
-            key={flyer.id}
-            style={[styles.flyerCard, idx === 0 && styles.flyerCardFirst]}
-            onPress={() => handleFlyerPress(flyer)}
-            accessibilityRole="button"
-          >
-            <View style={styles.flyerContent}>
-              <View style={styles.flyerIcon}>
-                <Ionicons name="document-text-outline" size={32} color={PRIMARY_RED} />
-              </View>
-              <View style={styles.flyerTextBlock}>
-                <Text style={styles.flyerTitle}>{flyer.title}</Text>
-                <Text style={styles.flyerDate}>{flyer.date}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
-            </View>
-          </Pressable>
-        ))}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PRIMARY_RED} />
+            <Text style={styles.loadingText}>טוען עלונים...</Text>
+          </View>
+        ) : flyers.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="document-text-outline" size={48} color="#d1d5db" />
+            <Text style={styles.emptyText}>אין עלונים זמינים כרגע</Text>
+          </View>
+        ) : (
+          flyers.map((flyer, idx) => {
+            const flyerDate = flyer.date ? 
+              (flyer.date.toDate ? flyer.date.toDate().toLocaleDateString('he-IL') : new Date(flyer.date).toLocaleDateString('he-IL')) : 
+              ''
+            return (
+              <Pressable
+                key={flyer.id}
+                style={[styles.flyerCard, idx === 0 && styles.flyerCardFirst]}
+                onPress={() => handleFlyerPress(flyer)}
+                accessibilityRole="button"
+              >
+                <View style={styles.flyerContent}>
+                  <View style={styles.flyerIcon}>
+                    <Ionicons name="document-text-outline" size={32} color={PRIMARY_RED} />
+                  </View>
+                  <View style={styles.flyerTextBlock}>
+                    <Text style={styles.flyerTitle}>{flyer.title}</Text>
+                    {flyerDate && <Text style={styles.flyerDate}>{flyerDate}</Text>}
+                  </View>
+                  <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
+                </View>
+              </Pressable>
+            )
+          })
+        )}
 
         <View style={styles.footerCard}>
           <Ionicons name="document-outline" size={32} color={PRIMARY_RED} />
@@ -198,6 +216,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     textAlign: 'right',
     lineHeight: 18,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 48,
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'Poppins_500Medium',
+    color: '#9ca3af',
   },
 })
 

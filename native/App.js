@@ -50,6 +50,7 @@ import { hasAcceptedConsent } from './src/utils/storage'
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins'
 import { CinzelDecorative_400Regular, CinzelDecorative_700Bold } from '@expo-google-fonts/cinzel-decorative'
 import { Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, Heebo_700Bold, Heebo_900Black } from '@expo-google-fonts/heebo'
+import ErrorBoundary from './src/components/ErrorBoundary'
 // import { registerForPushNotificationsAsync } from './src/utils/notifications'
 
 const Stack = createNativeStackNavigator()
@@ -139,14 +140,19 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-        <NavigationContainer ref={navigationRef}>
-          <StatusBar style="dark" />
-          <Stack.Navigator 
-            initialRouteName={initialRoute}
-            screenOptions={{ headerShown: false }}
-          >
+    <ErrorBoundary
+      onGoHome={() => {
+        navigationRef.current?.navigate('Home')
+      }}
+    >
+      <AuthProvider>
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+          <NavigationContainer ref={navigationRef}>
+            <StatusBar style="dark" />
+            <Stack.Navigator 
+              initialRouteName={initialRoute}
+              screenOptions={{ headerShown: false }}
+            >
             <Stack.Screen name="TermsAndConsent" component={TermsAndConsentScreen} />
             <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
             <Stack.Screen name="Home" component={HomeScreen} />
@@ -212,5 +218,6 @@ export default function App() {
         )}
       </View>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }

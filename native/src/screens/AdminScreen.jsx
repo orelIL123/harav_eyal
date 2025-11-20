@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { sendLocalNotification, scheduleNotification } from '../utils/notifications'
-import { pickImage, pickVideo, uploadImageToStorage, uploadVideoToStorage, generateStoragePath, generateCardImagePath, generateNewsImagePath, generateDailyVideoPath, generateDailyVideoThumbnailPath } from '../utils/storage'
+import { pickImage, pickVideo, pickPDF, uploadImageToStorage, uploadVideoToStorage, uploadPDFToStorage, generateStoragePath, generateCardImagePath, generateNewsImagePath, generateDailyVideoPath, generateDailyVideoThumbnailPath } from '../utils/storage'
 import { addLesson, getLessons, updateLesson, deleteLesson } from '../services/lessonsService'
 import { createAlert, getAlerts, updateAlert, deleteAlert } from '../services/alertsService'
 import { getCard, updateCard, getAppConfig, updateAppConfig } from '../services/cardsService'
@@ -12,6 +12,9 @@ import { createNews, getNews, updateNews, deleteNews } from '../services/newsSer
 import { getInstitutionContent, saveInstitutionContent } from '../services/institutionsService'
 import { createPodcast, getAllPodcasts, updatePodcast, deletePodcast, uploadPodcastAudio, uploadPodcastThumbnail } from '../services/podcastsService'
 import { createDailyVideo, getDailyVideos, deleteDailyVideo, cleanupExpiredVideos } from '../services/dailyVideosService'
+import { createBook, getBooks, updateBook, deleteBook } from '../services/booksService'
+import { createFlyer, getFlyers, updateFlyer, deleteFlyer } from '../services/flyersService'
+import { pickPDF, uploadPDFToStorage } from '../utils/storage'
 import { clearConsent, clearAllAppData } from '../utils/storage'
 
 const PRIMARY_RED = '#DC2626'
@@ -28,6 +31,8 @@ export default function AdminScreen({ navigation, route }) {
     { id: 'alerts', label: t('admin.alerts'), icon: 'notifications-outline' },
     { id: 'cards', label: t('admin.cards'), icon: 'albums-outline' },
     { id: 'news', label: t('admin.news'), icon: 'newspaper-outline' },
+    { id: 'books', label: t('admin.books'), icon: 'book-outline' },
+    { id: 'flyers', label: t('admin.flyers'), icon: 'document-text-outline' },
     { id: 'podcasts', label: t('admin.podcasts'), icon: 'headset-outline' },
     { id: 'daily-videos', label: t('admin.dailyVideos'), icon: 'videocam-outline' },
     { id: 'institutions', label: t('admin.institutions'), icon: 'business-outline' },
@@ -86,6 +91,8 @@ export default function AdminScreen({ navigation, route }) {
         {activeTab === 'alerts' && <AlertsForm />}
         {activeTab === 'cards' && <CardsForm />}
         {activeTab === 'news' && <NewsForm />}
+        {activeTab === 'books' && <BooksForm />}
+        {activeTab === 'flyers' && <FlyersForm />}
         {activeTab === 'podcasts' && <PodcastsForm />}
         {activeTab === 'daily-videos' && <DailyVideosForm />}
         {activeTab === 'institutions' && <InstitutionsForm />}
@@ -1589,6 +1596,688 @@ function NewsForm() {
                 </View>
               </View>
             ))}
+          </ScrollView>
+        )}
+      </View>
+    </View>
+  )
+}
+
+// ========== BOOKS FORM ========== 
+function BooksForm() {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    imageUri: null,
+    imageUrl: null,
+    purchaseLink: '',
+    isActive: true,
+  })
+  const [books, setBooks] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [editingBook, setEditingBook] = useState(null)
+
+  useEffect(() => {
+    loadBooks()
+  }, [])
+
+  const loadBooks = async () => {
+    try {
+      setLoading(true)
+      const allBooks = await getBooks()
+      setBooks(allBooks)
+    } catch (error) {
+      console.error('Error loading books:', error)
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorLoadingBooks'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePickImage = async () => {
+    const image = await pickImage({ aspect: [3, 4] })
+    if (image) {
+      setForm({ ...form, imageUri: image.uri })
+    }
+  }
+
+  const handleUploadImage = async () => {
+    if (!form.imageUri) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
+      return
+    }
+
+    setUploading(true)
+    try {
+      const bookId = editingBook?.id || 'book-' + Date.now()
+      const path = generateStoragePath(`books/${bookId}`, 'book-image.jpg')
+      const url = await uploadImageToStorage(form.imageUri, path, (progress) => {
+        console.log(`Upload progress: ${progress}%`)
+      })
+      setForm({ ...form, imageUrl: url })
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
+    } catch (error) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
+      console.error(error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!form.title) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorFillTitle'))
+      return
+    }
+    if (form.imageUri && !form.imageUrl) {
+      Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'))
+      return
+    }
+
+    try {
+      setLoading(true)
+      
+      if (editingBook) {
+        // Update existing book
+        await updateBook(editingBook.id, {
+          title: form.title,
+          description: form.description,
+          imageUrl: form.imageUrl,
+          purchaseLink: form.purchaseLink,
+          isActive: form.isActive,
+        })
+        Alert.alert(t('admin.lessonsForm.success'), t('admin.booksForm.bookUpdated'))
+        setEditingBook(null)
+      } else {
+        // Add new book
+        await createBook({
+          title: form.title,
+          description: form.description,
+          imageUrl: form.imageUrl,
+          purchaseLink: form.purchaseLink,
+          isActive: form.isActive,
+        })
+        Alert.alert(t('admin.lessonsForm.success'), t('admin.booksForm.bookAdded'))
+      }
+      
+      // Reset form
+      setForm({
+        title: '',
+        description: '',
+        imageUri: null,
+        imageUrl: null,
+        purchaseLink: '',
+        isActive: true,
+      })
+      await loadBooks()
+    } catch (error) {
+      console.error('Error saving book:', error)
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorSavingBook'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEdit = (book) => {
+    setEditingBook(book)
+    setForm({
+      title: book.title || '',
+      description: book.description || '',
+      imageUrl: book.imageUrl || null,
+      imageUri: null,
+      purchaseLink: book.purchaseLink || '',
+      isActive: book.isActive !== undefined ? book.isActive : true,
+    })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingBook(null)
+    setForm({
+      title: '',
+      description: '',
+      imageUri: null,
+      imageUrl: null,
+      purchaseLink: '',
+      isActive: true,
+    })
+  }
+
+  const handleDelete = (book) => {
+    Alert.alert(
+      t('admin.booksForm.deleteBookTitle'),
+      t('admin.booksForm.deleteBookMessage', { title: book.title }),
+      [
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
+        {
+          text: t('admin.lessonsForm.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true)
+              await deleteBook(book.id)
+              Alert.alert(t('admin.lessonsForm.success'), t('admin.booksForm.bookDeleted'))
+              await loadBooks()
+            } catch (error) {
+              console.error('Error deleting book:', error)
+              Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorDeletingBook'))
+            } finally {
+              setLoading(false)
+            }
+          }
+        }
+      ]
+    )
+  }
+
+  return (
+    <View style={styles.formContainer}>
+      <Text style={styles.formTitle}>{t('admin.booksForm.title')}</Text>
+      <Text style={styles.formDesc}>
+        {t('admin.booksForm.description')}
+      </Text>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.booksForm.bookTitle')}</Text>
+        <TextInput
+          style={styles.input}
+          value={form.title}
+          onChangeText={text => setForm({...form, title: text})}
+          placeholder={t('admin.booksForm.bookTitlePlaceholder')}
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.booksForm.descriptionOptional')}</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={form.description}
+          onChangeText={text => setForm({...form, description: text})}
+          placeholder={t('admin.booksForm.descriptionPlaceholder')}
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.booksForm.purchaseLink')}</Text>
+        <TextInput
+          style={styles.input}
+          value={form.purchaseLink}
+          onChangeText={text => setForm({...form, purchaseLink: text})}
+          placeholder={t('admin.booksForm.purchaseLinkPlaceholder')}
+          autoCapitalize="none"
+          keyboardType="url"
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.booksForm.bookImage')}</Text>
+        {form.imageUrl && (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: form.imageUrl }} style={styles.previewImage} />
+            <View style={styles.uploadedBadge}>
+              <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+              <Text style={styles.uploadedText}>{t('admin.cardsForm.uploaded')}</Text>
+            </View>
+          </View>
+        )}
+        {form.imageUri && !form.imageUrl && (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: form.imageUri }} style={styles.previewImage} />
+          </View>
+        )}
+        <View style={styles.uploadSection}>
+          <Pressable
+            style={styles.uploadButton}
+            onPress={handlePickImage}
+            disabled={uploading}
+          >
+            <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
+            <Text style={styles.uploadButtonText}>
+              {form.imageUri ? t('admin.cardsForm.selectAnotherImage') : t('admin.booksForm.selectImage')}
+            </Text>
+          </Pressable>
+          {form.imageUri && !form.imageUrl && (
+            <Pressable
+              style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+              onPress={handleUploadImage}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color={PRIMARY_RED} />
+              ) : (
+                <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
+              )}
+              <Text style={styles.uploadButtonText}>
+                {uploading ? t('admin.cardsForm.uploading') : t('admin.booksForm.uploadImage')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.formGroup}>
+        <Pressable
+          style={styles.checkbox}
+          onPress={() => setForm({...form, isActive: !form.isActive})}
+        >
+          <View style={[styles.checkboxBox, form.isActive && styles.checkboxBoxChecked]}>
+            {form.isActive && <Ionicons name="checkmark" size={16} color="#fff" />}
+          </View>
+          <Text style={styles.checkboxLabel}>{t('admin.booksForm.activeBook')}</Text>
+        </Pressable>
+      </View>
+
+      <Pressable 
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Ionicons name={editingBook ? "checkmark-circle-outline" : "add-circle-outline"} size={22} color="#fff" />
+        )}
+        <Text style={styles.submitButtonText}>
+          {editingBook ? t('admin.booksForm.updateBook') : t('admin.booksForm.addBook')}
+        </Text>
+      </Pressable>
+
+      {editingBook && (
+        <Pressable style={styles.cancelButton} onPress={handleCancelEdit}>
+          <Text style={styles.cancelButtonText}>{t('admin.lessonsForm.cancelEdit')}</Text>
+        </Pressable>
+      )}
+
+      {/* Existing Books List */}
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.booksForm.existingBooks', { count: books.length })}</Text>
+        {loading && books.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={PRIMARY_RED} size="large" />
+            <Text style={styles.loadingText}>{t('admin.booksForm.loadingBooks')}</Text>
+          </View>
+        ) : books.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="book-outline" size={48} color="#d1d5db" />
+            <Text style={styles.emptyText}>{t('admin.booksForm.noBooks')}</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.lessonsList}>
+            {books.map((book) => (
+              <View key={book.id} style={styles.lessonItem}>
+                <View style={styles.lessonItemContent}>
+                  <Text style={styles.lessonItemTitle}>{book.title}</Text>
+                  {book.purchaseLink && (
+                    <Text style={styles.lessonItemCategory}>{t('admin.booksForm.hasPurchaseLink')}</Text>
+                  )}
+                  <Text style={[styles.lessonItemCategory, { color: book.isActive ? '#16a34a' : '#dc2626' }]}>
+                    {book.isActive ? t('admin.booksForm.active') : t('admin.booksForm.inactive')}
+                  </Text>
+                </View>
+                <View style={styles.lessonItemActions}>
+                  <Pressable
+                    style={styles.editButton}
+                    onPress={() => handleEdit(book)}
+                  >
+                    <Ionicons name="create-outline" size={20} color={PRIMARY_RED} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.deleteButton}
+                    onPress={() => handleDelete(book)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#dc2626" />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    </View>
+  )
+}
+
+// ========== FLYERS FORM ========== 
+function FlyersForm() {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    pdfUri: null,
+    pdfUrl: null,
+    isActive: true,
+  })
+  const [flyers, setFlyers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [editingFlyer, setEditingFlyer] = useState(null)
+
+  useEffect(() => {
+    loadFlyers()
+  }, [])
+
+  const loadFlyers = async () => {
+    try {
+      setLoading(true)
+      const allFlyers = await getFlyers()
+      setFlyers(allFlyers)
+    } catch (error) {
+      console.error('Error loading flyers:', error)
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorLoadingFlyers'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePickPDF = async () => {
+    const pdf = await pickPDF()
+    if (pdf) {
+      setForm({ ...form, pdfUri: pdf.uri })
+    }
+  }
+
+  const handleUploadPDF = async () => {
+    if (!form.pdfUri) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorSelectPDF'))
+      return
+    }
+
+    setUploading(true)
+    try {
+      const flyerId = editingFlyer?.id || 'flyer-' + Date.now()
+      const path = generateStoragePath(`flyers/${flyerId}`, 'flyer.pdf')
+      const url = await uploadPDFToStorage(form.pdfUri, path, (progress) => {
+        console.log(`Upload progress: ${progress}%`)
+      })
+      setForm({ ...form, pdfUrl: url })
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.flyersForm.pdfUploaded'))
+    } catch (error) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorUploadingPDF'))
+      console.error(error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!form.title) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorFillTitle'))
+      return
+    }
+    if (form.pdfUri && !form.pdfUrl) {
+      Alert.alert(t('admin.cardsForm.notice'), t('admin.flyersForm.errorUploadPDF'))
+      return
+    }
+
+    try {
+      setLoading(true)
+      
+      const dateObj = new Date(form.date)
+      
+      if (editingFlyer) {
+        // Update existing flyer
+        await updateFlyer(editingFlyer.id, {
+          title: form.title,
+          description: form.description,
+          date: dateObj,
+          pdfUrl: form.pdfUrl,
+          isActive: form.isActive,
+        })
+        Alert.alert(t('admin.lessonsForm.success'), t('admin.flyersForm.flyerUpdated'))
+        setEditingFlyer(null)
+      } else {
+        // Add new flyer
+        await createFlyer({
+          title: form.title,
+          description: form.description,
+          date: dateObj,
+          pdfUrl: form.pdfUrl,
+          isActive: form.isActive,
+        })
+        Alert.alert(t('admin.lessonsForm.success'), t('admin.flyersForm.flyerAdded'))
+      }
+      
+      // Reset form
+      setForm({
+        title: '',
+        description: '',
+        date: new Date().toISOString().split('T')[0],
+        pdfUri: null,
+        pdfUrl: null,
+        isActive: true,
+      })
+      await loadFlyers()
+    } catch (error) {
+      console.error('Error saving flyer:', error)
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorSavingFlyer'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEdit = (flyer) => {
+    setEditingFlyer(flyer)
+    let dateStr = new Date().toISOString().split('T')[0]
+    if (flyer.date) {
+      const date = flyer.date.toDate ? flyer.date.toDate() : new Date(flyer.date)
+      dateStr = date.toISOString().split('T')[0]
+    }
+    setForm({
+      title: flyer.title || '',
+      description: flyer.description || '',
+      date: dateStr,
+      pdfUrl: flyer.pdfUrl || null,
+      pdfUri: null,
+      isActive: flyer.isActive !== undefined ? flyer.isActive : true,
+    })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingFlyer(null)
+    setForm({
+      title: '',
+      description: '',
+      date: new Date().toISOString().split('T')[0],
+      pdfUri: null,
+      pdfUrl: null,
+      isActive: true,
+    })
+  }
+
+  const handleDelete = (flyer) => {
+    Alert.alert(
+      t('admin.flyersForm.deleteFlyerTitle'),
+      t('admin.flyersForm.deleteFlyerMessage', { title: flyer.title }),
+      [
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
+        {
+          text: t('admin.lessonsForm.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true)
+              await deleteFlyer(flyer.id)
+              Alert.alert(t('admin.lessonsForm.success'), t('admin.flyersForm.flyerDeleted'))
+              await loadFlyers()
+            } catch (error) {
+              console.error('Error deleting flyer:', error)
+              Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorDeletingFlyer'))
+            } finally {
+              setLoading(false)
+            }
+          }
+        }
+      ]
+    )
+  }
+
+  return (
+    <View style={styles.formContainer}>
+      <Text style={styles.formTitle}>{t('admin.flyersForm.title')}</Text>
+      <Text style={styles.formDesc}>
+        {t('admin.flyersForm.description')}
+      </Text>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.flyersForm.flyerTitle')}</Text>
+        <TextInput
+          style={styles.input}
+          value={form.title}
+          onChangeText={text => setForm({...form, title: text})}
+          placeholder={t('admin.flyersForm.flyerTitlePlaceholder')}
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.flyersForm.descriptionOptional')}</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={form.description}
+          onChangeText={text => setForm({...form, description: text})}
+          placeholder={t('admin.flyersForm.descriptionPlaceholder')}
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.flyersForm.date')}</Text>
+        <TextInput
+          style={styles.input}
+          value={form.date}
+          onChangeText={text => setForm({...form, date: text})}
+          placeholder="YYYY-MM-DD"
+        />
+        <Pressable
+          style={styles.todayButton}
+          onPress={() => setForm({...form, date: new Date().toISOString().split('T')[0]})}
+        >
+          <Text style={styles.todayButtonText}>{t('admin.flyersForm.today')}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.flyersForm.pdfFile')}</Text>
+        {form.pdfUrl && (
+          <View style={styles.uploadedBadge}>
+            <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+            <Text style={styles.uploadedText}>{t('admin.flyersForm.pdfFileUploaded')}</Text>
+          </View>
+        )}
+        <View style={styles.uploadSection}>
+          <Pressable
+            style={styles.uploadButton}
+            onPress={handlePickPDF}
+            disabled={uploading}
+          >
+            <Ionicons name="document-text-outline" size={24} color={PRIMARY_RED} />
+            <Text style={styles.uploadButtonText}>
+              {form.pdfUri ? t('admin.flyersForm.selectAnotherPDF') : t('admin.flyersForm.selectPDFFile')}
+            </Text>
+          </Pressable>
+          {form.pdfUri && !form.pdfUrl && (
+            <Pressable
+              style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+              onPress={handleUploadPDF}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color={PRIMARY_RED} />
+              ) : (
+                <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
+              )}
+              <Text style={styles.uploadButtonText}>
+                {uploading ? t('admin.cardsForm.uploading') : t('admin.flyersForm.uploadPDF')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.formGroup}>
+        <Pressable
+          style={styles.checkbox}
+          onPress={() => setForm({...form, isActive: !form.isActive})}
+        >
+          <View style={[styles.checkboxBox, form.isActive && styles.checkboxBoxChecked]}>
+            {form.isActive && <Ionicons name="checkmark" size={16} color="#fff" />}
+          </View>
+          <Text style={styles.checkboxLabel}>{t('admin.flyersForm.activeFlyer')}</Text>
+        </Pressable>
+      </View>
+
+      <Pressable 
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Ionicons name={editingFlyer ? "checkmark-circle-outline" : "add-circle-outline"} size={22} color="#fff" />
+        )}
+        <Text style={styles.submitButtonText}>
+          {editingFlyer ? t('admin.flyersForm.updateFlyer') : t('admin.flyersForm.addFlyer')}
+        </Text>
+      </Pressable>
+
+      {editingFlyer && (
+        <Pressable style={styles.cancelButton} onPress={handleCancelEdit}>
+          <Text style={styles.cancelButtonText}>{t('admin.lessonsForm.cancelEdit')}</Text>
+        </Pressable>
+      )}
+
+      {/* Existing Flyers List */}
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.flyersForm.existingFlyers', { count: flyers.length })}</Text>
+        {loading && flyers.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={PRIMARY_RED} size="large" />
+            <Text style={styles.loadingText}>{t('admin.flyersForm.loadingFlyers')}</Text>
+          </View>
+        ) : flyers.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="document-text-outline" size={48} color="#d1d5db" />
+            <Text style={styles.emptyText}>{t('admin.flyersForm.noFlyers')}</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.lessonsList}>
+            {flyers.map((flyer) => {
+              const flyerDate = flyer.date ? 
+                (flyer.date.toDate ? flyer.date.toDate().toLocaleDateString('he-IL') : new Date(flyer.date).toLocaleDateString('he-IL')) : 
+                ''
+              return (
+                <View key={flyer.id} style={styles.lessonItem}>
+                  <View style={styles.lessonItemContent}>
+                    <Text style={styles.lessonItemTitle}>{flyer.title}</Text>
+                    {flyerDate && (
+                      <Text style={styles.lessonItemCategory}>{flyerDate}</Text>
+                    )}
+                    <Text style={[styles.lessonItemCategory, { color: flyer.isActive ? '#16a34a' : '#dc2626' }]}>
+                      {flyer.isActive ? t('admin.flyersForm.active') : t('admin.flyersForm.inactive')}
+                    </Text>
+                  </View>
+                  <View style={styles.lessonItemActions}>
+                    <Pressable
+                      style={styles.editButton}
+                      onPress={() => handleEdit(flyer)}
+                    >
+                      <Ionicons name="create-outline" size={20} color={PRIMARY_RED} />
+                    </Pressable>
+                    <Pressable
+                      style={styles.deleteButton}
+                      onPress={() => handleDelete(flyer)}
+                    >
+                      <Ionicons name="trash-outline" size={20} color="#dc2626" />
+                    </Pressable>
+                  </View>
+                </View>
+              )
+            })}
           </ScrollView>
         )}
       </View>

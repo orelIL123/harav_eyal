@@ -243,16 +243,6 @@ export default function LessonsLibraryScreen({ navigation, route }) {
         })
         )}
 
-        {/* Admin Note */}
-        <View style={styles.adminNote}>
-          <Ionicons name="construct-outline" size={24} color={PRIMARY_RED} />
-          <View style={styles.adminNoteText}>
-            <Text style={styles.adminNoteTitle}>עריכה ע"י האדמין</Text>
-            <Text style={styles.adminNoteDesc}>
-              האדמין יכול להוסיף, לערוך ולמחוק שיעורים דרך מסך הניהול
-            </Text>
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   )

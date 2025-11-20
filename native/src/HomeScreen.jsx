@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react'
-import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform, Dimensions, Image, ImageBackground, ScrollView, Share, Alert, Easing, Linking } from 'react-native'
+import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform, Dimensions, Image, ImageBackground, ScrollView, Share, Alert, Easing, Linking, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { Grayscale } from 'react-native-color-matrix-image-filters'
 import { useTranslation } from 'react-i18next'
 import i18n from './config/i18n'
 import { getAlerts, updateAlert } from './services/alertsService'
+import { getPodcasts } from './services/podcastsService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -145,12 +146,20 @@ export default function HomeScreen({ navigation }) {
   const quoteText = t('home.quoteText')
   const [unreadCount, setUnreadCount] = React.useState(0)
   const [activeAlerts, setActiveAlerts] = React.useState([])
+  const [podcasts, setPodcasts] = React.useState([])
+  const [loadingPodcasts, setLoadingPodcasts] = React.useState(true)
 
   // Load and filter alerts
   React.useEffect(() => {
+    let isMounted = true // Flag to prevent state updates after unmount
+    
     const loadAlerts = async () => {
       try {
         const allAlerts = await getAlerts(true)
+        
+        // Check if component is still mounted before updating state
+        if (!isMounted) return
+        
         const now = new Date()
         
         // Filter active alerts that haven't expired
@@ -176,8 +185,11 @@ export default function HomeScreen({ navigation }) {
           }
         }
 
-        setActiveAlerts(validAlerts)
-        setUnreadCount(validAlerts.length)
+        // Only update state if component is still mounted
+        if (isMounted) {
+          setActiveAlerts(validAlerts)
+          setUnreadCount(validAlerts.length)
+        }
       } catch (error) {
         console.error('Error loading alerts:', error)
       }
@@ -186,7 +198,12 @@ export default function HomeScreen({ navigation }) {
     loadAlerts()
     // Refresh every 5 minutes
     const interval = setInterval(loadAlerts, 5 * 60 * 1000)
-    return () => clearInterval(interval)
+    
+    // Cleanup function
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
   }, [])
 
   const handleDismissAlert = async (alertId) => {
@@ -432,21 +449,63 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{t('home.podcasts')}</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.podcastRow}>
-              {[1,2,3].map(i => (
+              {podcasts.length > 0 && (
                 <Pressable
-                  key={`podcast-${i}`}
-                  style={styles.podcastCard}
-                  onPress={() => Alert.alert(t('home.comingSoon'), t('home.podcastDesc'))}
+                  onPress={() => navigation?.navigate('Podcasts')}
                   accessibilityRole="button"
                 >
-                  <Ionicons name="headset-outline" size={34} color={PRIMARY_RED} />
-                  <Text style={styles.podcastTitle}>{t('home.podcast', { i })}</Text>
-                  <Text style={styles.podcastDesc} numberOfLines={1}>{t('home.podcastDesc')}</Text>
+                  <Text style={styles.seeAllText}>{t('home.seeAll')}</Text>
                 </Pressable>
-              ))}
-            </ScrollView>
+              )}
+            </View>
+            {loadingPodcasts ? (
+              <View style={styles.podcastLoadingContainer}>
+                <ActivityIndicator size="small" color={PRIMARY_RED} />
+                <Text style={styles.podcastLoadingText}>{t('home.loadingPodcasts')}</Text>
+              </View>
+            ) : podcasts.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.podcastRow}>
+                {podcasts.map((podcast) => (
+                  <Pressable
+                    key={podcast.id}
+                    style={styles.podcastCard}
+                    onPress={() => {
+                      // Navigate to podcast player or detail screen
+                      if (podcast.audioUrl) {
+                        navigation?.navigate('PodcastPlayer', { podcast })
+                      } else {
+                        Alert.alert(t('home.comingSoon'), t('home.podcastDesc'))
+                      }
+                    }}
+                    accessibilityRole="button"
+                  >
+                    {podcast.thumbnailUrl ? (
+                      <Image 
+                        source={{ uri: podcast.thumbnailUrl }} 
+                        style={styles.podcastThumbnail}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.podcastIconContainer}>
+                        <Ionicons name="headset-outline" size={34} color={PRIMARY_RED} />
+                      </View>
+                    )}
+                    <Text style={styles.podcastTitle} numberOfLines={2}>{podcast.title}</Text>
+                    {podcast.description && (
+                      <Text style={styles.podcastDesc} numberOfLines={1}>{podcast.description}</Text>
+                    )}
+                    {podcast.category && (
+                      <Text style={styles.podcastCategory}>{podcast.category}</Text>
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.podcastEmptyContainer}>
+                <Ionicons name="headset-outline" size={32} color="#d1d5db" />
+                <Text style={styles.podcastEmptyText}>{t('home.noPodcasts')}</Text>
+              </View>
+            )}
           </View>
 
         </ScrollView>
@@ -818,6 +877,55 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
+    marginTop: 4,
+  },
+  podcastCategory: {
+    color: PRIMARY_RED,
+    fontSize: 10,
+    fontFamily: 'Poppins_500Medium',
+    marginTop: 4,
+  },
+  podcastThumbnail: {
+    width: '100%',
+    height: 80,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  podcastIconContainer: {
+    width: '100%',
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  podcastLoadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 8,
+  },
+  podcastLoadingText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
+  },
+  podcastEmptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 12,
+  },
+  podcastEmptyText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#9ca3af',
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+    color: PRIMARY_RED,
   },
   youtubeCard: {
     width: '100%',

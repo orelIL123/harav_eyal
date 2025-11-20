@@ -27,14 +27,20 @@ import {
 export async function getDocument(collectionName, docId) {
   try {
     const docRef = doc(db, collectionName, docId)
+    console.log(`📖 Fetching document: ${collectionName}/${docId}`)
     const docSnap = await getDoc(docRef)
     
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() }
+      const data = { id: docSnap.id, ...docSnap.data() }
+      console.log(`✅ Document found: ${collectionName}/${docId}`, data)
+      return data
     }
+    console.log(`⚠️ Document not found: ${collectionName}/${docId}`)
     return null
   } catch (error) {
-    console.error(`Error getting document ${collectionName}/${docId}:`, error)
+    console.error(`❌ Error getting document ${collectionName}/${docId}:`, error)
+    console.error(`   Error code: ${error.code}`)
+    console.error(`   Error message: ${error.message}`)
     throw error
   }
 }

@@ -62,6 +62,29 @@ export async function login(email, password) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
     
+    console.log('🔐 Login successful:', { uid: user.uid, email: user.email })
+    
+    // Clear ALL cache for this user to force refresh
+    try {
+      const { removeCached, CACHE_KEYS, clearAllCache } = await import('../utils/cache')
+      // Clear specific user caches
+      await removeCached(CACHE_KEYS.USER(user.uid))
+      await removeCached(CACHE_KEYS.USER_ADMIN(user.uid))
+      // Also clear all cache to be safe
+      await clearAllCache()
+      console.log('🧹 All cache cleared for user')
+    } catch (cacheError) {
+      console.warn('Warning: Could not clear cache:', cacheError)
+    }
+    
+    // Force refresh user data immediately
+    try {
+      const { userData } = await getUserData(user.uid)
+      console.log('📋 User data refreshed:', { role: userData?.role, email: userData?.email })
+    } catch (error) {
+      console.warn('Warning: Could not refresh user data:', error)
+    }
+    
     // Update last login time
     await setDocument('users', user.uid, {
       lastLoginAt: new Date()
@@ -119,10 +142,26 @@ export function onAuthStateChange(callback) {
  */
 export async function getUserData(userId) {
   try {
+    console.log(`🔍 Getting user data for: ${userId}`)
     const userData = await getDocument('users', userId)
+    if (userData) {
+      console.log(`✅ User data retrieved:`, { 
+        uid: userData.uid, 
+        email: userData.email, 
+        role: userData.role,
+        tier: userData.tier 
+      })
+    } else {
+      console.log(`⚠️ User data is null for: ${userId}`)
+    }
     return { userData, error: null }
   } catch (error) {
-    console.error('Error getting user data:', error)
+    console.error('❌ Error getting user data:', error)
+    console.error(`   Error code: ${error.code}`)
+    console.error(`   Error message: ${error.message}`)
+    if (error.code === 'permission-denied') {
+      console.error('   ⚠️ PERMISSION DENIED - Check Firestore Rules!')
+    }
     return { userData: null, error: error.message }
   }
 }
@@ -179,9 +218,12 @@ export async function changePassword(currentPassword, newPassword) {
 export async function isUserAdmin(userId) {
   try {
     const userData = await getDocument('users', userId)
-    return userData?.role === 'admin'
+    console.log('🔍 isUserAdmin check:', { userId, role: userData?.role, userData })
+    const isAdmin = userData?.role === 'admin'
+    console.log('✅ isUserAdmin result:', isAdmin)
+    return isAdmin
   } catch (error) {
-    console.error('Error checking admin status:', error)
+    console.error('❌ Error checking admin status:', error)
     return false
   }
 }

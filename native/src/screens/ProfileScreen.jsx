@@ -13,6 +13,18 @@ const BLACK = '#000000'
 export default function ProfileScreen({ navigation }) {
   const { user, userData, isAdmin, logout } = useAuth()
   const isLoggedIn = !!user
+  
+  // Debug logging
+  React.useEffect(() => {
+    console.log('👤 ProfileScreen - Auth state:', {
+      isLoggedIn,
+      userId: user?.uid,
+      userEmail: user?.email,
+      userDataRole: userData?.role,
+      isAdmin,
+      userDataEmail: userData?.email
+    })
+  }, [user, userData, isAdmin, isLoggedIn])
 
   const handleLogin = () => {
     navigation.navigate('Login')
