@@ -12,6 +12,7 @@ import {
   EmailAuthProvider
 } from 'firebase/auth'
 import { setDocument, getDocument } from './firestore'
+import { Analytics, setUserPropertiesCustom, setCrashlyticsUser } from './analyticsService'
 
 /**
  * Authentication Service - כל פונקציות ה-Auth
@@ -46,6 +47,11 @@ export async function register(email, password, displayName = '') {
         preferredLanguage: 'he'
       }
     }, false) // false = don't merge, create new
+    
+    // Track registration in Analytics
+    Analytics.userRegister()
+    setUserPropertiesCustom(user.uid, { email: user.email })
+    setCrashlyticsUser(user.uid, user.email)
     
     return { user, error: null }
   } catch (error) {
@@ -90,6 +96,11 @@ export async function login(email, password) {
       lastLoginAt: new Date()
     }, true) // true = merge
     
+    // Track login in Analytics
+    Analytics.userLogin('email')
+    setUserPropertiesCustom(user.uid, { email: user.email })
+    setCrashlyticsUser(user.uid, user.email)
+    
     return { user, error: null }
   } catch (error) {
     console.error('Login error:', error)
@@ -102,6 +113,9 @@ export async function login(email, password) {
  */
 export async function logout() {
   try {
+    // Track logout in Analytics before signing out
+    Analytics.userLogout()
+    
     await signOut(auth)
     return { error: null }
   } catch (error) {

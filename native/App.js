@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import './src/config/i18n';
 import { StatusBar } from 'expo-status-bar'
-import { View, ActivityIndicator, Image, Animated } from 'react-native'
+import { View, ActivityIndicator, Image, Animated, Platform } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import * as Notifications from 'expo-notifications'
 import * as Updates from 'expo-updates'
+import { initAnalytics, logScreenView, logEventCustom } from './src/services/analyticsService'
 import HomeScreen from './src/HomeScreen'
 import DailyInsightScreen from './src/screens/DailyInsightScreen'
 import CoursesScreen from './src/screens/CoursesScreen'
@@ -75,6 +76,18 @@ export default function App() {
   })
 
   useEffect(() => {
+    // Initialize Analytics
+    const initAnalyticsAsync = async () => {
+      try {
+        await initAnalytics()
+        // Log app opened event
+        await logEventCustom('app_opened', { platform: Platform.OS })
+      } catch (error) {
+        console.error('Error initializing Analytics:', error)
+      }
+    }
+    initAnalyticsAsync()
+
     // Check for updates
     const checkForUpdates = async () => {
       if (__DEV__) {
@@ -147,7 +160,15 @@ export default function App() {
     >
       <AuthProvider>
         <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-          <NavigationContainer ref={navigationRef}>
+          <NavigationContainer 
+            ref={navigationRef}
+            onStateChange={async () => {
+              const currentRouteName = navigationRef.current?.getCurrentRoute()?.name
+              if (currentRouteName) {
+                await logScreenView(currentRouteName)
+              }
+            }}
+          >
             <StatusBar style="dark" />
             <Stack.Navigator 
               initialRouteName={initialRoute}
