@@ -68,6 +68,7 @@ export async function addLesson(lessonData) {
       date: lessonData.date || '',
       videoId: videoId || '',
       url: lessonData.url,
+      thumbnailUrl: lessonData.thumbnailUrl || null,
       order: maxOrder + 1
     }
     
@@ -104,6 +105,7 @@ export async function updateLesson(lessonId, lessonData) {
       date: lessonData.date || '',
       videoId: videoId || '',
       url: lessonData.url,
+      thumbnailUrl: lessonData.thumbnailUrl || null,
     }
     
     // Keep order if not changing category

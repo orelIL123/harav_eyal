@@ -1,39 +1,42 @@
-import React, { useState, useRef } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Share, Alert, Modal } from 'react-native'
+import React, { useState, useRef, useEffect } from 'react'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Share, Alert, Modal, Image, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import ViewShot from 'react-native-view-shot'
 import { createAndShareStory } from '../utils/storyShare'
 import StoryCard from '../components/StoryCard'
+import { getCommunityPosts } from '../services/communityPostsService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
-// דוגמאות - בהמשך יגיעו מה-API/אדמין
-const COMMUNITY_NEWS = [
-  {
-    id: 'news-1',
-    title: 'חדשות הקהילה',
-    date: new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }),
-    summary: 'עדכונים וחדשות מהקהילה',
-    imageUrl: null,
-  },
-  {
-    id: 'news-2',
-    title: 'אירוע קהילתי קרוב',
-    date: new Date(Date.now() + 7 * 86400000).toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }),
-    summary: 'אירועים ופעילויות קהילתיות קרובות',
-    imageUrl: null,
-    isEvent: true,
-  },
-]
-
 export default function CommunityNewsScreen({ navigation }) {
   const [sharingStory, setSharingStory] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState(null)
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
   const storyRef = useRef(null)
+
+  useEffect(() => {
+    loadPosts()
+  }, [])
+
+  const loadPosts = async () => {
+    try {
+      setLoading(true)
+      const allPosts = await getCommunityPosts()
+      // Filter only active posts
+      const activePosts = allPosts.filter(post => post.isActive !== false)
+      setPosts(activePosts)
+    } catch (error) {
+      console.error('Error loading community posts:', error)
+      setPosts([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleShare = (article) => {
     Share.share({
@@ -82,45 +85,70 @@ export default function CommunityNewsScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>עדכונים וחדשות מהקהילה</Text>
 
-        {COMMUNITY_NEWS.map((article, idx) => (
-          <Pressable
-            key={article.id}
-            style={[styles.articleCard, idx === 0 && styles.articleCardFirst]}
-            accessibilityRole="button"
-          >
-            <View style={styles.articleContent}>
-              <View style={styles.articleTextBlock}>
-                <Text style={styles.articleTitle}>{article.title}</Text>
-                <Text style={styles.articleDate}>{article.date}</Text>
-                <Text style={styles.articleSummary}>{article.summary}</Text>
-              </View>
-              <View style={styles.shareButtons}>
-                <Pressable
-                  style={[styles.shareButton, styles.storyShareButton]}
-                  onPress={() => handleShareStory(article)}
-                >
-                  <Ionicons name="logo-instagram" size={20} color="#E4405F" />
-                </Pressable>
-                <Pressable
-                  style={styles.shareButton}
-                  onPress={() => handleShare(article)}
-                >
-                  <Ionicons name="share-social-outline" size={20} color={PRIMARY_RED} />
-                </Pressable>
-              </View>
-            </View>
-          </Pressable>
-        ))}
-
-        <View style={styles.footerCard}>
-          <Ionicons name="newspaper-outline" size={32} color={PRIMARY_RED} />
-          <View style={styles.footerTextBlock}>
-            <Text style={styles.footerTitle}>חדשות נוספות</Text>
-            <Text style={styles.footerDesc}>
-              חדשות נוספות יופיעו כאן. האדמין יעדכן את החדשות דרך פאנל הניהול.
-            </Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PRIMARY_RED} />
+            <Text style={styles.loadingText}>טוען חדשות...</Text>
           </View>
-        </View>
+        ) : posts.length > 0 ? (
+          posts.map((article, idx) => {
+            const date = article.date?.toDate ? article.date.toDate() : (article.date ? new Date(article.date) : new Date())
+            const formattedDate = date.toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })
+            
+            return (
+              <Pressable
+                key={article.id}
+                style={[styles.articleCard, idx === 0 && styles.articleCardFirst]}
+                accessibilityRole="button"
+              >
+                {article.imageUrl && (
+                  <Image source={{ uri: article.imageUrl }} style={styles.articleImage} resizeMode="cover" />
+                )}
+                <View style={styles.articleContent}>
+                  <View style={styles.articleTextBlock}>
+                    <View style={styles.articleHeader}>
+                      <Text style={styles.articleTitle}>{article.title}</Text>
+                      {article.isEvent && (
+                        <View style={styles.eventBadge}>
+                          <Ionicons name="calendar-outline" size={14} color={PRIMARY_RED} />
+                          <Text style={styles.eventBadgeText}>אירוע</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.articleDate}>{formattedDate}</Text>
+                    {article.summary && (
+                      <Text style={styles.articleSummary}>{article.summary}</Text>
+                    )}
+                  </View>
+                  <View style={styles.shareButtons}>
+                    <Pressable
+                      style={[styles.shareButton, styles.storyShareButton]}
+                      onPress={() => handleShareStory(article)}
+                    >
+                      <Ionicons name="logo-instagram" size={20} color="#E4405F" />
+                    </Pressable>
+                    <Pressable
+                      style={styles.shareButton}
+                      onPress={() => handleShare(article)}
+                    >
+                      <Ionicons name="share-social-outline" size={20} color={PRIMARY_RED} />
+                    </Pressable>
+                  </View>
+                </View>
+              </Pressable>
+            )
+          })
+        ) : (
+          <View style={styles.footerCard}>
+            <Ionicons name="newspaper-outline" size={32} color={PRIMARY_RED} />
+            <View style={styles.footerTextBlock}>
+              <Text style={styles.footerTitle}>אין חדשות כרגע</Text>
+              <Text style={styles.footerDesc}>
+                חדשות נוספות יופיעו כאן. האדמין יעדכן את החדשות דרך פאנל הניהול.
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Story Generation Modal (Hidden) */}
@@ -180,7 +208,7 @@ const styles = StyleSheet.create({
   articleCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 18,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -189,6 +217,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(11,27,58,0.08)',
   },
+  articleImage: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f3f4f6',
+  },
   articleCardFirst: {
     marginTop: 6,
   },
@@ -196,6 +229,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
+    padding: 18,
+  },
+  articleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    width: '100%',
+  },
+  eventBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  eventBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Poppins_600SemiBold',
+    color: PRIMARY_RED,
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
   },
   articleTextBlock: {
     flex: 1,

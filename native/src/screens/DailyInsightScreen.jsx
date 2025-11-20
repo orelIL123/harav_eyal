@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { Audio, Video } from 'expo-av'
 import { getDailyVideos } from '../services/dailyVideosService'
 import { useAuth } from '../utils/AuthContext'
+import { pickVideo, recordVideo, uploadVideoToStorage, uploadImageToStorage, generateDailyVideoPath, generateDailyVideoThumbnailPath } from '../utils/storage'
+import { createDailyVideo } from '../services/dailyVideosService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -59,6 +61,8 @@ export default function DailyInsightScreen({ navigation }) {
   const [dedications, setDedications] = React.useState(todayInsight.dedications || [])
   const [dedicationType, setDedicationType] = React.useState(DEDICATION_TYPES[0].key)
   const [dedicationName, setDedicationName] = React.useState('')
+  const [uploadingVideo, setUploadingVideo] = React.useState(false)
+  const [uploadProgress, setUploadProgress] = React.useState(0)
 
   const demoAudio = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
   const demoVideo = 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4'
@@ -145,6 +149,45 @@ export default function DailyInsightScreen({ navigation }) {
 
   const handleRemoveDedication = React.useCallback((id) => {
     setDedications((prev) => prev.filter(item => item.id !== id))
+  }, [])
+
+  const handleUploadVideoDirectly = React.useCallback(async (videoUri) => {
+    try {
+      setUploadingVideo(true)
+      setUploadProgress(0)
+      
+      const videoId = 'daily-video-' + Date.now()
+      const dateStr = new Date().toISOString().split('T')[0]
+      
+      // Upload video
+      const videoPath = generateDailyVideoPath(dateStr, `${videoId}.mp4`)
+      const videoUrl = await uploadVideoToStorage(videoUri, videoPath, (progress) => {
+        setUploadProgress(progress)
+      })
+      
+      // Generate thumbnail from first frame (we'll use a placeholder for now)
+      // In production, you might want to extract a frame from the video
+      const thumbnailUrl = null // Can be added later with video thumbnail extraction
+      
+      // Create daily video entry
+      await createDailyVideo({
+        title: 'זריקת אמונה יומית',
+        description: '',
+        videoUrl: videoUrl,
+        thumbnailUrl: thumbnailUrl,
+      })
+      
+      Alert.alert('הצלחה', 'הוידאו הועלה בהצלחה!')
+      
+      // Reload videos
+      await loadDailyVideos()
+    } catch (error) {
+      console.error('Error uploading video:', error)
+      Alert.alert('שגיאה', 'לא ניתן להעלות את הוידאו')
+    } finally {
+      setUploadingVideo(false)
+      setUploadProgress(0)
+    }
   }, [])
 
   const togglePlayAudio = React.useCallback(async () => {
@@ -405,11 +448,45 @@ export default function DailyInsightScreen({ navigation }) {
               <Text style={styles.storiesSub}>נמחקים לאחר 24 שעות</Text>
               {isAdminMode && (
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable accessibilityRole="button" style={styles.storyActionBtn} onPress={() => navigation?.navigate('Admin', { initialTab: 'daily-videos' })}>
-                    <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
-                    <Text style={styles.storyActionText}>העלה</Text>
+                  <Pressable 
+                    accessibilityRole="button" 
+                    style={styles.storyActionBtn} 
+                    onPress={async () => {
+                      try {
+                        const video = await pickVideo({ videoMaxDuration: 60 })
+                        if (video) {
+                          await handleUploadVideoDirectly(video.uri)
+                        }
+                      } catch (error) {
+                        console.error('Error picking video:', error)
+                        Alert.alert('שגיאה', 'לא ניתן לבחור וידאו')
+                      }
+                    }}
+                    disabled={uploadingVideo}
+                  >
+                    {uploadingVideo ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
+                    )}
+                    <Text style={styles.storyActionText}>{uploadingVideo ? 'מעלה...' : 'העלה'}</Text>
                   </Pressable>
-                  <Pressable accessibilityRole="button" style={[styles.storyActionBtn, { backgroundColor: DEEP_BLUE }]} onPress={() => Alert.alert('צילום וידאו', 'נחבר מצלמה בקרוב')}>
+                  <Pressable 
+                    accessibilityRole="button" 
+                    style={[styles.storyActionBtn, { backgroundColor: DEEP_BLUE }]} 
+                    onPress={async () => {
+                      try {
+                        const video = await recordVideo({ videoMaxDuration: 60 })
+                        if (video) {
+                          await handleUploadVideoDirectly(video.uri)
+                        }
+                      } catch (error) {
+                        console.error('Error recording video:', error)
+                        Alert.alert('שגיאה', 'לא ניתן לצלם וידאו')
+                      }
+                    }}
+                    disabled={uploadingVideo}
+                  >
                     <Ionicons name="camera-outline" size={16} color="#fff" />
                     <Text style={styles.storyActionText}>צלם</Text>
                   </Pressable>

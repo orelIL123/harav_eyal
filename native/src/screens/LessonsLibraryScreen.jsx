@@ -43,6 +43,7 @@ export default function LessonsLibraryScreen({ navigation, route }) {
         date: lesson.date || '',
         videoId: lesson.videoId || '',
         url: lesson.url || `https://www.youtube.com/watch?v=${lesson.videoId}`,
+        thumbnailUrl: lesson.thumbnailUrl || null,
       }))
       
       setLessons(videos)
@@ -185,7 +186,8 @@ export default function LessonsLibraryScreen({ navigation, route }) {
           </View>
         ) : (
           displayVideos.map((video, idx) => {
-          const thumbnailUrl = `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`
+          // Use custom thumbnail if available, otherwise use YouTube thumbnail
+          const thumbnailUrl = video.thumbnailUrl || (video.videoId ? `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg` : null)
           const isSelected = selectedRandomVideo === video.id
           return (
             <View
@@ -206,21 +208,27 @@ export default function LessonsLibraryScreen({ navigation, route }) {
                 accessibilityRole="button"
                 accessibilityLabel={`שיעור: ${video.title}`}
               >
-              <ImageBackground
-                source={{ uri: thumbnailUrl }}
-                style={styles.videoThumbnail}
-                imageStyle={styles.videoThumbnailImage}
-                defaultSource={require('../../assets/icon.png')}
-                resizeMode="cover"
-              >
-                <LinearGradient
-                  colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.1)']}
-                  style={StyleSheet.absoluteFill}
-                />
-                <View style={styles.playButtonOverlay}>
-                  <Ionicons name="play-circle" size={48} color="#fff" />
+              {thumbnailUrl ? (
+                <ImageBackground
+                  source={{ uri: thumbnailUrl }}
+                  style={styles.videoThumbnail}
+                  imageStyle={styles.videoThumbnailImage}
+                  defaultSource={require('../../assets/icon.png')}
+                  resizeMode="cover"
+                >
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.1)']}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={styles.playButtonOverlay}>
+                    <Ionicons name="play-circle" size={48} color="#fff" />
+                  </View>
+                </ImageBackground>
+              ) : (
+                <View style={[styles.videoThumbnail, { backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="play-circle-outline" size={64} color={PRIMARY_RED} />
                 </View>
-              </ImageBackground>
+              )}
               <View style={styles.videoContent}>
                 <View style={styles.videoTextBlock}>
                   <Text style={styles.videoTitle}>{video.title}</Text>

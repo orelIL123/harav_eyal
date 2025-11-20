@@ -112,6 +112,18 @@ export function generateNewsImagePath(newsId, filename) {
 }
 
 /**
+ * Request camera permissions
+ */
+export async function requestCameraPermissions() {
+  const { status } = await ImagePicker.requestCameraPermissionsAsync()
+  if (status !== 'granted') {
+    Alert.alert('הרשאה נדרשת', 'אנחנו צריכים גישה למצלמה כדי לצלם וידאו')
+    return false
+  }
+  return true
+}
+
+/**
  * Pick a video from the library
  */
 export async function pickVideo(options = {}) {
@@ -119,6 +131,32 @@ export async function pickVideo(options = {}) {
   if (!hasPermission) return null
 
   const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+    allowsEditing: options.allowsEditing !== false,
+    quality: options.quality || 1,
+    videoMaxDuration: options.videoMaxDuration || 60, // Max 60 seconds for daily videos
+    ...options,
+  })
+
+  if (result.canceled) return null
+
+  return {
+    uri: result.assets[0].uri,
+    width: result.assets[0].width,
+    height: result.assets[0].height,
+    duration: result.assets[0].duration,
+    type: result.assets[0].type,
+  }
+}
+
+/**
+ * Record a video using the camera
+ */
+export async function recordVideo(options = {}) {
+  const hasPermission = await requestCameraPermissions()
+  if (!hasPermission) return null
+
+  const result = await ImagePicker.launchCameraAsync({
     mediaTypes: ImagePicker.MediaTypeOptions.Videos,
     allowsEditing: options.allowsEditing !== false,
     quality: options.quality || 1,

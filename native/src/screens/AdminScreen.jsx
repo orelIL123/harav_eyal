@@ -14,7 +14,7 @@ import { createPodcast, getAllPodcasts, updatePodcast, deletePodcast, uploadPodc
 import { createDailyVideo, getDailyVideos, deleteDailyVideo, cleanupExpiredVideos } from '../services/dailyVideosService'
 import { createBook, getBooks, updateBook, deleteBook } from '../services/booksService'
 import { createFlyer, getFlyers, updateFlyer, deleteFlyer } from '../services/flyersService'
-import { pickPDF, uploadPDFToStorage } from '../utils/storage'
+import { createCommunityPost, getCommunityPosts, updateCommunityPost, deleteCommunityPost } from '../services/communityPostsService'
 import { clearConsent, clearAllAppData } from '../utils/storage'
 
 const PRIMARY_RED = '#DC2626'
@@ -35,6 +35,7 @@ export default function AdminScreen({ navigation, route }) {
     { id: 'flyers', label: t('admin.flyers'), icon: 'document-text-outline' },
     { id: 'podcasts', label: t('admin.podcasts'), icon: 'headset-outline' },
     { id: 'daily-videos', label: t('admin.dailyVideos'), icon: 'videocam-outline' },
+    { id: 'community-posts', label: t('admin.communityPosts'), icon: 'people-outline' },
     { id: 'institutions', label: t('admin.institutions'), icon: 'business-outline' },
     { id: 'debug', label: 'Debug', icon: 'bug-outline' },
   ]
@@ -95,6 +96,7 @@ export default function AdminScreen({ navigation, route }) {
         {activeTab === 'flyers' && <FlyersForm />}
         {activeTab === 'podcasts' && <PodcastsForm />}
         {activeTab === 'daily-videos' && <DailyVideosForm />}
+        {activeTab === 'community-posts' && <CommunityPostsForm />}
         {activeTab === 'institutions' && <InstitutionsForm />}
         {activeTab === 'debug' && <DebugForm navigation={navigation} />}
       </ScrollView>
@@ -111,9 +113,12 @@ function LessonsForm({ navigation }) {
     date: '',
     videoId: '',
     url: '',
+    thumbnailUri: null,
+    thumbnailUrl: null,
   })
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [editingLesson, setEditingLesson] = useState(null)
   const [filterCategory, setFilterCategory] = useState(null)
 
@@ -154,14 +159,25 @@ function LessonsForm({ navigation }) {
     try {
       setLoading(true)
       
+      if (form.thumbnailUri && !form.thumbnailUrl) {
+        Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'))
+        return
+      }
+
       if (editingLesson) {
         // Update existing lesson
-        await updateLesson(editingLesson.id, form)
+        await updateLesson(editingLesson.id, {
+          ...form,
+          thumbnailUrl: form.thumbnailUrl,
+        })
         Alert.alert(t('admin.lessonsForm.success'), t('admin.lessonsForm.lessonUpdated'))
         setEditingLesson(null)
       } else {
         // Add new lesson
-        await addLesson(form)
+        await addLesson({
+          ...form,
+          thumbnailUrl: form.thumbnailUrl,
+        })
         Alert.alert(t('admin.lessonsForm.success'), t('admin.lessonsForm.lessonAdded'))
       }
       
@@ -172,6 +188,8 @@ function LessonsForm({ navigation }) {
         date: '',
         videoId: '',
         url: '',
+        thumbnailUri: null,
+        thumbnailUrl: null,
       })
       await loadLessons()
     } catch (error) {
@@ -190,6 +208,8 @@ function LessonsForm({ navigation }) {
       date: lesson.date || '',
       videoId: lesson.videoId || '',
       url: lesson.url,
+      thumbnailUrl: lesson.thumbnailUrl || null,
+      thumbnailUri: null,
     })
   }
 
@@ -228,7 +248,39 @@ function LessonsForm({ navigation }) {
       date: '',
       videoId: '',
       url: '',
+      thumbnailUri: null,
+      thumbnailUrl: null,
     })
+  }
+
+  const handlePickThumbnail = async () => {
+    const image = await pickImage({ aspect: [16, 9] })
+    if (image) {
+      setForm({ ...form, thumbnailUri: image.uri })
+    }
+  }
+
+  const handleUploadThumbnail = async () => {
+    if (!form.thumbnailUri) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
+      return
+    }
+
+    setUploading(true)
+    try {
+      const lessonId = editingLesson?.id || 'lesson-' + Date.now()
+      const path = generateStoragePath(`lessons/${lessonId}`, 'thumbnail.jpg')
+      const url = await uploadImageToStorage(form.thumbnailUri, path, (progress) => {
+        console.log(`Upload progress: ${progress}%`)
+      })
+      setForm({ ...form, thumbnailUrl: url })
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
+    } catch (error) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
+      console.error(error)
+    } finally {
+      setUploading(false)
+    }
   }
 
   const extractVideoId = (url) => {
@@ -312,6 +364,52 @@ function LessonsForm({ navigation }) {
             <Text style={styles.successText}>{t('admin.lessonsForm.videoId', { videoId: form.videoId })}</Text>
           </View>
         )}
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.lessonsForm.thumbnailOptional')}</Text>
+        {form.thumbnailUrl && (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: form.thumbnailUrl }} style={styles.previewImage} />
+            <View style={styles.uploadedBadge}>
+              <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+              <Text style={styles.uploadedText}>{t('admin.cardsForm.uploaded')}</Text>
+            </View>
+          </View>
+        )}
+        {form.thumbnailUri && !form.thumbnailUrl && (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: form.thumbnailUri }} style={styles.previewImage} />
+          </View>
+        )}
+        <View style={styles.uploadSection}>
+          <Pressable
+            style={styles.uploadButton}
+            onPress={handlePickThumbnail}
+            disabled={uploading}
+          >
+            <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
+            <Text style={styles.uploadButtonText}>
+              {form.thumbnailUri ? t('admin.cardsForm.selectAnotherImage') : t('admin.lessonsForm.selectThumbnail')}
+            </Text>
+          </Pressable>
+          {form.thumbnailUri && !form.thumbnailUrl && (
+            <Pressable
+              style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+              onPress={handleUploadThumbnail}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color={PRIMARY_RED} />
+              ) : (
+                <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
+              )}
+              <Text style={styles.uploadButtonText}>
+                {uploading ? t('admin.cardsForm.uploading') : t('admin.lessonsForm.uploadThumbnail')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <Pressable 
@@ -2285,6 +2383,383 @@ function FlyersForm() {
   )
 }
 
+// ========== COMMUNITY POSTS FORM ========== 
+function CommunityPostsForm() {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    title: '',
+    summary: '',
+    imageUri: null,
+    imageUrl: null,
+    isEvent: false,
+    date: new Date().toISOString().split('T')[0],
+    isActive: true,
+  })
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [editingPost, setEditingPost] = useState(null)
+
+  // Load posts on mount
+  useEffect(() => {
+    loadPosts()
+  }, [])
+
+  const loadPosts = async () => {
+    try {
+      setLoading(true)
+      const allPosts = await getCommunityPosts()
+      setPosts(allPosts)
+    } catch (error) {
+      console.error('Error loading community posts:', error)
+      Alert.alert(t('admin.lessonsForm.error'), 'שגיאה בטעינת הפוסטים')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePickImage = async () => {
+    const image = await pickImage({ aspect: [16, 9] })
+    if (image) {
+      setForm({ ...form, imageUri: image.uri })
+    }
+  }
+
+  const handleUploadImage = async () => {
+    if (!form.imageUri) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
+      return
+    }
+
+    setUploading(true)
+    try {
+      const postId = editingPost?.id || 'community-post-' + Date.now()
+      const path = generateStoragePath(`communityPosts/${postId}`, 'image.jpg')
+      const url = await uploadImageToStorage(form.imageUri, path, (progress) => {
+        console.log(`Upload progress: ${progress}%`)
+      })
+      setForm({ ...form, imageUrl: url })
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
+    } catch (error) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
+      console.error(error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!form.title) {
+      Alert.alert(t('admin.lessonsForm.error'), 'יש למלא כותרת')
+      return
+    }
+    if (form.imageUri && !form.imageUrl) {
+      Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'))
+      return
+    }
+
+    try {
+      setLoading(true)
+      
+      const dateObj = new Date(form.date)
+      
+      if (editingPost) {
+        // Update existing post
+        await updateCommunityPost(editingPost.id, {
+          title: form.title,
+          summary: form.summary,
+          imageUrl: form.imageUrl,
+          isEvent: form.isEvent,
+          date: dateObj,
+          isActive: form.isActive,
+        })
+        Alert.alert(t('admin.lessonsForm.success'), 'הפוסט עודכן בהצלחה')
+        setEditingPost(null)
+      } else {
+        // Add new post
+        await createCommunityPost({
+          title: form.title,
+          summary: form.summary,
+          imageUrl: form.imageUrl,
+          isEvent: form.isEvent,
+          date: dateObj,
+          isActive: form.isActive,
+        })
+        Alert.alert(t('admin.lessonsForm.success'), 'הפוסט נוסף בהצלחה')
+      }
+      
+      // Reset form
+      setForm({
+        title: '',
+        summary: '',
+        imageUri: null,
+        imageUrl: null,
+        isEvent: false,
+        date: new Date().toISOString().split('T')[0],
+        isActive: true,
+      })
+      await loadPosts()
+    } catch (error) {
+      console.error('Error saving post:', error)
+      Alert.alert(t('admin.lessonsForm.error'), 'שגיאה בשמירת הפוסט')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEdit = (post) => {
+    setEditingPost(post)
+    let dateStr = new Date().toISOString().split('T')[0]
+    if (post.date) {
+      const date = post.date.toDate ? post.date.toDate() : new Date(post.date)
+      dateStr = date.toISOString().split('T')[0]
+    }
+    setForm({
+      title: post.title || '',
+      summary: post.summary || '',
+      imageUrl: post.imageUrl || null,
+      imageUri: null,
+      isEvent: post.isEvent || false,
+      date: dateStr,
+      isActive: post.isActive !== undefined ? post.isActive : true,
+    })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingPost(null)
+    setForm({
+      title: '',
+      summary: '',
+      imageUri: null,
+      imageUrl: null,
+      isEvent: false,
+      date: new Date().toISOString().split('T')[0],
+      isActive: true,
+    })
+  }
+
+  const handleDelete = (post) => {
+    Alert.alert(
+      'מחיקת פוסט',
+      `האם אתה בטוח שברצונך למחוק את הפוסט "${post.title}"?`,
+      [
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
+        {
+          text: t('admin.lessonsForm.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true)
+              await deleteCommunityPost(post.id)
+              Alert.alert(t('admin.lessonsForm.success'), 'הפוסט נמחק בהצלחה')
+              await loadPosts()
+            } catch (error) {
+              console.error('Error deleting post:', error)
+              Alert.alert(t('admin.lessonsForm.error'), 'שגיאה במחיקת הפוסט')
+            } finally {
+              setLoading(false)
+            }
+          }
+        }
+      ]
+    )
+  }
+
+  return (
+    <View style={styles.formContainer}>
+      <Text style={styles.formTitle}>ניהול חדשות הקהילה</Text>
+      <Text style={styles.formDesc}>
+        הוסף וערוך פוסטים קהילתיים עם תמונות
+      </Text>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>כותרת הפוסט</Text>
+        <TextInput
+          style={styles.input}
+          value={form.title}
+          onChangeText={text => setForm({...form, title: text})}
+          placeholder="כותרת הפוסט"
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>תוכן (אופציונלי)</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={form.summary}
+          onChangeText={text => setForm({...form, summary: text})}
+          placeholder="תוכן הפוסט"
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>תמונה (אופציונלי)</Text>
+        {form.imageUrl && (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: form.imageUrl }} style={styles.previewImage} />
+            <View style={styles.uploadedBadge}>
+              <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+              <Text style={styles.uploadedText}>{t('admin.cardsForm.uploaded')}</Text>
+            </View>
+          </View>
+        )}
+        {form.imageUri && !form.imageUrl && (
+          <View style={styles.imagePreview}>
+            <Image source={{ uri: form.imageUri }} style={styles.previewImage} />
+          </View>
+        )}
+        <View style={styles.uploadSection}>
+          <Pressable
+            style={styles.uploadButton}
+            onPress={handlePickImage}
+            disabled={uploading}
+          >
+            <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
+            <Text style={styles.uploadButtonText}>
+              {form.imageUri ? t('admin.cardsForm.selectAnotherImage') : 'בחר תמונה'}
+            </Text>
+          </Pressable>
+          {form.imageUri && !form.imageUrl && (
+            <Pressable
+              style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+              onPress={handleUploadImage}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator color={PRIMARY_RED} />
+              ) : (
+                <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
+              )}
+              <Text style={styles.uploadButtonText}>
+                {uploading ? t('admin.cardsForm.uploading') : 'העלה תמונה'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>תאריך</Text>
+        <TextInput
+          style={styles.input}
+          value={form.date}
+          onChangeText={text => setForm({...form, date: text})}
+          placeholder="YYYY-MM-DD"
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <View style={styles.checkboxGroup}>
+          <Pressable
+            style={styles.checkbox}
+            onPress={() => setForm({...form, isEvent: !form.isEvent})}
+          >
+            <View style={[styles.checkboxBox, form.isEvent && styles.checkboxBoxChecked]}>
+              {form.isEvent && (
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              )}
+            </View>
+            <Text style={styles.checkboxLabel}>זהו אירוע</Text>
+          </Pressable>
+          <Pressable
+            style={styles.checkbox}
+            onPress={() => setForm({...form, isActive: !form.isActive})}
+          >
+            <View style={[styles.checkboxBox, form.isActive && styles.checkboxBoxChecked]}>
+              {form.isActive && (
+                <Ionicons name="checkmark" size={16} color="#fff" />
+              )}
+            </View>
+            <Text style={styles.checkboxLabel}>פעיל</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <Pressable 
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Ionicons name={editingPost ? "checkmark-circle" : "add-circle-outline"} size={22} color="#fff" />
+        )}
+        <Text style={styles.submitButtonText}>
+          {editingPost ? 'עדכן פוסט' : 'הוסף פוסט'}
+        </Text>
+      </Pressable>
+
+      {editingPost && (
+        <Pressable style={styles.cancelButton} onPress={handleCancelEdit}>
+          <Text style={styles.cancelButtonText}>בטל עריכה</Text>
+        </Pressable>
+      )}
+
+      {/* Existing Posts List */}
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>פוסטים קיימים ({posts.length})</Text>
+        {loading && posts.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={PRIMARY_RED} size="large" />
+            <Text style={styles.loadingText}>טוען פוסטים...</Text>
+          </View>
+        ) : posts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="newspaper-outline" size={48} color="#d1d5db" />
+            <Text style={styles.emptyText}>אין פוסטים עדיין</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.postsList}>
+            {posts.map((post) => (
+              <View key={post.id} style={styles.postItem}>
+                <View style={styles.postItemContent}>
+                  {post.imageUrl && (
+                    <Image source={{ uri: post.imageUrl }} style={styles.postItemImage} />
+                  )}
+                  <View style={styles.postItemText}>
+                    <Text style={styles.postItemTitle}>{post.title}</Text>
+                    {post.summary && (
+                      <Text style={styles.postItemSummary} numberOfLines={2}>{post.summary}</Text>
+                    )}
+                    <View style={styles.postItemMeta}>
+                      {post.isEvent && (
+                        <View style={styles.eventBadge}>
+                          <Ionicons name="calendar-outline" size={12} color={PRIMARY_RED} />
+                          <Text style={styles.eventBadgeText}>אירוע</Text>
+                        </View>
+                      )}
+                      {!post.isActive && (
+                        <Text style={styles.inactiveBadge}>לא פעיל</Text>
+                      )}
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.postItemActions}>
+                  <Pressable
+                    style={styles.actionButton}
+                    onPress={() => handleEdit(post)}
+                  >
+                    <Ionicons name="create-outline" size={20} color={PRIMARY_RED} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.actionButton}
+                    onPress={() => handleDelete(post)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#dc2626" />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    </View>
+  )
+}
+
 // ========== PODCASTS FORM ========== 
 function PodcastsForm() {
   const { t } = useTranslation();
@@ -3585,6 +4060,71 @@ const styles = StyleSheet.create({
   lessonItemActions: {
     flexDirection: 'row',
     gap: 5,
+  },
+  postsList: {
+    maxHeight: 400,
+  },
+  postItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  postItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  postItemImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+  },
+  postItemText: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  postItemTitle: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+    textAlign: 'right',
+    marginBottom: 4,
+  },
+  postItemSummary: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    textAlign: 'right',
+    marginBottom: 6,
+  },
+  postItemMeta: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  inactiveBadge: {
+    fontSize: 11,
+    fontFamily: 'Poppins_500Medium',
+    color: '#dc2626',
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  postItemActions: {
+    flexDirection: 'row',
+    gap: 5,
+    marginLeft: 8,
+  },
+  actionButton: {
+    padding: 5,
   },
   editButton: {
     padding: 5,
