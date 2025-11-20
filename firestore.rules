@@ -132,6 +132,38 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // ========== INSTITUTIONS CONTENT COLLECTION ==========
+    match /institutionsContent/{activityId} {
+      // All signed-in users can read institution content
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== BOOKS COLLECTION ==========
+    match /books/{bookId} {
+      // All signed-in users can read books
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== FLYERS COLLECTION ==========
+    match /flyers/{flyerId} {
+      // All signed-in users can read flyers
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== COMMUNITY POSTS COLLECTION ==========
+    match /communityPosts/{postId} {
+      // All signed-in users can read community posts
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
     // ========== LEADS COLLECTION ==========
     match /leads/{leadId} {
       // Anyone can create a lead (for contact forms)
@@ -139,7 +171,7 @@ service cloud.firestore {
       // Only admins can read leads
       allow read, update, delete: if isAdmin();
     }
-    
+
     // ========== DEFAULT DENY ==========
     match /{document=**} {
       allow read, write: if false;

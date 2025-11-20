@@ -42,7 +42,14 @@
     "extra": {
       "eas": {
         "projectId": "429bf080-b8a2-42be-a2f6-ba6d3a70cff2"
-      }
+      },
+      "firebaseApiKey": "AIzaSyDpXIaHTcvamaoKXrl657nU3zFm9Nh389A",
+      "firebaseAuthDomain": "eyalamrami-1d69e.firebaseapp.com",
+      "firebaseProjectId": "eyalamrami-1d69e",
+      "firebaseStorageBucket": "eyalamrami-1d69e.firebasestorage.app",
+      "firebaseMessagingSenderId": "990847614280",
+      "firebaseAppId": "1:990847614280:web:431b7f340e07bd7f3b477d",
+      "firebaseMeasurementId": "G-P7YM9RTHK6"
     },
     "runtimeVersion": "1.0.0",
     "updates": {

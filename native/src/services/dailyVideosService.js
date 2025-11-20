@@ -1,5 +1,6 @@
 import { 
   getAllDocuments, 
+  getDocuments,
   getDocument, 
   setDocument, 
   updateDocument, 
@@ -54,8 +55,8 @@ export async function getDailyVideosByDate(date) {
       { field: 'date', operator: '==', value: dateStr }
     ]
     
-    const videos = await getDocuments('dailyVideos', filters, 'createdAt', 'desc')
-    return videos
+    const result = await getDocuments('dailyVideos', filters, 'createdAt', 'desc')
+    return result?.data || []
   } catch (error) {
     console.error('Error getting daily videos by date:', error)
     throw error

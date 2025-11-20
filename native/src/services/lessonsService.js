@@ -22,8 +22,8 @@ export async function getLessons(category = null) {
       filters.push({ field: 'category', operator: '==', value: category })
     }
     
-    const lessons = await getDocuments('lessons', filters, 'order', 'desc')
-    return lessons
+    const result = await getDocuments('lessons', filters, 'order', 'desc')
+    return result?.data || []
   } catch (error) {
     console.error('Error getting lessons:', error)
     throw error

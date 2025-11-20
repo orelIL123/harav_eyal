@@ -25,8 +25,8 @@ export async function getNews(category = null, isPublished = null) {
       filters.push({ field: 'isPublished', operator: '==', value: isPublished })
     }
     
-    const news = await getDocuments('news', filters, 'publishedAt', 'desc')
-    return news
+    const result = await getDocuments('news', filters, 'publishedAt', 'desc')
+    return result?.data || []
   } catch (error) {
     console.error('Error getting news:', error)
     throw error

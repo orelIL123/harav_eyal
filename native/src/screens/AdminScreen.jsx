@@ -142,9 +142,10 @@ function LessonsForm({ navigation }) {
     try {
       setLoading(true)
       const allLessons = await getLessons(filterCategory)
-      setLessons(allLessons)
+      setLessons(Array.isArray(allLessons) ? allLessons : [])
     } catch (error) {
       console.error('Error loading lessons:', error)
+      setLessons([]) // Ensure lessons is always an array
       Alert.alert(t('admin.lessonsForm.error'), t('admin.lessonsForm.errorLoadingLessons'))
     } finally {
       setLoading(false)
@@ -542,9 +543,9 @@ function LessonsForm({ navigation }) {
 function AlertsForm() {
   const { t } = useTranslation();
   const [form, setForm] = useState({
-    title: t('admin.alertsForm.reminderTitlePlaceholder'),
+    title: '',
     type: 'reminder',
-    message: t('admin.alertsForm.messagePlaceholder'),
+    message: '',
     priority: 'medium',
     sendType: 'immediate', // immediate, scheduled
     scheduledTime: new Date().toISOString().slice(0, 16),
@@ -560,9 +561,10 @@ function AlertsForm() {
   const loadAlerts = async () => {
     try {
       const allAlerts = await getAlerts(true)
-      setAlerts(allAlerts)
+      setAlerts(Array.isArray(allAlerts) ? allAlerts : [])
     } catch (error) {
       console.error('Error loading alerts:', error)
+      setAlerts([]) // Ensure alerts is always an array
     }
   }
 
@@ -636,9 +638,9 @@ function AlertsForm() {
 
       // Reset form
       setForm({
-        title: t('admin.alertsForm.reminderTitlePlaceholder'),
+        title: '',
         type: 'reminder',
-        message: t('admin.alertsForm.messagePlaceholder'),
+        message: '',
         priority: 'medium',
         sendType: 'immediate',
         scheduledTime: new Date().toISOString().slice(0, 16),
@@ -794,28 +796,24 @@ function AlertsForm() {
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('admin.alertsForm.targetAudience')}</Text>
-        <View style={styles.checkboxGroup}>
+        <View style={styles.radioGroup}>
           {[ 
-            { value: 'all', label: t('admin.alertsForm.allUsers') },
-            { value: 'registered', label: t('admin.alertsForm.registeredUsersOnly') }
+            { value: 'all', label: t('admin.alertsForm.allUsers'), color: PRIMARY_RED },
+            { value: 'registered', label: t('admin.alertsForm.registeredUsersOnly'), color: PRIMARY_GOLD }
           ].map(option => (
             <Pressable
               key={option.value}
-              style={styles.checkbox}
+              style={[ 
+                styles.radioButton,
+                form.targetAudience.includes(option.value) && { backgroundColor: `${option.color}15`, borderColor: option.color }
+              ]}
               onPress={() => {
-                if (form.targetAudience.includes(option.value)) {
-                  setForm({...form, targetAudience: form.targetAudience.filter(a => a !== option.value)})
-                } else {
-                  setForm({...form, targetAudience: [...form.targetAudience, option.value]})
-                }
+                setForm({...form, targetAudience: [option.value]})
               }}
             >
-              <View style={[styles.checkboxBox, form.targetAudience.includes(option.value) && styles.checkboxBoxChecked]}>
-                {form.targetAudience.includes(option.value) && (
-                  <Ionicons name="checkmark" size={16} color="#fff" />
-                )}
-              </View>
-              <Text style={styles.checkboxLabel}>{option.label}</Text>
+              <Text style={[styles.radioText, form.targetAudience.includes(option.value) && { color: option.color }]}>
+                {option.label}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -831,8 +829,8 @@ function AlertsForm() {
         ) : (
           <>
             <LinearGradient colors={[PRIMARY_RED, PRIMARY_GOLD]} style={StyleSheet.absoluteFill} />
-            <Ionicons name="send" size={20} color="#fff" />
-            <Text style={styles.submitButtonText}>{t('admin.alertsForm.sendAlert')}</Text>
+            <Ionicons name="send" size={20} color="#fff" style={{ zIndex: 1 }} />
+            <Text style={[styles.submitButtonText, { zIndex: 1 }]}>{t('admin.alertsForm.sendAlert')}</Text>
           </>
         )}
       </Pressable>
@@ -1407,9 +1405,10 @@ function NewsForm() {
   const loadNews = async () => {
     try {
       const allNews = await getNews()
-      setNews(allNews)
+      setNews(Array.isArray(allNews) ? allNews : [])
     } catch (error) {
       console.error('Error loading news:', error)
+      setNews([]) // Ensure news is always an array
     }
   }
 
@@ -1776,9 +1775,10 @@ function BooksForm() {
     try {
       setLoading(true)
       const allBooks = await getBooks()
-      setBooks(allBooks)
+      setBooks(Array.isArray(allBooks) ? allBooks : [])
     } catch (error) {
       console.error('Error loading books:', error)
+      setBooks([]) // Ensure books is always an array
       Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorLoadingBooks'))
     } finally {
       setLoading(false)
@@ -2135,9 +2135,10 @@ function FlyersForm() {
     try {
       setLoading(true)
       const allFlyers = await getFlyers()
-      setFlyers(allFlyers)
+      setFlyers(Array.isArray(allFlyers) ? allFlyers : [])
     } catch (error) {
       console.error('Error loading flyers:', error)
+      setFlyers([]) // Ensure flyers is always an array
       Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorLoadingFlyers'))
     } finally {
       setLoading(false)
@@ -2504,9 +2505,10 @@ function CommunityPostsForm() {
     try {
       setLoading(true)
       const allPosts = await getCommunityPosts()
-      setPosts(allPosts)
+      setPosts(Array.isArray(allPosts) ? allPosts : [])
     } catch (error) {
       console.error('Error loading community posts:', error)
+      setPosts([]) // Ensure posts is always an array
       Alert.alert(t('admin.lessonsForm.error'), 'שגיאה בטעינת הפוסטים')
     } finally {
       setLoading(false)
@@ -2913,9 +2915,10 @@ function PodcastsForm() {
     try {
       setLoading(true)
       const allPodcasts = await getAllPodcasts()
-      setPodcasts(allPodcasts)
+      setPodcasts(Array.isArray(allPodcasts) ? allPodcasts : [])
     } catch (error) {
       console.error('Error loading podcasts:', error)
+      setPodcasts([]) // Ensure podcasts is always an array
       Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.loadingPodcasts'))
     } finally {
       setLoading(false)
@@ -3351,9 +3354,10 @@ function DailyVideosForm() {
     try {
       setLoading(true)
       const allVideos = await getDailyVideos()
-      setVideos(allVideos)
+      setVideos(Array.isArray(allVideos) ? allVideos : [])
     } catch (error) {
       console.error('Error loading videos:', error)
+      setVideos([]) // Ensure videos is always an array
     } finally {
       setLoading(false)
     }
@@ -4145,6 +4149,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 10,
     overflow: 'hidden',
+    position: 'relative',
   },
   submitButtonDisabled: {
     opacity: 0.6,

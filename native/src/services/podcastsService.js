@@ -25,8 +25,8 @@ export async function getPodcasts(category = null) {
     // Only active podcasts
     filters.push({ field: 'isActive', operator: '==', value: true })
     
-    const podcasts = await getDocuments('podcasts', filters, 'order', 'desc')
-    return podcasts
+    const result = await getDocuments('podcasts', filters, 'order', 'desc')
+    return result?.data || []
   } catch (error) {
     console.error('Error getting podcasts:', error)
     throw error
@@ -38,8 +38,8 @@ export async function getPodcasts(category = null) {
  */
 export async function getAllPodcasts() {
   try {
-    const podcasts = await getDocuments('podcasts', [], 'createdAt', 'desc')
-    return podcasts
+    const result = await getDocuments('podcasts', [], 'createdAt', 'desc')
+    return result?.data || []
   } catch (error) {
     console.error('Error getting all podcasts:', error)
     // Return empty array on error instead of throwing
@@ -121,6 +121,50 @@ export async function deletePodcast(podcastId) {
   }
 }
 
+
+/**
+ * Upload audio file to Storage
+ */
+export async function uploadPodcastAudio(uri, podcastId, onProgress) {
+  try {
+    const { storage } = await import('../config/firebase')
+    const { ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage')
+
+    // Fetch the audio file
+    const response = await fetch(uri)
+    const blob = await response.blob()
+
+    // Create storage reference
+    const path = `podcasts/${podcastId}/audio.mp3`
+    const storageRef = ref(storage, path)
+
+    // Upload with progress tracking
+    const uploadTask = uploadBytesResumable(storageRef, blob)
+
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+          if (onProgress) {
+            onProgress(Math.round(progress))
+          }
+        },
+        (error) => {
+          console.error('Error uploading audio:', error)
+          reject(error)
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+          resolve(downloadURL)
+        }
+      )
+    })
+  } catch (error) {
+    console.error('Error uploading podcast audio:', error)
+    throw error
+  }
+}
 
 /**
  * Upload thumbnail to Storage

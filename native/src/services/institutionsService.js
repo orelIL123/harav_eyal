@@ -47,7 +47,8 @@ export async function saveInstitutionContent(activityId, contentData, userId = n
 export async function getAllInstitutionContents() {
   try {
     const { getDocuments } = await import('./firestore')
-    return await getDocuments('institutionsContent')
+    const result = await getDocuments('institutionsContent')
+    return result?.data || []
   } catch (error) {
     console.error('Error getting all institution contents:', error)
     throw error

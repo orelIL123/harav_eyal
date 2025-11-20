@@ -46,13 +46,126 @@ service firebase.storage {
     match /images/{allPaths=**} {
       // Public read for images
       allow read: if true;
-      
+
       // Only admins can write
       allow write: if isAdminClaim() &&
                    request.resource.size < 10 * 1024 * 1024 && // Max 10MB
                    request.resource.contentType.matches('image/.*');
     }
-    
+
+    // ========== LESSONS ==========
+    match /lessons/{lessonId}/{fileName} {
+      // Public read for lesson thumbnails
+      allow read: if true;
+
+      // Only admins can write
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                   request.resource.contentType.matches('image/.*');
+    }
+
+    // ========== PODCASTS ==========
+    match /podcasts/{podcastId}/{fileName} {
+      // Public read for podcast audio and thumbnails
+      allow read: if true;
+
+      // Only admins can write audio files
+      allow write: if isAdminClaim() &&
+                   fileName == 'audio.mp3' &&
+                   request.resource.size < 100 * 1024 * 1024 && // Max 100MB
+                   request.resource.contentType.matches('audio/.*');
+
+      // Only admins can write thumbnail images
+      allow write: if isAdminClaim() &&
+                   fileName == 'thumbnail.jpg' &&
+                   request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                   request.resource.contentType.matches('image/.*');
+    }
+
+    // ========== DAILY VIDEOS ==========
+    match /dailyVideos/{videoId}/{fileName} {
+      // Public read for daily videos
+      allow read: if true;
+
+      // Only admins can write videos
+      allow write: if isAdminClaim() &&
+                   fileName.matches('video.*') &&
+                   request.resource.size < 200 * 1024 * 1024 && // Max 200MB
+                   request.resource.contentType.matches('video/.*');
+
+      // Only admins can write thumbnails
+      allow write: if isAdminClaim() &&
+                   fileName.matches('thumbnail.*') &&
+                   request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                   request.resource.contentType.matches('image/.*');
+    }
+
+    // ========== NEWS ==========
+    match /news/{newsId}/{fileName} {
+      // Public read for news images
+      allow read: if true;
+
+      // Only admins can write
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 10 * 1024 * 1024 && // Max 10MB
+                   request.resource.contentType.matches('image/.*');
+    }
+
+    // ========== BOOKS ==========
+    match /books/{bookId}/{fileName} {
+      // Public read for book covers
+      allow read: if true;
+
+      // Only admins can write
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                   request.resource.contentType.matches('image/.*');
+    }
+
+    // ========== FLYERS ==========
+    match /flyers/{flyerId}/{fileName} {
+      // Public read for flyers
+      allow read: if true;
+
+      // Only admins can write PDFs
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 20 * 1024 * 1024 && // Max 20MB
+                   request.resource.contentType == 'application/pdf';
+    }
+
+    // ========== COMMUNITY POSTS ==========
+    match /communityPosts/{postId}/{fileName} {
+      // Public read for community post images
+      allow read: if true;
+
+      // Only admins can write
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 10 * 1024 * 1024 && // Max 10MB
+                   request.resource.contentType.matches('image/.*');
+    }
+
+    // ========== INSTITUTIONS ==========
+    match /institutions/{institutionId}/{fileName} {
+      // Public read for institution images
+      allow read: if true;
+
+      // Only admins can write
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 10 * 1024 * 1024 && // Max 10MB
+                   request.resource.contentType.matches('image/.*');
+    }
+
+    // ========== HOME CARDS ==========
+    match /cards/{cardId}/{fileName} {
+      // Public read for card images
+      allow read: if true;
+
+      // Only admins can write
+      allow write: if isAdminClaim() &&
+                   request.resource.size < 5 * 1024 * 1024 && // Max 5MB
+                   request.resource.contentType.matches('image/.*');
+    }
+
     // ========== DEFAULT DENY ==========
     match /{allPaths=**} {
       allow read, write: if false;

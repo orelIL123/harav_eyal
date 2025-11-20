@@ -17,7 +17,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
  */
 export async function getCommunityPosts() {
   try {
-    const posts = await getAllDocuments('communityPosts', [{ field: 'createdAt', order: 'desc' }])
+    const posts = await getAllDocuments('communityPosts', [], 'createdAt', 'desc')
     return posts
   } catch (error) {
     console.error('Error getting community posts:', error)
