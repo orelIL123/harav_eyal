@@ -5,19 +5,32 @@ import { getStorage } from 'firebase/storage'
 import Constants from 'expo-constants'
 
 // Firebase configuration from environment variables
-// Fallback to hardcoded values for development if env vars are not set
 const getFirebaseConfig = () => {
   const extra = Constants.expoConfig?.extra || {}
   
-  return {
-    apiKey: extra.firebaseApiKey || process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyDpXIaHTcvamaoKXrl657nU3zFm9Nh389A",
-    authDomain: extra.firebaseAuthDomain || process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "eyalamrami-1d69e.firebaseapp.com",
-    projectId: extra.firebaseProjectId || process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "eyalamrami-1d69e",
-    storageBucket: extra.firebaseStorageBucket || process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "eyalamrami-1d69e.firebasestorage.app",
-    messagingSenderId: extra.firebaseMessagingSenderId || process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "990847614280",
-    appId: extra.firebaseAppId || process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:990847614280:web:431b7f340e07bd7f3b477d",
-    measurementId: extra.firebaseMeasurementId || process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-P7YM9RTHK6"
+  // Get configuration from app.json extra or environment variables
+  const config = {
+    apiKey: extra.firebaseApiKey || process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+    authDomain: extra.firebaseAuthDomain || process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: extra.firebaseProjectId || process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: extra.firebaseStorageBucket || process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: extra.firebaseMessagingSenderId || process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: extra.firebaseAppId || process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+    measurementId: extra.firebaseMeasurementId || process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
   }
+  
+  // Validate that all required fields are present
+  const requiredFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId']
+  const missingFields = requiredFields.filter(field => !config[field])
+  
+  if (missingFields.length > 0) {
+    throw new Error(
+      `Missing required Firebase configuration fields: ${missingFields.join(', ')}. ` +
+      'Please ensure your .env file is properly configured and loaded.'
+    )
+  }
+  
+  return config
 }
 
 const firebaseConfig = getFirebaseConfig()
