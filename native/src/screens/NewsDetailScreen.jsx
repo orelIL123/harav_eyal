@@ -33,11 +33,11 @@ export default function NewsDetailScreen({ navigation, route }) {
           >
             <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
           </Pressable>
-          <Text style={styles.headerTitle}>חדשות</Text>
+          <Text style={styles.headerTitle}>{t('news.detailTitle')}</Text>
           <View style={{ width: 24 }} />
         </View>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>לא נמצאה כתבה</Text>
+          <Text style={styles.errorText}>{t('news.articleNotFound')}</Text>
         </View>
       </SafeAreaView>
     )
@@ -59,10 +59,6 @@ export default function NewsDetailScreen({ navigation, route }) {
     }).catch(() => {})
   }
 
-  const categoryLabel = article.category === 'chidushim' ? '💡 חידושים' :
-                        article.category === 'crypto' ? '₿ קריפטו' :
-                        '📚 למידה'
-
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient colors={[BG, '#f4f6f9']} style={StyleSheet.absoluteFill} />
@@ -73,16 +69,16 @@ export default function NewsDetailScreen({ navigation, route }) {
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="חזרה"
+          accessibilityLabel={t('lessons.back')}
         >
           <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
-        <Text style={styles.headerTitle}>חדשות</Text>
+          <Text style={styles.headerTitle}>{t('news.detailTitle')}</Text>
         <Pressable
           style={styles.shareBtn}
           onPress={handleShare}
           accessibilityRole="button"
-          accessibilityLabel="שתף"
+          accessibilityLabel={t('news.share')}
         >
           <Ionicons name="share-social-outline" size={24} color={PRIMARY_RED} />
         </Pressable>
@@ -92,11 +88,6 @@ export default function NewsDetailScreen({ navigation, route }) {
         contentContainerStyle={styles.content} 
         showsVerticalScrollIndicator={false}
       >
-        {/* Category Badge */}
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{categoryLabel}</Text>
-        </View>
-
         {/* Title */}
         <Text style={styles.title}>{article.title}</Text>
 
@@ -133,7 +124,7 @@ export default function NewsDetailScreen({ navigation, route }) {
           accessibilityRole="button"
         >
           <Ionicons name="share-social-outline" size={20} color="#fff" />
-          <Text style={styles.shareButtonText}>שתף כתבה</Text>
+          <Text style={styles.shareButtonText}>{t('news.shareArticle')}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -188,19 +179,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_500Medium',
     color: '#6b7280',
-  },
-  categoryBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: PRIMARY_RED,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 16,
-  },
-  categoryText: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#fff',
   },
   title: {
     fontSize: 28,

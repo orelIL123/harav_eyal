@@ -22,8 +22,41 @@ export async function getLessons(category = null) {
       filters.push({ field: 'category', operator: '==', value: category })
     }
     
-    const result = await getDocuments('lessons', filters, 'order', 'desc')
-    return result?.data || []
+    // Try to order by 'order' field first, fallback to 'createdAt' if order doesn't exist
+    // Increase limit to get all lessons (up to 100)
+    let result
+    try {
+      result = await getDocuments('lessons', filters, 'order', 'desc', 100)
+    } catch (orderError) {
+      // If ordering by 'order' fails (e.g., no index or field missing), try 'createdAt'
+      console.log('Ordering by order failed, trying createdAt:', orderError)
+      result = await getDocuments('lessons', filters, 'createdAt', 'desc', 100)
+    }
+    
+    const lessons = result?.data || []
+    
+    // Sort lessons: those with order field first (descending), then by createdAt
+    lessons.sort((a, b) => {
+      // If both have order, sort by order
+      if (a.order && b.order) {
+        return b.order - a.order
+      }
+      // If only one has order, it comes first
+      if (a.order && !b.order) return -1
+      if (b.order && !a.order) return 1
+      // If neither has order, sort by createdAt
+      const aDate = a.createdAt?.toDate ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : new Date(0))
+      const bDate = b.createdAt?.toDate ? b.createdAt.toDate() : (b.createdAt ? new Date(b.createdAt) : new Date(0))
+      return bDate - aDate
+    })
+    
+    // Additional client-side filtering to ensure category match
+    // This handles cases where category field might be missing or incorrect
+    if (category) {
+      return lessons.filter(lesson => lesson.category === category)
+    }
+    
+    return lessons
   } catch (error) {
     console.error('Error getting lessons:', error)
     throw error

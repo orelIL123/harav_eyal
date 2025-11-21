@@ -46,7 +46,6 @@ export async function createBook(bookData) {
       title: bookData.title,
       imageUrl: bookData.imageUrl || null,
       purchaseLink: bookData.purchaseLink || null,
-      description: bookData.description || null,
       isActive: bookData.isActive !== undefined ? bookData.isActive : true,
     }
     

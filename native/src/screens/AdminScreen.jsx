@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { sendLocalNotification, scheduleNotification } from '../utils/notifications'
-import { pickImage, pickVideo, pickPDF, uploadImageToStorage, uploadVideoToStorage, uploadPDFToStorage, generateStoragePath, generateCardImagePath, generateNewsImagePath, generateDailyVideoPath, generateDailyVideoThumbnailPath } from '../utils/storage'
+import { pickImage, pickVideo, pickPDF, pickAudio, uploadImageToStorage, uploadVideoToStorage, uploadPDFToStorage, uploadAudioToStorage, generateStoragePath, generateCardImagePath, generateNewsImagePath, generateDailyVideoPath, generateDailyVideoThumbnailPath } from '../utils/storage'
 import { addLesson, getLessons, updateLesson, deleteLesson } from '../services/lessonsService'
 import { createAlert, getAlerts, updateAlert, deleteAlert } from '../services/alertsService'
 import { getCard, updateCard, getAppConfig, updateAppConfig } from '../services/cardsService'
@@ -13,10 +13,13 @@ import { getInstitutionContent, saveInstitutionContent } from '../services/insti
 import { createPodcast, getAllPodcasts, updatePodcast, deletePodcast, uploadPodcastAudio, uploadPodcastThumbnail } from '../services/podcastsService'
 import { createDailyVideo, getDailyVideos, deleteDailyVideo, cleanupExpiredVideos } from '../services/dailyVideosService'
 import { createBook, getBooks, updateBook, deleteBook } from '../services/booksService'
-import { createFlyer, getFlyers, updateFlyer, deleteFlyer } from '../services/flyersService'
+import { createFlyer, getFlyers, getAllFlyersForAdmin, updateFlyer, deleteFlyer } from '../services/flyersService'
 import { createCommunityPost, getCommunityPosts, updateCommunityPost, deleteCommunityPost } from '../services/communityPostsService'
 import { clearConsent, clearAllAppData } from '../utils/storage'
 import { validateText, validateURL, sanitizeText } from '../utils/validation'
+import { STATIC_BOOKS } from '../data/staticBooks'
+import { LESSONS_DATA } from '../data/lessons'
+import FaithStoriesForm from '../components/admin/FaithStoriesForm'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -30,15 +33,11 @@ export default function AdminScreen({ navigation, route }) {
   const TABS = [
     { id: 'lessons', label: t('admin.lessons'), icon: 'library-outline' },
     { id: 'alerts', label: t('admin.alerts'), icon: 'notifications-outline' },
-    { id: 'cards', label: t('admin.cards'), icon: 'albums-outline' },
     { id: 'news', label: t('admin.news'), icon: 'newspaper-outline' },
-    { id: 'books', label: t('admin.books'), icon: 'book-outline' },
-    { id: 'flyers', label: t('admin.flyers'), icon: 'document-text-outline' },
     { id: 'podcasts', label: t('admin.podcasts'), icon: 'headset-outline' },
-    { id: 'daily-videos', label: t('admin.dailyVideos'), icon: 'videocam-outline' },
-    { id: 'community-posts', label: t('admin.communityPosts'), icon: 'people-outline' },
-    { id: 'institutions', label: t('admin.institutions'), icon: 'business-outline' },
-    { id: 'debug', label: 'Debug', icon: 'bug-outline' },
+    { id: 'books', label: t('admin.books'), icon: 'book-outline' },
+    { id: 'flyers', label: 'עלונים', icon: 'document-text-outline' },
+    { id: 'faithStories', label: 'סיפורי אמונה', icon: 'videocam-outline' },
   ]
 
   // Update tab if route params change
@@ -46,6 +45,14 @@ export default function AdminScreen({ navigation, route }) {
     if (route?.params?.initialTab) {
       setActiveTab(route.params.initialTab)
     }
+    
+    // Debug: Log current user UID
+    import('../config/firebase').then(({ auth }) => {
+      console.log('Current User UID:', auth.currentUser?.uid);
+      if (!auth.currentUser) {
+        console.warn('⚠️ No user logged in!');
+      }
+    });
   }, [route?.params?.initialTab])
 
   return (
@@ -91,15 +98,11 @@ export default function AdminScreen({ navigation, route }) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'lessons' && <LessonsForm navigation={navigation} />}
         {activeTab === 'alerts' && <AlertsForm />}
-        {activeTab === 'cards' && <CardsForm />}
         {activeTab === 'news' && <NewsForm />}
+        {activeTab === 'podcasts' && <PodcastsForm />}
         {activeTab === 'books' && <BooksForm />}
         {activeTab === 'flyers' && <FlyersForm />}
-        {activeTab === 'podcasts' && <PodcastsForm />}
-        {activeTab === 'daily-videos' && <DailyVideosForm />}
-        {activeTab === 'community-posts' && <CommunityPostsForm />}
-        {activeTab === 'institutions' && <InstitutionsForm />}
-        {activeTab === 'debug' && <DebugForm navigation={navigation} />}
+        {activeTab === 'faithStories' && <FaithStoriesForm />}
       </ScrollView>
     </SafeAreaView>
   )
@@ -141,12 +144,86 @@ function LessonsForm({ navigation }) {
   const loadLessons = async () => {
     try {
       setLoading(true)
-      const allLessons = await getLessons(filterCategory)
-      setLessons(Array.isArray(allLessons) ? allLessons : [])
+      const firebaseLessons = await getLessons(filterCategory)
+      
+      // Convert LESSONS_DATA to flat array format
+      const staticLessons = []
+      if (LESSONS_DATA) {
+        Object.keys(LESSONS_DATA).forEach(categoryKey => {
+          const categoryData = LESSONS_DATA[categoryKey]
+          if (categoryData && categoryData.videos) {
+            categoryData.videos.forEach((video, index) => {
+              staticLessons.push({
+                id: video.id || `static-${categoryKey}-${index}`,
+                category: categoryKey,
+                title: video.title || '',
+                date: video.date || '',
+                url: video.url || '',
+                videoId: video.videoId || '',
+                order: index + 1,
+                isStatic: true // Mark as static for reference
+              })
+            })
+          }
+        })
+      }
+      
+      // Filter static lessons by category if needed
+      const filteredStaticLessons = filterCategory 
+        ? staticLessons.filter(lesson => lesson.category === filterCategory)
+        : staticLessons
+      
+      // Combine static and firebase lessons
+      // Firebase lessons take precedence if they have the same ID
+      const allLessons = [...filteredStaticLessons, ...(firebaseLessons || [])]
+      
+      // Remove duplicates by ID (firebase lessons override static ones)
+      const uniqueLessons = allLessons.reduce((acc, lesson) => {
+        const existingIndex = acc.findIndex(l => l.id === lesson.id)
+        if (existingIndex === -1) {
+          acc.push(lesson)
+        } else {
+          // Firebase lesson overrides static one
+          acc[existingIndex] = lesson
+        }
+        return acc
+      }, [])
+      
+      // Sort by order if available, then by date
+      uniqueLessons.sort((a, b) => {
+        if (a.order && b.order) return b.order - a.order
+        if (a.order && !b.order) return -1
+        if (b.order && !a.order) return 1
+        return 0
+      })
+      
+      setLessons(uniqueLessons)
     } catch (error) {
       console.error('Error loading lessons:', error)
-      setLessons([]) // Ensure lessons is always an array
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.lessonsForm.errorLoadingLessons'))
+      // Fallback to static lessons on error
+      const staticLessons = []
+      if (LESSONS_DATA) {
+        Object.keys(LESSONS_DATA).forEach(categoryKey => {
+          const categoryData = LESSONS_DATA[categoryKey]
+          if (categoryData && categoryData.videos) {
+            categoryData.videos.forEach((video, index) => {
+              if (!filterCategory || categoryKey === filterCategory) {
+                staticLessons.push({
+                  id: video.id || `static-${categoryKey}-${index}`,
+                  category: categoryKey,
+                  title: video.title || '',
+                  date: video.date || '',
+                  url: video.url || '',
+                  videoId: video.videoId || '',
+                  order: index + 1,
+                  isStatic: true
+                })
+              }
+            })
+          }
+        })
+      }
+      setLessons(staticLessons)
     } finally {
       setLoading(false)
     }
@@ -179,9 +256,23 @@ function LessonsForm({ navigation }) {
     try {
       setLoading(true)
       
+      // Upload thumbnail if selected but not uploaded yet
+      let thumbnailUrl = form.thumbnailUrl
       if (form.thumbnailUri && !form.thumbnailUrl) {
-        Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'))
+        try {
+          setUploading(true)
+          const lessonId = editingLesson?.id || 'lesson-' + Date.now()
+          const path = generateStoragePath(`lessons/${lessonId}`, 'thumbnail.jpg')
+          thumbnailUrl = await uploadImageToStorage(form.thumbnailUri, path, (progress) => {
+            console.log(`Upload progress: ${progress}%`)
+          })
+        } catch (error) {
+          console.error('Error uploading thumbnail:', error)
+          Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
         return
+        } finally {
+          setUploading(false)
+        }
       }
 
       // Sanitize inputs
@@ -192,10 +283,15 @@ function LessonsForm({ navigation }) {
         date: form.date ? sanitizeText(form.date) : '',
         category: form.category,
         videoId: form.videoId ? sanitizeText(form.videoId) : '',
-        thumbnailUrl: form.thumbnailUrl,
+        thumbnailUrl: thumbnailUrl,
       }
 
       if (editingLesson) {
+        // Check if it's a static lesson
+        if (editingLesson.isStatic) {
+          Alert.alert('שים לב', 'לא ניתן לערוך שיעורים סטטיים. ניתן לערוך רק שיעורים מ-Firebase.')
+          return
+        }
         // Update existing lesson
         await updateLesson(editingLesson.id, sanitizedForm)
         Alert.alert(t('admin.lessonsForm.success'), t('admin.lessonsForm.lessonUpdated'))
@@ -216,6 +312,7 @@ function LessonsForm({ navigation }) {
         thumbnailUri: null,
         thumbnailUrl: null,
       })
+      setUploading(false)
       await loadLessons()
     } catch (error) {
       console.error('Error saving lesson:', error)
@@ -239,6 +336,12 @@ function LessonsForm({ navigation }) {
   }
 
   const handleDelete = (lesson) => {
+    // Check if it's a static lesson
+    if (lesson.isStatic) {
+      Alert.alert('שים לב', 'לא ניתן למחוק שיעורים סטטיים. ניתן למחוק רק שיעורים מ-Firebase.')
+      return
+    }
+    
     Alert.alert(
       t('admin.lessonsForm.deleteLessonTitle'),
       t('admin.lessonsForm.deleteLessonMessage', { title: lesson.title }),
@@ -549,9 +652,14 @@ function AlertsForm() {
     priority: 'medium',
     sendType: 'immediate', // immediate, scheduled
     scheduledTime: new Date().toISOString().slice(0, 16),
-    targetAudience: ['all']
+    targetAudience: ['all'],
+    audioUri: null,
+    audioUrl: null,
+    // Image removed as requested
   })
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [alerts, setAlerts] = useState([])
 
   useEffect(() => {
@@ -568,6 +676,66 @@ function AlertsForm() {
     }
   }
 
+  const handlePickImage = async () => {
+    const image = await pickImage({ aspect: [16, 9] })
+    if (image) {
+      setForm({ ...form, imageUri: image.uri })
+    }
+  }
+
+  const handleUploadImage = async () => {
+    if (!form.imageUri) {
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
+      return
+    }
+
+    setUploadingImage(true)
+    try {
+      const alertId = 'alert-' + Date.now()
+      const path = generateStoragePath(`alerts/${alertId}`, 'image.jpg')
+      const url = await uploadImageToStorage(form.imageUri, path, (progress) => {
+        console.log(`Image upload progress: ${progress}%`)
+      })
+      setForm({ ...form, imageUrl: url })
+      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const handlePickAudio = async () => {
+    const audio = await pickAudio()
+    if (audio) {
+      setForm({ ...form, audioUri: audio.uri })
+    }
+  }
+
+  const handleUploadAudio = async () => {
+    if (!form.audioUri) {
+      Alert.alert(t('admin.lessonsForm.error'), 'בחר קובץ אודיו תחילה')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const alertId = 'alert-' + Date.now()
+      const path = generateStoragePath(`alerts/${alertId}`, 'audio.mp3')
+      const url = await uploadAudioToStorage(form.audioUri, path, (progress) => {
+        console.log(`Audio upload progress: ${progress}%`)
+      })
+      setForm({ ...form, audioUrl: url })
+      Alert.alert(t('admin.lessonsForm.success'), 'הקלטה הועלתה בהצלחה')
+    } catch (error) {
+      Alert.alert(t('admin.lessonsForm.error'), 'שגיאה בהעלאת הקלטה')
+      console.error(error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const handleSubmit = async () => {
     // Validate title
     const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
@@ -576,11 +744,56 @@ function AlertsForm() {
       return
     }
 
-    // Validate message
-    const messageValidation = validateText(form.message, { minLength: 1, maxLength: 1000, required: true })
-    if (!messageValidation.valid) {
-      Alert.alert(t('admin.lessonsForm.error'), messageValidation.error)
+    // Validate message (optional if audio is provided)
+    if (!form.audioUrl && !form.message) {
+      Alert.alert(t('admin.lessonsForm.error'), 'יש למלא הודעה או להעלות הקלטה')
       return
+    }
+
+    if (form.message) {
+      const messageValidation = validateText(form.message, { minLength: 1, maxLength: 1000, required: false })
+      if (!messageValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), messageValidation.error)
+        return
+      }
+    }
+
+    // Upload audio if selected but not uploaded yet
+    let audioUrl = form.audioUrl
+    if (form.audioUri && !form.audioUrl) {
+      try {
+        setUploading(true)
+        const alertId = 'alert-' + Date.now()
+        const path = generateStoragePath(`alerts/${alertId}`, 'audio.mp3')
+        audioUrl = await uploadAudioToStorage(form.audioUri, path, (progress) => {
+          console.log(`Audio upload progress: ${progress}%`)
+        })
+      } catch (error) {
+        console.error('Error uploading audio:', error)
+        Alert.alert(t('admin.lessonsForm.error'), 'שגיאה בהעלאת הקלטה')
+        return
+      } finally {
+        setUploading(false)
+      }
+    }
+
+    // Upload image if selected but not uploaded yet
+    let imageUrl = form.imageUrl
+    if (form.imageUri && !form.imageUrl) {
+      try {
+        setUploadingImage(true)
+        const alertId = 'alert-' + Date.now()
+        const path = generateStoragePath(`alerts/${alertId}`, 'image.jpg')
+        imageUrl = await uploadImageToStorage(form.imageUri, path, (progress) => {
+          console.log(`Image upload progress: ${progress}%`)
+        })
+      } catch (error) {
+        console.error('Error uploading image:', error)
+        Alert.alert(t('admin.lessonsForm.error'), 'שגיאה בהעלאת תמונה')
+        return
+      } finally {
+        setUploadingImage(false)
+      }
     }
 
     try {
@@ -594,7 +807,9 @@ function AlertsForm() {
       const alertData = {
         title: titleValidation.sanitized,
         type: form.type,
-        message: messageValidation.sanitized,
+        message: form.message ? validateText(form.message, { maxLength: 1000 }).sanitized : '',
+        audioUrl: audioUrl || null,
+        imageUrl: imageUrl || null,
         priority: form.priority,
         sendType: form.sendType,
         scheduledTime: form.sendType === 'scheduled' ? new Date(form.scheduledTime).toISOString() : null,
@@ -644,8 +859,11 @@ function AlertsForm() {
         priority: 'medium',
         sendType: 'immediate',
         scheduledTime: new Date().toISOString().slice(0, 16),
-        targetAudience: ['all']
+        targetAudience: ['all'],
+        audioUri: null,
+        audioUrl: null,
       })
+      setUploading(false)
 
       await loadAlerts()
     } catch (error) {
@@ -757,7 +975,7 @@ function AlertsForm() {
       )}
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.alertsForm.message')}</Text>
+        <Text style={styles.label}>{t('admin.alertsForm.message')} (אופציונלי אם יש הקלטה)</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           value={form.message}
@@ -765,9 +983,91 @@ function AlertsForm() {
           placeholder={t('admin.alertsForm.messagePlaceholder')}
           multiline
           numberOfLines={3}
-          maxLength={120}
+          maxLength={1000}
         />
-        <Text style={styles.charCount}>{form.message.length}/120</Text>
+        <Text style={styles.charCount}>{form.message.length}/1000</Text>
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>תמונה (אופציונלי)</Text>
+        {form.imageUrl && (
+          <View style={styles.previewContainer}>
+            <Image source={{ uri: form.imageUrl }} style={styles.previewImage} />
+          </View>
+        )}
+        {form.imageUri && !form.imageUrl && (
+          <View style={styles.previewContainer}>
+            <Image source={{ uri: form.imageUri }} style={styles.previewImage} />
+          </View>
+        )}
+        <Pressable
+          style={styles.uploadButton}
+          onPress={handlePickImage}
+          disabled={uploadingImage}
+        >
+          <Ionicons name="image-outline" size={20} color={PRIMARY_RED} />
+          <Text style={styles.uploadButtonText}>
+            {form.imageUri ? 'בחר תמונה אחרת' : 'בחר תמונה'}
+          </Text>
+        </Pressable>
+        {form.imageUri && !form.imageUrl && (
+          <Pressable
+            style={[styles.uploadButton, styles.uploadButtonActive]}
+            onPress={handleUploadImage}
+            disabled={uploadingImage}
+          >
+            {uploadingImage ? (
+              <ActivityIndicator color={PRIMARY_RED} />
+            ) : (
+              <Ionicons name="cloud-upload-outline" size={20} color={PRIMARY_RED} />
+            )}
+            <Text style={styles.uploadButtonText}>
+              {uploadingImage ? 'מעלה...' : 'העלה תמונה'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>הקלטה (אופציונלי)</Text>
+        {form.audioUrl && (
+          <View style={styles.previewContainer}>
+            <Ionicons name="musical-notes" size={24} color={PRIMARY_RED} />
+            <Text style={styles.previewText}>הקלטה הועלתה בהצלחה</Text>
+          </View>
+        )}
+        {form.audioUri && !form.audioUrl && (
+          <View style={styles.previewContainer}>
+            <Ionicons name="musical-notes-outline" size={24} color={PRIMARY_RED} />
+            <Text style={styles.previewText}>קובץ נבחר, יש להעלות</Text>
+          </View>
+        )}
+        <Pressable
+          style={styles.uploadButton}
+          onPress={handlePickAudio}
+          disabled={uploading}
+        >
+          <Ionicons name="musical-notes-outline" size={20} color={PRIMARY_RED} />
+          <Text style={styles.uploadButtonText}>
+            {form.audioUri ? 'בחר הקלטה אחרת' : 'בחר הקלטה'}
+          </Text>
+        </Pressable>
+        {form.audioUri && !form.audioUrl && (
+          <Pressable
+            style={[styles.uploadButton, styles.uploadButtonActive]}
+            onPress={handleUploadAudio}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator color={PRIMARY_RED} />
+            ) : (
+              <Ionicons name="cloud-upload-outline" size={20} color={PRIMARY_RED} />
+            )}
+            <Text style={styles.uploadButtonText}>
+              {uploading ? 'מעלה...' : 'העלה הקלטה'}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.formGroup}>
@@ -1358,7 +1658,7 @@ function NewsForm() {
   const { t } = useTranslation();
   const [form, setForm] = useState({
     title: '',
-    category: 'chidushim',
+    category: 'community',
     content: '',
     imageUri: null,
     imageUrl: null,
@@ -1436,9 +1736,22 @@ function NewsForm() {
       }
     }
 
+    // Upload image if selected but not uploaded yet
+    let imageUrl = form.imageUrl
     if (form.imageUri && !form.imageUrl) {
-      Alert.alert(t('admin.cardsForm.notice'), t('admin.newsForm.errorUploadImage'))
-      return
+      try {
+        setUploading(true)
+        const path = generateNewsImagePath(Date.now().toString(), 'news-image.jpg')
+        imageUrl = await uploadImageToStorage(form.imageUri, path, (progress) => {
+          console.log(`Image upload progress: ${progress}%`)
+        })
+      } catch (error) {
+        console.error('Error uploading image:', error)
+        Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
+        return
+      } finally {
+        setUploading(false)
+      }
     }
 
     try {
@@ -1464,7 +1777,7 @@ function NewsForm() {
         title: titleValidation.sanitized,
         category: form.category,
         content: contentValidation.sanitized,
-        imageUrl: form.imageUrl || null,
+        imageUrl: imageUrl || null,
         isPublished: true,
         publishedAt: publishedAt || new Date(), // Use custom date or current date
       }
@@ -1480,12 +1793,13 @@ function NewsForm() {
       // Reset form
       setForm({
         title: '',
-        category: 'chidushim',
+        category: 'community',
         content: '',
         imageUri: null,
         imageUrl: null,
         customDate: null,
       })
+      setUploading(false)
       setEditingNews(null)
       await loadNews()
     } catch (error) {
@@ -1509,7 +1823,7 @@ function NewsForm() {
     }
     setForm({
       title: newsItem.title,
-      category: newsItem.category || 'chidushim',
+      category: newsItem.category || 'community',
       content: newsItem.content,
       imageUri: null,
       imageUrl: newsItem.imageUrl || null,
@@ -1548,7 +1862,7 @@ function NewsForm() {
     setEditingNews(null)
     setForm({
       title: '',
-      category: 'chidushim',
+      category: 'community',
       content: '',
       imageUri: null,
       imageUrl: null,
@@ -1567,27 +1881,6 @@ function NewsForm() {
   return (
     <View style={styles.formContainer}>
       <Text style={styles.formTitle}>{t('admin.newsForm.title')}</Text>
-
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.newsForm.category')}</Text>
-        <View style={styles.radioGroup}>
-          {[ 
-            { value: 'chidushim', label: t('admin.newsForm.innovations') },
-            { value: 'crypto', label: t('admin.newsForm.crypto') },
-            { value: 'education', label: t('admin.newsForm.learning') }
-          ].map(option => (
-            <Pressable
-              key={option.value}
-              style={[styles.radioButton, form.category === option.value && styles.radioButtonActive]}
-              onPress={() => setForm({...form, category: option.value})}
-            >
-              <Text style={[styles.radioText, form.category === option.value && styles.radioTextActive]}>
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('admin.newsForm.newsTitle')}</Text>
@@ -1716,10 +2009,6 @@ function NewsForm() {
               <View key={newsItem.id} style={styles.lessonItem}>
                 <View style={styles.lessonItemContent}>
                   <Text style={styles.lessonItemTitle}>{newsItem.title}</Text>
-                  <Text style={styles.lessonItemCategory}>
-                    {newsItem.category === 'chidushim' ? t('admin.newsForm.innovations') : 
-                     newsItem.category === 'crypto' ? t('admin.newsForm.crypto') : t('admin.newsForm.learning')}
-                  </Text>
                   {newsItem.publishedAt && (
                     <Text style={styles.lessonItemDate}>
                       {newsItem.publishedAt.toDate ? 
@@ -1756,7 +2045,6 @@ function BooksForm() {
   const { t } = useTranslation();
   const [form, setForm] = useState({
     title: '',
-    description: '',
     imageUri: null,
     imageUrl: null,
     purchaseLink: '',
@@ -1774,12 +2062,29 @@ function BooksForm() {
   const loadBooks = async () => {
     try {
       setLoading(true)
-      const allBooks = await getBooks()
-      setBooks(Array.isArray(allBooks) ? allBooks : [])
+      const firebaseBooks = await getBooks()
+      
+      // Combine static and firebase books
+      // Firebase books take precedence if they have the same ID
+      const allBooks = [...STATIC_BOOKS, ...(firebaseBooks || [])]
+      
+      // Remove duplicates by ID (firebase books override static ones)
+      const uniqueBooks = allBooks.reduce((acc, book) => {
+        const existingIndex = acc.findIndex(b => b.id === book.id)
+        if (existingIndex === -1) {
+          acc.push(book)
+        } else {
+          // Firebase book overrides static one
+          acc[existingIndex] = book
+        }
+        return acc
+      }, [])
+      
+      setBooks(uniqueBooks)
     } catch (error) {
       console.error('Error loading books:', error)
-      setBooks([]) // Ensure books is always an array
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorLoadingBooks'))
+      // Fallback to static books on error
+      setBooks(STATIC_BOOKS || [])
     } finally {
       setLoading(false)
     }
@@ -1794,7 +2099,7 @@ function BooksForm() {
 
   const handleUploadImage = async () => {
     if (!form.imageUri) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorSelectImage'))
+      Alert.alert('שגיאה', 'אנא בחר תמונה')
       return
     }
 
@@ -1806,9 +2111,9 @@ function BooksForm() {
         console.log(`Upload progress: ${progress}%`)
       })
       setForm({ ...form, imageUrl: url })
-      Alert.alert(t('admin.lessonsForm.success'), t('admin.cardsForm.imageUploaded'))
+      Alert.alert('הצלחה', 'התמונה הועלתה בהצלחה')
     } catch (error) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.cardsForm.errorUploadingImage'))
+      Alert.alert('שגיאה', 'לא ניתן להעלות את התמונה')
       console.error(error)
     } finally {
       setUploading(false)
@@ -1819,31 +2124,21 @@ function BooksForm() {
     // Validate title
     const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
     if (!titleValidation.valid) {
-      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
+      Alert.alert('שגיאה', titleValidation.error)
       return
-    }
-
-    // Validate description if provided
-    let descriptionValidation = { valid: true, sanitized: '' }
-    if (form.description) {
-      descriptionValidation = validateText(form.description, { maxLength: 2000, required: false })
-      if (!descriptionValidation.valid) {
-        Alert.alert(t('admin.lessonsForm.error'), descriptionValidation.error)
-        return
-      }
     }
 
     // Validate purchase link if provided
     if (form.purchaseLink) {
       const linkValidation = validateURL(form.purchaseLink, { required: false })
       if (!linkValidation.valid) {
-        Alert.alert(t('admin.lessonsForm.error'), linkValidation.error)
+        Alert.alert('שגיאה', linkValidation.error)
         return
       }
     }
 
     if (form.imageUri && !form.imageUrl) {
-      Alert.alert(t('admin.cardsForm.notice'), t('admin.cardsForm.errorUploadImage'))
+      Alert.alert('שים לב', 'אנא העלה את התמונה לפני שמירה')
       return
     }
 
@@ -1851,32 +2146,34 @@ function BooksForm() {
       setLoading(true)
       
       if (editingBook) {
+        // Check if it's a static book
+        if (editingBook.isStatic || STATIC_BOOKS.some(b => b.id === editingBook.id)) {
+          Alert.alert('שים לב', 'לא ניתן לערוך ספרים סטטיים. ניתן לערוך רק ספרים מ-Firebase.')
+          return
+        }
         // Update existing book
         await updateBook(editingBook.id, {
           title: titleValidation.sanitized,
-          description: descriptionValidation.sanitized,
           imageUrl: form.imageUrl,
           purchaseLink: form.purchaseLink ? form.purchaseLink.trim() : '',
           isActive: form.isActive,
         })
-        Alert.alert(t('admin.lessonsForm.success'), t('admin.booksForm.bookUpdated'))
+        Alert.alert('הצלחה', 'הספר עודכן בהצלחה')
         setEditingBook(null)
       } else {
         // Add new book
         await createBook({
           title: titleValidation.sanitized,
-          description: descriptionValidation.sanitized,
           imageUrl: form.imageUrl,
           purchaseLink: form.purchaseLink ? form.purchaseLink.trim() : '',
           isActive: form.isActive,
         })
-        Alert.alert(t('admin.lessonsForm.success'), t('admin.booksForm.bookAdded'))
+        Alert.alert('הצלחה', 'הספר נוסף בהצלחה')
       }
       
       // Reset form
       setForm({
         title: '',
-        description: '',
         imageUri: null,
         imageUrl: null,
         purchaseLink: '',
@@ -1885,7 +2182,7 @@ function BooksForm() {
       await loadBooks()
     } catch (error) {
       console.error('Error saving book:', error)
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorSavingBook'))
+      Alert.alert('שגיאה', 'לא ניתן לשמור את הספר')
     } finally {
       setLoading(false)
     }
@@ -1895,7 +2192,6 @@ function BooksForm() {
     setEditingBook(book)
     setForm({
       title: book.title || '',
-      description: book.description || '',
       imageUrl: book.imageUrl || null,
       imageUri: null,
       purchaseLink: book.purchaseLink || '',
@@ -1907,7 +2203,6 @@ function BooksForm() {
     setEditingBook(null)
     setForm({
       title: '',
-      description: '',
       imageUri: null,
       imageUrl: null,
       purchaseLink: '',
@@ -1916,23 +2211,28 @@ function BooksForm() {
   }
 
   const handleDelete = (book) => {
+    // Check if it's a static book
+    if (book.isStatic || STATIC_BOOKS.some(b => b.id === book.id)) {
+      Alert.alert('שים לב', 'לא ניתן למחוק ספרים סטטיים. ניתן למחוק רק ספרים מ-Firebase.')
+      return
+    }
+    
     Alert.alert(
-      t('admin.booksForm.deleteBookTitle'),
-      t('admin.booksForm.deleteBookMessage', { title: book.title }),
+      'מחיקת ספר', `האם אתה בטוח שברצונך למחוק את הספר "${book.title}"?`,
       [
-        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
+        { text: 'ביטול', style: 'cancel' },
         {
-          text: t('admin.lessonsForm.delete'),
+          text: 'מחק',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true)
               await deleteBook(book.id)
-              Alert.alert(t('admin.lessonsForm.success'), t('admin.booksForm.bookDeleted'))
+              Alert.alert('הצלחה', 'הספר נמחק בהצלחה')
               await loadBooks()
             } catch (error) {
               console.error('Error deleting book:', error)
-              Alert.alert(t('admin.lessonsForm.error'), t('admin.booksForm.errorDeletingBook'))
+              Alert.alert('שגיאה', 'לא ניתן למחוק את הספר')
             } finally {
               setLoading(false)
             }
@@ -1944,47 +2244,44 @@ function BooksForm() {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>{t('admin.booksForm.title')}</Text>
-      <Text style={styles.formDesc}>
-        {t('admin.booksForm.description')}
-      </Text>
+      <Text style={styles.formTitle}>ניהול ספרים</Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.booksForm.bookTitle')}</Text>
+        <Text style={styles.label}>שם הספר</Text>
         <TextInput
           style={styles.input}
           value={form.title}
           onChangeText={text => setForm({...form, title: text})}
-          placeholder={t('admin.booksForm.bookTitlePlaceholder')}
+          placeholder="הזן את שם הספר"
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.booksForm.descriptionOptional')}</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={form.description}
-          onChangeText={text => setForm({...form, description: text})}
-          placeholder={t('admin.booksForm.descriptionPlaceholder')}
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.booksForm.purchaseLink')}</Text>
+        <Text style={styles.label}>קישור לרכישה</Text>
         <TextInput
           style={styles.input}
           value={form.purchaseLink}
           onChangeText={text => setForm({...form, purchaseLink: text})}
-          placeholder={t('admin.booksForm.purchaseLinkPlaceholder')}
+          placeholder="הזן קישור לרכישה"
           autoCapitalize="none"
           keyboardType="url"
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.booksForm.bookImage')}</Text>
+        <Pressable
+          style={styles.checkbox}
+          onPress={() => setForm({...form, isActive: !form.isActive})}
+        >
+          <View style={[styles.checkboxBox, form.isActive && styles.checkboxBoxChecked]}>
+            {form.isActive && <Ionicons name="checkmark" size={16} color="#fff" />}
+          </View>
+          <Text style={styles.checkboxLabel}>הצג באפליקציה (פעיל)</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>תמונה</Text>
         {form.imageUrl && (
           <View style={styles.imagePreview}>
             <Image source={{ uri: form.imageUrl }} style={styles.previewImage} />
@@ -2007,7 +2304,7 @@ function BooksForm() {
           >
             <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
             <Text style={styles.uploadButtonText}>
-              {form.imageUri ? t('admin.cardsForm.selectAnotherImage') : t('admin.booksForm.selectImage')}
+              {form.imageUri ? 'בחר תמונה אחרת' : 'בחר תמונה'}
             </Text>
           </Pressable>
           {form.imageUri && !form.imageUrl && (
@@ -2022,23 +2319,11 @@ function BooksForm() {
                 <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
               )}
               <Text style={styles.uploadButtonText}>
-                {uploading ? t('admin.cardsForm.uploading') : t('admin.booksForm.uploadImage')}
+                {uploading ? 'מעלה...' : 'העלה תמונה'}
               </Text>
             </Pressable>
           )}
         </View>
-      </View>
-
-      <View style={styles.formGroup}>
-        <Pressable
-          style={styles.checkbox}
-          onPress={() => setForm({...form, isActive: !form.isActive})}
-        >
-          <View style={[styles.checkboxBox, form.isActive && styles.checkboxBoxChecked]}>
-            {form.isActive && <Ionicons name="checkmark" size={16} color="#fff" />}
-          </View>
-          <Text style={styles.checkboxLabel}>{t('admin.booksForm.activeBook')}</Text>
-        </Pressable>
       </View>
 
       <Pressable 
@@ -2052,28 +2337,28 @@ function BooksForm() {
           <Ionicons name={editingBook ? "checkmark-circle-outline" : "add-circle-outline"} size={22} color="#fff" />
         )}
         <Text style={styles.submitButtonText}>
-          {editingBook ? t('admin.booksForm.updateBook') : t('admin.booksForm.addBook')}
+          {editingBook ? 'עדכן ספר' : 'הוסף ספר'}
         </Text>
       </Pressable>
 
       {editingBook && (
         <Pressable style={styles.cancelButton} onPress={handleCancelEdit}>
-          <Text style={styles.cancelButtonText}>{t('admin.lessonsForm.cancelEdit')}</Text>
+          <Text style={styles.cancelButtonText}>ביטול עריכה</Text>
         </Pressable>
       )}
 
       {/* Existing Books List */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.booksForm.existingBooks', { count: books.length })}</Text>
+        <Text style={styles.label}>ספרים קיימים ({books.length})</Text>
         {loading && books.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={PRIMARY_RED} size="large" />
-            <Text style={styles.loadingText}>{t('admin.booksForm.loadingBooks')}</Text>
+            <Text style={styles.loadingText}>טוען ספרים...</Text>
           </View>
         ) : books.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="book-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>{t('admin.booksForm.noBooks')}</Text>
+            <Text style={styles.emptyText}>אין ספרים</Text>
           </View>
         ) : (
           <ScrollView style={styles.lessonsList}>
@@ -2082,10 +2367,10 @@ function BooksForm() {
                 <View style={styles.lessonItemContent}>
                   <Text style={styles.lessonItemTitle}>{book.title}</Text>
                   {book.purchaseLink && (
-                    <Text style={styles.lessonItemCategory}>{t('admin.booksForm.hasPurchaseLink')}</Text>
+                    <Text style={styles.lessonItemCategory}>יש קישור לרכישה</Text>
                   )}
                   <Text style={[styles.lessonItemCategory, { color: book.isActive ? '#16a34a' : '#dc2626' }]}>
-                    {book.isActive ? t('admin.booksForm.active') : t('admin.booksForm.inactive')}
+                    {book.isActive ? 'פעיל' : 'לא פעיל'}
                   </Text>
                 </View>
                 <View style={styles.lessonItemActions}>
@@ -2113,13 +2398,14 @@ function BooksForm() {
 
 // ========== FLYERS FORM ========== 
 function FlyersForm() {
-  const { t } = useTranslation();
   const [form, setForm] = useState({
     title: '',
-    description: '',
     date: new Date().toISOString().split('T')[0],
     pdfUri: null,
     pdfUrl: null,
+    imageUri: null,
+    imageUrl: null,
+    fileType: null, // 'pdf' or 'image'
     isActive: true,
   })
   const [flyers, setFlyers] = useState([])
@@ -2134,41 +2420,54 @@ function FlyersForm() {
   const loadFlyers = async () => {
     try {
       setLoading(true)
-      const allFlyers = await getFlyers()
+      // Use admin function to get all flyers including inactive ones
+      const allFlyers = await getAllFlyersForAdmin()
       setFlyers(Array.isArray(allFlyers) ? allFlyers : [])
     } catch (error) {
       console.error('Error loading flyers:', error)
-      setFlyers([]) // Ensure flyers is always an array
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorLoadingFlyers'))
+      setFlyers([])
+      Alert.alert('שגיאה', 'לא ניתן לטעון את העלונים')
     } finally {
       setLoading(false)
     }
   }
 
-  const handlePickPDF = async () => {
+  const handlePickAndUploadPDF = async () => {
     const pdf = await pickPDF()
-    if (pdf) {
-      setForm({ ...form, pdfUri: pdf.uri })
-    }
-  }
-
-  const handleUploadPDF = async () => {
-    if (!form.pdfUri) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorSelectPDF'))
-      return
-    }
+    if (!pdf) return
 
     setUploading(true)
     try {
       const flyerId = editingFlyer?.id || 'flyer-' + Date.now()
       const path = generateStoragePath(`flyers/${flyerId}`, 'flyer.pdf')
-      const url = await uploadPDFToStorage(form.pdfUri, path, (progress) => {
+      const url = await uploadPDFToStorage(pdf.uri, path, (progress) => {
         console.log(`Upload progress: ${progress}%`)
       })
-      setForm({ ...form, pdfUrl: url })
-      Alert.alert(t('admin.lessonsForm.success'), t('admin.flyersForm.pdfUploaded'))
+      setForm({ ...form, pdfUrl: url, pdfUri: null, imageUri: null, imageUrl: null, fileType: 'pdf' })
+      Alert.alert('הצלחה', 'קובץ ה-PDF הועלה בהצלחה')
     } catch (error) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorUploadingPDF'))
+      Alert.alert('שגיאה', 'לא ניתן להעלות את קובץ ה-PDF')
+      console.error(error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handlePickAndUploadImage = async () => {
+    const image = await pickImage()
+    if (!image) return
+
+    setUploading(true)
+    try {
+      const flyerId = editingFlyer?.id || 'flyer-' + Date.now()
+      const path = generateStoragePath(`flyers/${flyerId}`, 'flyer.jpg')
+      const url = await uploadImageToStorage(image.uri, path, (progress) => {
+        console.log(`Upload progress: ${progress}%`)
+      })
+      setForm({ ...form, imageUrl: url, imageUri: null, pdfUri: null, pdfUrl: null, fileType: 'image' })
+      Alert.alert('הצלחה', 'התמונה הועלתה בהצלחה')
+    } catch (error) {
+      Alert.alert('שגיאה', 'לא ניתן להעלות את התמונה')
       console.error(error)
     } finally {
       setUploading(false)
@@ -2176,34 +2475,13 @@ function FlyersForm() {
   }
 
   const handleSubmit = async () => {
-    // Validate title
-    const titleValidation = validateText(form.title, { minLength: 1, maxLength: 200, required: true })
-    if (!titleValidation.valid) {
-      Alert.alert(t('admin.lessonsForm.error'), titleValidation.error)
+    if (!form.title.trim()) {
+      Alert.alert('שגיאה', 'אנא הזן שם עלון')
       return
     }
 
-    // Validate description if provided
-    let descriptionValidation = { valid: true, sanitized: '' }
-    if (form.description) {
-      descriptionValidation = validateText(form.description, { maxLength: 2000, required: false })
-      if (!descriptionValidation.valid) {
-        Alert.alert(t('admin.lessonsForm.error'), descriptionValidation.error)
-        return
-      }
-    }
-
-    // Validate date
-    if (form.date) {
-      const dateValidation = validateText(form.date, { maxLength: 50, required: false })
-      if (!dateValidation.valid) {
-        Alert.alert(t('admin.lessonsForm.error'), dateValidation.error)
-        return
-      }
-    }
-
-    if (form.pdfUri && !form.pdfUrl) {
-      Alert.alert(t('admin.cardsForm.notice'), t('admin.flyersForm.errorUploadPDF'))
+    if (!form.pdfUrl && !form.imageUrl) {
+      Alert.alert('שגיאה', 'אנא העלה קובץ PDF או תמונה')
       return
     }
 
@@ -2213,41 +2491,43 @@ function FlyersForm() {
       const dateObj = new Date(form.date)
       
       if (editingFlyer) {
-        // Update existing flyer
         await updateFlyer(editingFlyer.id, {
-          title: titleValidation.sanitized,
-          description: descriptionValidation.sanitized,
+          title: form.title.trim(),
           date: dateObj,
-          pdfUrl: form.pdfUrl,
+          pdfUrl: form.pdfUrl || null,
+          imageUrl: form.imageUrl || null,
+          fileType: form.fileType || (form.pdfUrl ? 'pdf' : form.imageUrl ? 'image' : null),
           isActive: form.isActive,
         })
-        Alert.alert(t('admin.lessonsForm.success'), t('admin.flyersForm.flyerUpdated'))
+        Alert.alert('הצלחה', 'העלון עודכן בהצלחה')
         setEditingFlyer(null)
       } else {
-        // Add new flyer
         await createFlyer({
-          title: titleValidation.sanitized,
-          description: descriptionValidation.sanitized,
+          title: form.title.trim(),
           date: dateObj,
-          pdfUrl: form.pdfUrl,
+          pdfUrl: form.pdfUrl || null,
+          imageUrl: form.imageUrl || null,
+          fileType: form.fileType || (form.pdfUrl ? 'pdf' : form.imageUrl ? 'image' : null),
           isActive: form.isActive,
         })
-        Alert.alert(t('admin.lessonsForm.success'), t('admin.flyersForm.flyerAdded'))
+        Alert.alert('הצלחה', 'העלון נוסף בהצלחה')
       }
       
       // Reset form
       setForm({
         title: '',
-        description: '',
         date: new Date().toISOString().split('T')[0],
         pdfUri: null,
         pdfUrl: null,
+        imageUri: null,
+        imageUrl: null,
+        fileType: null,
         isActive: true,
       })
       await loadFlyers()
     } catch (error) {
       console.error('Error saving flyer:', error)
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorSavingFlyer'))
+      Alert.alert('שגיאה', 'לא ניתן לשמור את העלון')
     } finally {
       setLoading(false)
     }
@@ -2262,10 +2542,12 @@ function FlyersForm() {
     }
     setForm({
       title: flyer.title || '',
-      description: flyer.description || '',
       date: dateStr,
       pdfUrl: flyer.pdfUrl || null,
       pdfUri: null,
+      imageUrl: flyer.imageUrl || null,
+      imageUri: null,
+      fileType: flyer.fileType || (flyer.pdfUrl ? 'pdf' : flyer.imageUrl ? 'image' : null),
       isActive: flyer.isActive !== undefined ? flyer.isActive : true,
     })
   }
@@ -2274,32 +2556,34 @@ function FlyersForm() {
     setEditingFlyer(null)
     setForm({
       title: '',
-      description: '',
       date: new Date().toISOString().split('T')[0],
       pdfUri: null,
       pdfUrl: null,
+      imageUri: null,
+      imageUrl: null,
+      fileType: null,
       isActive: true,
     })
   }
 
   const handleDelete = (flyer) => {
     Alert.alert(
-      t('admin.flyersForm.deleteFlyerTitle'),
-      t('admin.flyersForm.deleteFlyerMessage', { title: flyer.title }),
+      'מחיקת עלון',
+      `האם אתה בטוח שברצונך למחוק את העלון "${flyer.title}"?`,
       [
-        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
+        { text: 'ביטול', style: 'cancel' },
         {
-          text: t('admin.lessonsForm.delete'),
+          text: 'מחק',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true)
               await deleteFlyer(flyer.id)
-              Alert.alert(t('admin.lessonsForm.success'), t('admin.flyersForm.flyerDeleted'))
+              Alert.alert('הצלחה', 'העלון נמחק בהצלחה')
               await loadFlyers()
             } catch (error) {
               console.error('Error deleting flyer:', error)
-              Alert.alert(t('admin.lessonsForm.error'), t('admin.flyersForm.errorDeletingFlyer'))
+              Alert.alert('שגיאה', 'לא ניתן למחוק את העלון')
             } finally {
               setLoading(false)
             }
@@ -2311,35 +2595,20 @@ function FlyersForm() {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>{t('admin.flyersForm.title')}</Text>
-      <Text style={styles.formDesc}>
-        {t('admin.flyersForm.description')}
-      </Text>
+      <Text style={styles.formTitle}>ניהול עלונים</Text>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.flyersForm.flyerTitle')}</Text>
+        <Text style={styles.label}>שם העלון</Text>
         <TextInput
           style={styles.input}
           value={form.title}
           onChangeText={text => setForm({...form, title: text})}
-          placeholder={t('admin.flyersForm.flyerTitlePlaceholder')}
+          placeholder="לדוגמה: עלון שבועי פרשת השבוע"
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.flyersForm.descriptionOptional')}</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={form.description}
-          onChangeText={text => setForm({...form, description: text})}
-          placeholder={t('admin.flyersForm.descriptionPlaceholder')}
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.flyersForm.date')}</Text>
+        <Text style={styles.label}>תאריך</Text>
         <TextInput
           style={styles.input}
           value={form.date}
@@ -2350,45 +2619,52 @@ function FlyersForm() {
           style={styles.todayButton}
           onPress={() => setForm({...form, date: new Date().toISOString().split('T')[0]})}
         >
-          <Text style={styles.todayButtonText}>{t('admin.flyersForm.today')}</Text>
+          <Text style={styles.todayButtonText}>היום</Text>
         </Pressable>
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.flyersForm.pdfFile')}</Text>
-        {form.pdfUrl && (
+        <Text style={styles.label}>קובץ עלון</Text>
+        {(form.pdfUrl || form.imageUrl) && (
           <View style={styles.uploadedBadge}>
             <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-            <Text style={styles.uploadedText}>{t('admin.flyersForm.pdfFileUploaded')}</Text>
+            <Text style={styles.uploadedText}>
+              {form.fileType === 'pdf' ? 'קובץ PDF הועלה' : 'תמונה הועלתה'}
+            </Text>
           </View>
+        )}
+        {form.imageUrl && (
+          <Image source={{ uri: form.imageUrl }} style={styles.previewImage} />
         )}
         <View style={styles.uploadSection}>
           <Pressable
-            style={styles.uploadButton}
-            onPress={handlePickPDF}
+            style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+            onPress={handlePickAndUploadPDF}
             disabled={uploading}
           >
-            <Ionicons name="document-text-outline" size={24} color={PRIMARY_RED} />
+            {uploading && form.fileType === 'pdf' ? (
+              <ActivityIndicator color={PRIMARY_RED} />
+            ) : (
+              <Ionicons name="document-text-outline" size={24} color={PRIMARY_RED} />
+            )}
             <Text style={styles.uploadButtonText}>
-              {form.pdfUri ? t('admin.flyersForm.selectAnotherPDF') : t('admin.flyersForm.selectPDFFile')}
+              {uploading && form.fileType === 'pdf' ? 'מעלה PDF...' : 'העלה קובץ PDF'}
             </Text>
           </Pressable>
-          {form.pdfUri && !form.pdfUrl && (
-            <Pressable
-              style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
-              onPress={handleUploadPDF}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <ActivityIndicator color={PRIMARY_RED} />
-              ) : (
-                <Ionicons name="cloud-upload-outline" size={24} color={PRIMARY_RED} />
-              )}
-              <Text style={styles.uploadButtonText}>
-                {uploading ? t('admin.cardsForm.uploading') : t('admin.flyersForm.uploadPDF')}
-              </Text>
-            </Pressable>
-          )}
+          <Pressable
+            style={[styles.uploadButton, uploading && styles.uploadButtonDisabled]}
+            onPress={handlePickAndUploadImage}
+            disabled={uploading}
+          >
+            {uploading && form.fileType === 'image' ? (
+              <ActivityIndicator color={PRIMARY_RED} />
+            ) : (
+              <Ionicons name="image-outline" size={24} color={PRIMARY_RED} />
+            )}
+            <Text style={styles.uploadButtonText}>
+              {uploading && form.fileType === 'image' ? 'מעלה תמונה...' : 'העלה תמונה'}
+            </Text>
+          </Pressable>
         </View>
       </View>
 
@@ -2400,7 +2676,7 @@ function FlyersForm() {
           <View style={[styles.checkboxBox, form.isActive && styles.checkboxBoxChecked]}>
             {form.isActive && <Ionicons name="checkmark" size={16} color="#fff" />}
           </View>
-          <Text style={styles.checkboxLabel}>{t('admin.flyersForm.activeFlyer')}</Text>
+          <Text style={styles.checkboxLabel}>עלון פעיל</Text>
         </Pressable>
       </View>
 
@@ -2415,28 +2691,28 @@ function FlyersForm() {
           <Ionicons name={editingFlyer ? "checkmark-circle-outline" : "add-circle-outline"} size={22} color="#fff" />
         )}
         <Text style={styles.submitButtonText}>
-          {editingFlyer ? t('admin.flyersForm.updateFlyer') : t('admin.flyersForm.addFlyer')}
+          {editingFlyer ? 'עדכן עלון' : 'הוסף עלון'}
         </Text>
       </Pressable>
 
       {editingFlyer && (
         <Pressable style={styles.cancelButton} onPress={handleCancelEdit}>
-          <Text style={styles.cancelButtonText}>{t('admin.lessonsForm.cancelEdit')}</Text>
+          <Text style={styles.cancelButtonText}>ביטול עריכה</Text>
         </Pressable>
       )}
 
       {/* Existing Flyers List */}
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.flyersForm.existingFlyers', { count: flyers.length })}</Text>
+        <Text style={styles.label}>עלונים קיימים ({flyers.length})</Text>
         {loading && flyers.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator color={PRIMARY_RED} size="large" />
-            <Text style={styles.loadingText}>{t('admin.flyersForm.loadingFlyers')}</Text>
+            <Text style={styles.loadingText}>טוען עלונים...</Text>
           </View>
         ) : flyers.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>{t('admin.flyersForm.noFlyers')}</Text>
+            <Text style={styles.emptyText}>אין עלונים</Text>
           </View>
         ) : (
           <ScrollView style={styles.lessonsList}>
@@ -2446,13 +2722,22 @@ function FlyersForm() {
                 ''
               return (
                 <View key={flyer.id} style={styles.lessonItem}>
+                  {flyer.imageUrl && (
+                    <Image source={{ uri: flyer.imageUrl }} style={styles.flyerPreviewThumbnail} resizeMode="cover" />
+                  )}
+                  {flyer.pdfUrl && !flyer.imageUrl && (
+                    <View style={styles.flyerPreviewPdf}>
+                      <Ionicons name="document-text-outline" size={32} color={PRIMARY_RED} />
+                      <Text style={styles.flyerPreviewPdfText}>PDF</Text>
+                    </View>
+                  )}
                   <View style={styles.lessonItemContent}>
                     <Text style={styles.lessonItemTitle}>{flyer.title}</Text>
                     {flyerDate && (
                       <Text style={styles.lessonItemCategory}>{flyerDate}</Text>
                     )}
                     <Text style={[styles.lessonItemCategory, { color: flyer.isActive ? '#16a34a' : '#dc2626' }]}>
-                      {flyer.isActive ? t('admin.flyersForm.active') : t('admin.flyersForm.inactive')}
+                      {flyer.isActive ? 'פעיל' : 'לא פעיל'}
                     </Text>
                   </View>
                   <View style={styles.lessonItemActions}>
@@ -2926,10 +3211,23 @@ function PodcastsForm() {
   }
 
   const handlePickAudio = async () => {
-    const { pickImage } = await import('../utils/storage')
-    // Note: For audio, you might want to use a different picker
-    // For now, using image picker as placeholder
-    Alert.alert(t('home.comingSoon'), t('admin.podcastsForm.audioSelectionComingSoon'))
+    try {
+      const DocumentPicker = await import('expo-document-picker')
+
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: true,
+      })
+
+      if (result.canceled === false && result.assets && result.assets.length > 0) {
+        const audio = result.assets[0]
+        setForm({ ...form, audioUri: audio.uri, audioUrl: null })
+        console.log('Selected audio file:', audio.uri)
+      }
+    } catch (error) {
+      console.error('Error picking audio:', error)
+      Alert.alert(t('admin.lessonsForm.error'), 'שגיאה בבחירת קובץ אודיו')
+    }
   }
 
   const handlePickThumbnail = async () => {
@@ -4209,6 +4507,27 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    gap: 12,
+  },
+  flyerPreviewThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+  },
+  flyerPreviewPdf: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  flyerPreviewPdfText: {
+    fontSize: 10,
+    fontFamily: 'Poppins_600SemiBold',
+    color: PRIMARY_RED,
   },
   lessonItemContent: {
     flex: 1,
@@ -4441,6 +4760,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     justifyContent: 'flex-end',
   },
+  previewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    gap: 8,
+  },
+  previewText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: DEEP_BLUE,
+  },
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -4450,6 +4783,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    marginTop: 8,
+  },
+  uploadButtonActive: {
+    backgroundColor: PRIMARY_RED + '15',
+    borderColor: PRIMARY_RED,
   },
   uploadButtonDisabled: {
     opacity: 0.6,

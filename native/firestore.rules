@@ -39,8 +39,10 @@ service cloud.firestore {
     // ========== ALERTS COLLECTION ==========
 
     match /alerts/{alertId} {
-      // All signed-in users can read alerts
-      allow read: if isSignedIn();
+      // Everyone can read active alerts (public)
+      allow read: if resource.data.isActive == true;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
       // Only admins can create, update, delete
       allow create, update, delete: if isAdmin();
     }
@@ -86,8 +88,8 @@ service cloud.firestore {
     // ========== NEWS COLLECTION ==========
 
     match /news/{newsId} {
-      // Only published news can be read by signed-in users
-      allow read: if isSignedIn() && resource.data.isPublished == true;
+      // Published news can be read by everyone (public)
+      allow read: if resource.data.isPublished == true;
       // Admins can read all (including drafts)
       allow read: if isAdmin();
       // Only admins can modify
@@ -115,8 +117,10 @@ service cloud.firestore {
     // ========== PODCASTS COLLECTION ==========
 
     match /podcasts/{podcastId} {
-      // All signed-in users can read active podcasts
-      allow read: if isSignedIn() && (resource.data.isActive == true || isAdmin());
+      // Everyone can read active podcasts (public)
+      allow read: if resource.data.isActive == true;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }
@@ -124,8 +128,11 @@ service cloud.firestore {
     // ========== DAILY VIDEOS COLLECTION ==========
 
     match /dailyVideos/{videoId} {
-      // All signed-in users can read videos
-      allow read: if isSignedIn();
+      // Everyone can read active videos (public)
+      // Default to true if isActive field is missing (backward compatibility)
+      allow read: if resource.data.isActive != false;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }
@@ -148,6 +155,58 @@ service cloud.firestore {
       allow read: if isAdmin();
       // Only admins can update/delete leads
       allow update, delete: if isAdmin();
+    }
+
+    // ========== COMMUNITY POSTS COLLECTION ==========
+
+    match /communityPosts/{postId} {
+      // Everyone can read active community posts (public)
+      allow read: if resource.data.isActive == true;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== BOOKS COLLECTION ==========
+
+    match /books/{bookId} {
+      // All signed-in users can read books
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== FLYERS COLLECTION ==========
+
+    match /flyers/{flyerId} {
+      // Everyone can read active flyers (public)
+      // Default to true if isActive field is missing (backward compatibility)
+      allow read: if resource.data.isActive != false;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== INSTITUTIONS CONTENT COLLECTION ==========
+
+    match /institutionsContent/{activityId} {
+      // All signed-in users can read institution content
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== FAITH STORIES COLLECTION ==========
+
+    match /faith_stories/{storyId} {
+      // Admins can read all stories
+      allow read: if isAdmin();
+      // Signed-in users can read active stories
+      allow read: if isSignedIn() && resource.data.isActive == true;
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
     }
 
     // ========== DEFAULT DENY ==========

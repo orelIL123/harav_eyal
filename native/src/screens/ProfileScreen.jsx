@@ -219,25 +219,6 @@ export default function ProfileScreen({ navigation }) {
                 <View style={styles.optionRight}>
                   <Ionicons name="chevron-back" size={20} color="#9ca3af" />
                   <View style={styles.optionText}>
-                    <Text style={styles.optionTitle}>עריכת כרטיסיות</Text>
-                    <Text style={styles.optionDesc}>ערוך כרטיסיות ראשיות, חדשות, קורסים והתראות</Text>
-                  </View>
-                </View>
-                <View style={[styles.optionIcon, { backgroundColor: 'rgba(220,38,38,0.15)' }]}>
-                  <Ionicons name="albums-outline" size={22} color={PRIMARY_RED} />
-                </View>
-              </View>
-            </Pressable>
-
-            <Pressable 
-              style={styles.optionCard} 
-              accessibilityRole="button"
-              onPress={() => navigation?.navigate('Admin')}
-            >
-              <View style={styles.optionContent}>
-                <View style={styles.optionRight}>
-                  <Ionicons name="chevron-back" size={20} color="#9ca3af" />
-                  <View style={styles.optionText}>
                     <Text style={styles.optionTitle}>פאנל אדמין</Text>
                     <Text style={styles.optionDesc}>ניהול מלא של התוכן וההגדרות</Text>
                   </View>

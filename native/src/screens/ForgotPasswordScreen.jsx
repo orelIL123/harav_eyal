@@ -15,19 +15,22 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   const handleResetPassword = async () => {
     if (!email) {
-      Alert.alert('שגיאה', 'אנא הזן כתובת אימייל')
+      Alert.alert('שגיאה', 'אנא הזן כתובת אימייל או מספר טלפון')
       return
     }
 
     setLoading(true)
     try {
-      const { error } = await resetPassword(email)
+      const { error } = await resetPassword(email.trim())
       if (error) {
         Alert.alert('שגיאה', error)
       } else {
+        const isEmailInput = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
         Alert.alert(
           'נשלח!',
-          'קישור לאיפוס סיסמה נשלח לכתובת האימייל שלך',
+          isEmailInput 
+            ? 'קישור לאיפוס סיסמה נשלח לכתובת האימייל שלך'
+            : 'קישור לאיפוס סיסמה נשלח לכתובת האימייל הקשורה למספר הטלפון שלך',
           [{ text: 'אישור', onPress: () => navigation.goBack() }]
         )
       }
@@ -71,7 +74,8 @@ export default function ForgotPasswordScreen({ navigation }) {
 
             <Text style={styles.title}>איפוס סיסמה</Text>
             <Text style={styles.subtitle}>
-              נשלח לך קישור לאיפוס הסיסמה לכתובת האימייל שלך
+              נשלח לך קישור לאיפוס הסיסמה לכתובת האימייל שלך{'\n'}
+              (אם רשום עם טלפון, הזן את מספר הטלפון)
             </Text>
 
             <View style={styles.form}>
@@ -79,14 +83,14 @@ export default function ForgotPasswordScreen({ navigation }) {
                 <Ionicons name="mail-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="כתובת אימייל"
+                  placeholder="כתובת אימייל או מספר טלפון"
                   placeholderTextColor="#9ca3af"
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
-                  keyboardType="email-address"
-                  textContentType="emailAddress"
-                  autoComplete="email"
+                  keyboardType="default"
+                  textContentType="username"
+                  autoComplete="username"
                 />
               </View>
 

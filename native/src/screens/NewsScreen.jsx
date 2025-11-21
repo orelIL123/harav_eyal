@@ -1,13 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, ImageBackground, Share, Linking, Alert, Image, ActivityIndicator, Modal } from 'react-native'
+import React from 'react'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Linking, Alert } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
-import { useFocusEffect } from '@react-navigation/native'
-import ViewShot from 'react-native-view-shot'
-import { getNews } from '../services/newsService'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../utils/AuthContext'
-import { createAndShareStory } from '../utils/storyShare'
-import StoryCard from '../components/StoryCard'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -15,71 +11,13 @@ const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
 export default function NewsScreen({ navigation }) {
-  const [news, setNews] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [sharingStory, setSharingStory] = useState(false)
-  const [selectedArticle, setSelectedArticle] = useState(null)
-  const storyRef = useRef(null)
+  const { t } = useTranslation()
   const { isAdmin } = useAuth()
-
-  useEffect(() => {
-    loadNews()
-  }, [])
-
-  // Reload news when screen comes into focus (e.g., returning from AdminScreen)
-  useFocusEffect(
-    React.useCallback(() => {
-      loadNews()
-    }, [])
-  )
-
-  const loadNews = async () => {
-    try {
-      setLoading(true)
-      // Get only published news
-      const allNews = await getNews(null, true)
-      setNews(allNews)
-    } catch (error) {
-      console.error('Error loading news:', error)
-      Alert.alert('שגיאה', 'לא ניתן לטעון את החדשות')
-    } finally {
-      setLoading(false)
-    }
-  }
-  const handleShare = React.useCallback((article) => {
-    const content = article.content || article.summary || ''
-    Share.share({
-      message: `${article.title}\n${content}`
-    }).catch(() => {})
-  }, [])
-
-  const handleShareStory = React.useCallback(async (article) => {
-    try {
-      setSelectedArticle(article)
-      setSharingStory(true)
-      
-      // Wait a bit for the view to render
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      if (storyRef.current) {
-        const success = await createAndShareStory(storyRef.current)
-        if (success) {
-          Alert.alert('הצלחה!', 'הסטורי מוכן לשיתוף')
-        }
-      }
-    } catch (error) {
-      console.error('Error sharing story:', error)
-      Alert.alert('שגיאה', 'לא ניתן ליצור את הסטורי')
-    } finally {
-      setSharingStory(false)
-      setTimeout(() => setSelectedArticle(null), 1000)
-    }
-  }, [])
 
   const handleOpenCharityLink = React.useCallback(() => {
     const url = 'https://www.jgive.com/new/he/ils/charity-organizations/1711'
     Linking.openURL(url).catch(() => {
-      Alert.alert('שגיאה', 'לא ניתן לפתוח את הקישור')
+      Alert.alert(t('error'), t('institutions.linkError'))
     })
   }, [])
 
@@ -91,27 +29,17 @@ export default function NewsScreen({ navigation }) {
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="חזרה"
+          accessibilityLabel={t('lessons.back')}
         >
           <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
-        <Text style={styles.headerTitle}>מוסדות הרב</Text>
+        <Text style={styles.headerTitle}>{t('institutions.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerActions}>
-          <Text style={styles.subtitle}>מידע על המוסדות, תמונות ועוד</Text>
-          {isAdmin && (
-            <Pressable
-              style={styles.adminButton}
-              onPress={() => navigation.navigate('Admin', { initialTab: 'news' })}
-              accessibilityRole="button"
-            >
-              <Ionicons name="create-outline" size={18} color={PRIMARY_RED} />
-              <Text style={styles.adminButtonText}>ניהול חדשות</Text>
-            </Pressable>
-          )}
+          <Text style={styles.subtitle}>{t('institutions.subtitle')}</Text>
         </View>
 
         {/* קישור לדף העמותה */}
@@ -122,9 +50,9 @@ export default function NewsScreen({ navigation }) {
         >
           <Ionicons name="link-outline" size={28} color={PRIMARY_RED} />
           <View style={styles.charityLinkTextBlock}>
-            <Text style={styles.charityLinkTitle}>דף העמותה</Text>
+            <Text style={styles.charityLinkTitle}>{t('institutions.charityPage')}</Text>
             <Text style={styles.charityLinkDesc}>
-              למידע נוסף על העמותה באתר JGive
+              {t('institutions.charityPageDesc')}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
@@ -132,121 +60,11 @@ export default function NewsScreen({ navigation }) {
 
         {/* על העמותה */}
         <View style={styles.aboutSection}>
-          <Text style={styles.sectionTitle}>על העמותה</Text>
+          <Text style={styles.sectionTitle}>{t('institutions.aboutTitle')}</Text>
           <Text style={styles.sectionText}>
             בשנת תש"ע הוקמה קהילת 'כאייל תערוג' בשכונת הר חומה בירושלים, על ידי איש החסד הגאון הרב אייל עמרמי שליט"א. מוסדות 'כאייל תערוג' מונות גני ילדים, בית ספר לבנות, סמינר לבנות, תלמוד תורה לבנים, ישיבה קטנה וגדולה, מועדונית נוער לכיתות ו'-ח', כולל אברכים, ומרכז תורה וחסד הפועל 24 שעות ביממה שבעה ימים בשבוע. קהילת 'כאייל תערוג' מונה כ-750 משפחות, 93 אנשי צוות ומעל 1,000 תלמידים ואברכים ועוד היד נטויה. בימים אלו מורנו הרה"ג אייל עמרמי שליט"א מגשים את חזון להקמת בית התבשיל הגדול בירושלים ולהאכיל 400 מנות בכל יום.
           </Text>
         </View>
-
-        {/* News Articles */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={PRIMARY_RED} />
-            <Text style={styles.loadingText}>טוען חדשות...</Text>
-          </View>
-        ) : news.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="newspaper-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>אין חדשות זמינות כרגע</Text>
-          </View>
-        ) : (
-          news.map((article, idx) => {
-            const articleDate = article.publishedAt 
-              ? (article.publishedAt.toDate 
-                  ? article.publishedAt.toDate().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })
-                  : new Date(article.publishedAt).toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }))
-              : new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })
-            
-            const articleSummary = article.content 
-              ? (article.content.length > 100 ? article.content.substring(0, 100) + '...' : article.content)
-              : ''
-
-            return (
-              <Pressable
-                key={article.id}
-                style={[styles.articleCard, idx === 0 && styles.articleCardFirst]}
-                onPress={() => {
-                  navigation.navigate('NewsDetail', { article })
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`כתבה ${article.title}`}
-              >
-                {article.imageUrl ? (
-                  <ImageBackground 
-                    source={{ uri: article.imageUrl }} 
-                    style={styles.articleCover} 
-                    imageStyle={styles.articleCoverRadius}
-                  >
-                    <LinearGradient colors={[ 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.1)' ]} style={StyleSheet.absoluteFill} />
-                    <View style={styles.articleTopRow}>
-                      <View style={styles.datePill}>
-                        <Ionicons name="calendar-outline" size={14} color={PRIMARY_RED} />
-                        <Text style={styles.dateText}>{articleDate}</Text>
-                      </View>
-                      <View style={styles.shareButtons}>
-                        <Pressable
-                          onPress={() => handleShareStory(article)}
-                          style={[styles.shareIconBtn, styles.storyShareBtn]}
-                          hitSlop={12}
-                          accessibilityRole="button"
-                          accessibilityLabel={`שתף בסטורי ${article.title}`}
-                        >
-                          <Ionicons name="logo-instagram" size={18} color="#E4405F" />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => handleShare(article)}
-                          style={styles.shareIconBtn}
-                          hitSlop={12}
-                          accessibilityRole="button"
-                          accessibilityLabel={`שיתוף ${article.title}`}
-                        >
-                          <Ionicons name="share-social-outline" size={18} color={PRIMARY_RED} />
-                        </Pressable>
-                      </View>
-                    </View>
-                    <View style={styles.articleBottom}>
-                      <Text style={styles.articleTitle}>{article.title}</Text>
-                      <Text style={styles.articleSummary} numberOfLines={2}>{articleSummary}</Text>
-                    </View>
-                  </ImageBackground>
-                ) : (
-                  <View style={styles.articleCardNoImage}>
-                    <View style={styles.articleTopRow}>
-                      <View style={styles.datePill}>
-                        <Ionicons name="calendar-outline" size={14} color={PRIMARY_RED} />
-                        <Text style={styles.dateText}>{articleDate}</Text>
-                      </View>
-                      <View style={styles.shareButtons}>
-                        <Pressable
-                          onPress={() => handleShareStory(article)}
-                          style={[styles.shareIconBtn, styles.storyShareBtn]}
-                          hitSlop={12}
-                          accessibilityRole="button"
-                          accessibilityLabel={`שתף בסטורי ${article.title}`}
-                        >
-                          <Ionicons name="logo-instagram" size={18} color="#E4405F" />
-                        </Pressable>
-                        <Pressable
-                          onPress={() => handleShare(article)}
-                          style={styles.shareIconBtn}
-                          hitSlop={12}
-                          accessibilityRole="button"
-                          accessibilityLabel={`שיתוף ${article.title}`}
-                        >
-                          <Ionicons name="share-social-outline" size={18} color={PRIMARY_RED} />
-                        </Pressable>
-                      </View>
-                    </View>
-                    <View style={styles.articleBottomNoImage}>
-                      <Text style={styles.articleTitleNoImage}>{article.title}</Text>
-                      <Text style={styles.articleSummaryNoImage} numberOfLines={3}>{articleSummary}</Text>
-                    </View>
-                  </View>
-                )}
-              </Pressable>
-            )
-          })
-        )}
 
         <Pressable
           style={styles.contactCard}
@@ -255,38 +73,15 @@ export default function NewsScreen({ navigation }) {
         >
           <Ionicons name="mail-outline" size={32} color={PRIMARY_RED} />
           <View style={styles.contactTextBlock}>
-            <Text style={styles.contactTitle}>צרו קשר</Text>
+            <Text style={styles.contactTitle}>{t('institutions.contact')}</Text>
             <Text style={styles.contactDesc}>
-              לשאלות, בקשות או פניות למוסדות הרב
+              {t('institutions.contactDesc')}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
         </Pressable>
 
-        <View style={styles.footerCard}>
-          <Ionicons name="create-outline" size={28} color={PRIMARY_RED} />
-          <View style={styles.footerTextBlock}>
-            <Text style={styles.footerTitle}>עדכונים נוספים</Text>
-            <Text style={styles.footerDesc}>
-              עדכונים נוספים מבית המדרש יופיעו כאן בקרוב.
-            </Text>
-          </View>
-        </View>
       </ScrollView>
-
-      {/* Story Generation Modal (Hidden) */}
-      {selectedArticle && (
-        <Modal visible={sharingStory} transparent animationType="none">
-          <View style={styles.storyModal}>
-            <ViewShot ref={storyRef} options={{ format: 'png', quality: 1.0 }}>
-              <StoryCard 
-                article={selectedArticle} 
-                event={null}
-              />
-            </ViewShot>
-          </View>
-        </Modal>
-      )}
     </SafeAreaView>
   )
 }
@@ -433,10 +228,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(30,58,138,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    backdropFilter: 'blur(10px)',
   },
   dateText: {
-    color: '#fef9c3',
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+  },
+  datePillNoImage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(220,38,38,0.1)',
+  },
+  dateTextNoImage: {
+    color: PRIMARY_RED,
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+  },
+  articleTopRowNoImage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+  },
+  readMoreIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+    alignSelf: 'flex-end',
+  },
+  readMoreText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+  },
+  readMoreIndicatorNoImage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 12,
+    alignSelf: 'flex-end',
+  },
+  readMoreTextNoImage: {
+    color: PRIMARY_RED,
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
   },

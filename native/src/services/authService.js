@@ -11,8 +11,8 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider
 } from 'firebase/auth'
-import { setDocument, getDocument } from './firestore'
-import { validateEmail, validatePassword } from '../utils/validation'
+import { setDocument, getDocument, getAllDocuments } from './firestore'
+import { validateEmail, validatePassword, validatePhone } from '../utils/validation'
 import { Analytics, setUserPropertiesCustom, setCrashlyticsUser } from './analyticsService'
 
 /**
@@ -20,20 +20,88 @@ import { Analytics, setUserPropertiesCustom, setCrashlyticsUser } from './analyt
  */
 
 /**
- * Register new user
+ * Helper: Check if input is email or phone
  */
-export async function register(email, password, displayName = '') {
+function isEmail(input) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.trim())
+}
+
+/**
+ * Helper: Normalize phone number for storage/search
+ */
+function normalizePhone(phone) {
+  return phone.trim().replace(/[\s\-\(\)\+]/g, '')
+}
+
+/**
+ * Helper: Find user email by phone number
+ */
+async function findEmailByPhone(phone) {
   try {
-    // Validate email
-    const emailValidation = validateEmail(email)
-    if (!emailValidation.valid) {
-      return { user: null, error: emailValidation.error }
+    const normalizedPhone = normalizePhone(phone)
+    // Search in Firestore for user with this phone
+    const users = await getAllDocuments('users', [
+      { field: 'phone', operator: '==', value: normalizedPhone }
+    ], null, 'asc', 1)
+    
+    if (users && users.length > 0) {
+      // Return the email or the phone-based email format
+      const user = users[0]
+      if (user.email && !user.email.includes('@phone.local')) {
+        return user.email
+      }
+      // If user registered with phone, return the phone-based email
+      return `${normalizedPhone}@phone.local`
+    }
+    return null
+  } catch (error) {
+    console.error('Error finding email by phone:', error)
+    return null
+  }
+}
+
+/**
+ * Register new user (with email or phone)
+ */
+export async function register(emailOrPhone, password, displayName = '', phone = null) {
+  try {
+    let email = emailOrPhone
+    let phoneNumber = phone
+
+    // Determine if input is email or phone
+    if (isEmail(emailOrPhone)) {
+      // Validate email
+      const emailValidation = validateEmail(emailOrPhone)
+      if (!emailValidation.valid) {
+        return { user: null, error: emailValidation.error }
+      }
+      email = emailOrPhone.trim()
+    } else {
+      // It's a phone number
+      const phoneValidation = validatePhone(emailOrPhone)
+      if (!phoneValidation.valid) {
+        return { user: null, error: phoneValidation.error }
+      }
+      
+      // For phone registration, create email-like identifier
+      // Format: phone@phone.local (Firebase requires email format)
+      const normalizedPhone = normalizePhone(emailOrPhone)
+      email = `${normalizedPhone}@phone.local`
+      phoneNumber = normalizedPhone
     }
 
     // Validate password
     const passwordValidation = validatePassword(password, { minLength: 6 })
     if (!passwordValidation.valid) {
       return { user: null, error: passwordValidation.error }
+    }
+
+    // Check if user already exists (by email or phone)
+    if (phoneNumber) {
+      const existingEmail = await findEmailByPhone(phoneNumber)
+      if (existingEmail) {
+        return { user: null, error: 'מספר טלפון זה כבר רשום במערכת' }
+      }
     }
 
     // Create user in Firebase Auth
@@ -48,8 +116,9 @@ export async function register(email, password, displayName = '') {
     // Create user document in Firestore
     await setDocument('users', user.uid, {
       uid: user.uid,
-      email: user.email,
-      displayName: displayName || user.email?.split('@')[0] || 'משתמש',
+      email: isEmail(emailOrPhone) ? email : null, // Only store real email
+      phone: phoneNumber || null,
+      displayName: displayName || (isEmail(emailOrPhone) ? email.split('@')[0] : 'משתמש'),
       photoURL: null,
       role: 'user',
       tier: 'free',
@@ -63,8 +132,8 @@ export async function register(email, password, displayName = '') {
     
     // Track registration in Analytics
     Analytics.userRegister()
-    setUserPropertiesCustom(user.uid, { email: user.email })
-    setCrashlyticsUser(user.uid, user.email)
+    setUserPropertiesCustom(user.uid, { email: email, phone: phoneNumber })
+    setCrashlyticsUser(user.uid, email)
     
     return { user, error: null }
   } catch (error) {
@@ -74,14 +143,32 @@ export async function register(email, password, displayName = '') {
 }
 
 /**
- * Login user
+ * Login user (with email or phone)
  */
-export async function login(email, password) {
+export async function login(emailOrPhone, password) {
   try {
-    // Validate email
-    const emailValidation = validateEmail(email)
-    if (!emailValidation.valid) {
-      return { user: null, error: emailValidation.error }
+    let email = emailOrPhone
+
+    // Determine if input is email or phone
+    if (!isEmail(emailOrPhone)) {
+      // It's a phone number - find the associated email
+      const phoneValidation = validatePhone(emailOrPhone)
+      if (!phoneValidation.valid) {
+        return { user: null, error: phoneValidation.error }
+      }
+      
+      const foundEmail = await findEmailByPhone(emailOrPhone)
+      if (!foundEmail) {
+        return { user: null, error: 'מספר טלפון זה לא רשום במערכת' }
+      }
+      email = foundEmail
+    } else {
+      // Validate email
+      const emailValidation = validateEmail(emailOrPhone)
+      if (!emailValidation.valid) {
+        return { user: null, error: emailValidation.error }
+      }
+      email = emailOrPhone.trim()
     }
 
     // Password is validated by Firebase, but we can add basic check
@@ -149,14 +236,32 @@ export async function logout() {
 }
 
 /**
- * Send password reset email
+ * Send password reset (with email or phone)
  */
-export async function resetPassword(email) {
+export async function resetPassword(emailOrPhone) {
   try {
-    // Validate email
-    const emailValidation = validateEmail(email)
-    if (!emailValidation.valid) {
-      return { error: emailValidation.error }
+    let email = emailOrPhone
+
+    // Determine if input is email or phone
+    if (!isEmail(emailOrPhone)) {
+      // It's a phone number - find the associated email
+      const phoneValidation = validatePhone(emailOrPhone)
+      if (!phoneValidation.valid) {
+        return { error: phoneValidation.error }
+      }
+      
+      const foundEmail = await findEmailByPhone(emailOrPhone)
+      if (!foundEmail) {
+        return { error: 'מספר טלפון זה לא רשום במערכת. אנא פנה לתמיכה' }
+      }
+      email = foundEmail
+    } else {
+      // Validate email
+      const emailValidation = validateEmail(emailOrPhone)
+      if (!emailValidation.valid) {
+        return { error: emailValidation.error }
+      }
+      email = emailOrPhone.trim()
     }
 
     await sendPasswordResetEmail(auth, email)

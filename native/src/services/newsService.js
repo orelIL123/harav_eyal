@@ -25,10 +25,39 @@ export async function getNews(category = null, isPublished = null) {
       filters.push({ field: 'isPublished', operator: '==', value: isPublished })
     }
     
-    const result = await getDocuments('news', filters, 'publishedAt', 'desc')
-    return result?.data || []
+    // Try to get documents ordered by publishedAt, but handle missing publishedAt
+    let result
+    try {
+      result = await getDocuments('news', filters, 'publishedAt', 'desc', 100)
+    } catch (orderError) {
+      // If ordering by publishedAt fails (some docs might not have it), try createdAt
+      console.warn('Ordering by publishedAt failed, trying createdAt:', orderError)
+      result = await getDocuments('news', filters, 'createdAt', 'desc', 100)
+    }
+    
+    // Sort manually to handle cases where publishedAt might be null
+    const news = (result?.data || []).sort((a, b) => {
+      const aDate = a.publishedAt?.toDate ? a.publishedAt.toDate() : (a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0))
+      const bDate = b.publishedAt?.toDate ? b.publishedAt.toDate() : (b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0))
+      return bDate - aDate // Descending order
+    })
+    
+    // Additional filter to ensure only published news if requested
+    const filteredNews = isPublished === true 
+      ? news.filter(article => article.isPublished === true)
+      : news
+    
+    console.log(`📰 getNews: Found ${filteredNews.length} news articles (isPublished=${isPublished}, total=${news.length})`)
+    console.log(`📰 Sample news:`, filteredNews.slice(0, 3).map(n => ({ id: n.id, title: n.title, isPublished: n.isPublished, hasImage: !!n.imageUrl })))
+    
+    return filteredNews
   } catch (error) {
     console.error('Error getting news:', error)
+    // Return empty array instead of throwing - allows UI to show empty state
+    if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+      console.warn('Permission denied for news - user may not be signed in')
+      return []
+    }
     throw error
   }
 }
@@ -67,7 +96,7 @@ export async function createNews(newsData) {
     
     const news = {
       title: newsData.title,
-      category: newsData.category || 'chidushim',
+      category: newsData.category || 'community',
       content: newsData.content,
       imageUrl: newsData.imageUrl || null,
       isPublished: newsData.isPublished || false,

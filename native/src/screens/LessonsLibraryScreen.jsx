@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Linking, Alert, Image, ImageBackground, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { LESSON_CATEGORIES } from '../data/lessons'
 import { getLessons } from '../services/lessonsService'
 
@@ -11,8 +12,16 @@ const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
 export default function LessonsLibraryScreen({ navigation, route }) {
-  const initialCategory = route?.params?.initialCategory || LESSON_CATEGORIES[0].key
+  const { t } = useTranslation()
+  const initialCategory = route?.params?.initialCategory || LESSON_CATEGORIES[0]?.key || 'emuna'
   const [activeCategory, setActiveCategory] = useState(initialCategory)
+  
+  // Ensure activeCategory is always valid
+  React.useEffect(() => {
+    if (!activeCategory || !LESSON_CATEGORIES.find(cat => cat.key === activeCategory)) {
+      setActiveCategory(LESSON_CATEGORIES[0]?.key || 'emuna')
+    }
+  }, [])
   const [selectedRandomVideo, setSelectedRandomVideo] = useState(null)
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(true)
@@ -34,23 +43,81 @@ export default function LessonsLibraryScreen({ navigation, route }) {
   const loadLessons = async () => {
     try {
       setLoading(true)
-      const firestoreLessons = await getLessons(activeCategory)
+      // Ensure activeCategory is always set
+      const categoryToLoad = activeCategory || LESSON_CATEGORIES[0].key
+      console.log('Loading lessons for category:', categoryToLoad)
       
-      // Convert Firestore lessons to video format
-      const videos = firestoreLessons.map(lesson => ({
-        id: lesson.id,
-        title: lesson.title,
-        date: lesson.date || '',
-        videoId: lesson.videoId || '',
-        url: lesson.url || `https://www.youtube.com/watch?v=${lesson.videoId}`,
-        thumbnailUrl: lesson.thumbnailUrl || null,
-      }))
+      // Get static lessons for this category
+      const currentCategory = LESSON_CATEGORIES.find(cat => cat.key === categoryToLoad) || LESSON_CATEGORIES[0]
+      const staticVideos = currentCategory.videos || []
+      console.log('Static lessons for category:', staticVideos.length)
       
-      setLessons(videos)
+      // Get Firestore lessons for this category
+      let firestoreVideos = []
+      try {
+        const firestoreLessons = await getLessons(categoryToLoad)
+        console.log('Loaded lessons from Firestore:', firestoreLessons.length)
+        
+        // Convert Firestore lessons to video format
+        firestoreVideos = firestoreLessons.map(lesson => ({
+          id: lesson.id,
+          title: lesson.title,
+          date: lesson.date || '',
+          videoId: lesson.videoId || '',
+          url: lesson.url || `https://www.youtube.com/watch?v=${lesson.videoId}`,
+          thumbnailUrl: lesson.thumbnailUrl || null,
+          category: lesson.category || categoryToLoad,
+          source: 'firestore', // Mark as from Firestore
+        }))
+      } catch (firestoreError) {
+        console.error('Error loading from Firestore:', firestoreError)
+        // Continue with static data if Firestore fails
+      }
+      
+      // Combine static and Firestore videos
+      // Use a Set to avoid duplicates based on videoId
+      const videoMap = new Map()
+      
+      // Add static videos first
+      staticVideos.forEach(video => {
+        if (video.videoId) {
+          videoMap.set(video.videoId, {
+            ...video,
+            source: 'static',
+          })
+        }
+      })
+      
+      // Add Firestore videos (they will override static ones with same videoId)
+      firestoreVideos.forEach(video => {
+        if (video.videoId) {
+          videoMap.set(video.videoId, video)
+        } else {
+          // If no videoId, use id as key
+          videoMap.set(video.id, video)
+        }
+      })
+      
+      // Convert map to array and sort by date/order
+      const allVideos = Array.from(videoMap.values())
+      
+      // Sort: Firestore lessons first (by order desc), then static lessons
+      allVideos.sort((a, b) => {
+        // Firestore lessons with order field come first
+        if (a.source === 'firestore' && a.order && b.source === 'static') return -1
+        if (b.source === 'firestore' && b.order && a.source === 'static') return 1
+        if (a.source === 'firestore' && a.order && b.source === 'firestore' && b.order) {
+          return (b.order || 0) - (a.order || 0)
+        }
+        return 0
+      })
+      
+      console.log('Total videos after merge:', allVideos.length)
+      setLessons(allVideos)
     } catch (error) {
       console.error('Error loading lessons:', error)
-      // Fallback to static data if Firestore fails
-      const currentCategory = LESSON_CATEGORIES.find(cat => cat.key === activeCategory) || LESSON_CATEGORIES[0]
+      // Fallback to static data if everything fails
+      const currentCategory = LESSON_CATEGORIES.find(cat => cat.key === (activeCategory || LESSON_CATEGORIES[0].key)) || LESSON_CATEGORIES[0]
       setLessons(currentCategory.videos || [])
     } finally {
       setLoading(false)
@@ -62,7 +129,7 @@ export default function LessonsLibraryScreen({ navigation, route }) {
 
   const openYouTubeVideo = (url) => {
     Linking.openURL(url).catch(() => {
-      Alert.alert('שגיאה', 'לא ניתן לפתוח את הסרטון')
+      Alert.alert(t('error'), t('lessons.openVideoError'))
     })
   }
 
@@ -91,7 +158,7 @@ export default function LessonsLibraryScreen({ navigation, route }) {
         }
       }, 300)
     } else {
-      Alert.alert('אין שיעורים', 'אין שיעורים זמינים בקטגוריה זו')
+      Alert.alert(t('lessons.noLessons'), t('lessons.noLessonsInCategory'))
     }
   }
 
@@ -105,13 +172,13 @@ export default function LessonsLibraryScreen({ navigation, route }) {
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="חזרה"
+          accessibilityLabel={t('lessons.back')}
         >
           <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
         <View style={styles.headerTextBlock}>
-          <Text style={styles.headerTitle}>שיעורי הרב</Text>
-          <Text style={styles.headerSubtitle}>ספריית שיעורים מלאה</Text>
+          <Text style={styles.headerTitle}>{t('lessons.title')}</Text>
+          <Text style={styles.headerSubtitle}>{t('lessons.subtitle')}</Text>
         </View>
         <View style={{ width: 24 }} />
       </View>
@@ -164,7 +231,7 @@ export default function LessonsLibraryScreen({ navigation, route }) {
             <View style={styles.categoryHeaderText}>
               <Text style={styles.categoryTitle}>{currentCategory.title}</Text>
               <Text style={styles.categoryCount}>
-                {displayVideos.length} שיעורים
+                {t('lessons.lessonsCount', { count: displayVideos.length })}
               </Text>
             </View>
           </View>
@@ -172,17 +239,17 @@ export default function LessonsLibraryScreen({ navigation, route }) {
             style={styles.randomButton}
             onPress={openRandomVideo}
             accessibilityRole="button"
-            accessibilityLabel="שיעור אקראי"
+            accessibilityLabel={t('lessons.randomLesson')}
           >
             <Ionicons name="shuffle" size={22} color="#fff" />
-            <Text style={styles.randomButtonText}>ניגון אקראי</Text>
+            <Text style={styles.randomButtonText}>{t('lessons.randomLesson')}</Text>
           </Pressable>
         </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={PRIMARY_RED} />
-            <Text style={styles.loadingText}>טוען שיעורים...</Text>
+            <Text style={styles.loadingText}>{t('lessons.loading')}</Text>
           </View>
         ) : (
           displayVideos.map((video, idx) => {
@@ -206,7 +273,7 @@ export default function LessonsLibraryScreen({ navigation, route }) {
                 ]}
                 onPress={() => openYouTubeVideo(video.url)}
                 accessibilityRole="button"
-                accessibilityLabel={`שיעור: ${video.title}`}
+                accessibilityLabel={t('lessons.lessonLabel', { title: video.title })}
               >
               {thumbnailUrl ? (
                 <ImageBackground
@@ -240,7 +307,7 @@ export default function LessonsLibraryScreen({ navigation, route }) {
                   )}
                   <View style={styles.videoMetaRow}>
                     <Ionicons name="logo-youtube" size={16} color="#FF0000" />
-                    <Text style={styles.videoMeta}>צפייה ביוטיוב</Text>
+                    <Text style={styles.videoMeta}>{t('lessons.watchOnYouTube')}</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />

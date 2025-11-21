@@ -2,10 +2,12 @@ import React, { useState, useRef, useEffect } from 'react'
 import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Share, Alert, Modal, Image, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { useFocusEffect } from '@react-navigation/native'
+import { useTranslation } from 'react-i18next'
 import ViewShot from 'react-native-view-shot'
 import { createAndShareStory } from '../utils/storyShare'
 import StoryCard from '../components/StoryCard'
-import { getCommunityPosts } from '../services/communityPostsService'
+import { getNews } from '../services/newsService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -13,6 +15,7 @@ const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
 export default function CommunityNewsScreen({ navigation }) {
+  const { t } = useTranslation()
   const [sharingStory, setSharingStory] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState(null)
   const [posts, setPosts] = useState([])
@@ -23,15 +26,30 @@ export default function CommunityNewsScreen({ navigation }) {
     loadPosts()
   }, [])
 
+  // Reload news when screen comes into focus (e.g., returning from AdminScreen)
+  useFocusEffect(
+    React.useCallback(() => {
+      loadPosts()
+    }, [])
+  )
+
   const loadPosts = async () => {
     try {
       setLoading(true)
-      const allPosts = await getCommunityPosts()
-      // Filter only active posts
-      const activePosts = allPosts.filter(post => post.isActive !== false)
-      setPosts(activePosts)
+      // Get all published news from Firebase
+      const allNews = await getNews(null, true)
+      // Filter to ensure we only show published news with valid data
+      const publishedNews = (allNews || []).filter(article => {
+        return article && article.isPublished === true && article.title
+      })
+      console.log('📰 Loaded news:', publishedNews.length, 'articles')
+      setPosts(publishedNews)
     } catch (error) {
-      console.error('Error loading community posts:', error)
+      console.error('Error loading news:', error)
+      // Don't show alert for permission errors - just show empty state
+      if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+        console.warn('Permission denied for news - will show empty state')
+      }
       setPosts([])
     } finally {
       setLoading(false)
@@ -39,8 +57,9 @@ export default function CommunityNewsScreen({ navigation }) {
   }
 
   const handleShare = (article) => {
+    const content = article.content || article.summary || ''
     Share.share({
-      message: `${article.title}\n${article.summary}`
+      message: `${article.title}\n${content}`
     }).catch(() => {})
   }
 
@@ -55,12 +74,12 @@ export default function CommunityNewsScreen({ navigation }) {
       if (storyRef.current) {
         const success = await createAndShareStory(storyRef.current)
         if (success) {
-          Alert.alert('הצלחה!', 'הסטורי מוכן לשיתוף')
+          Alert.alert(t('news.shareStorySuccess'), t('news.shareStoryMessage'))
         }
       }
     } catch (error) {
       console.error('Error sharing story:', error)
-      Alert.alert('שגיאה', 'לא ניתן ליצור את הסטורי')
+      Alert.alert(t('error'), t('news.shareStoryError'))
     } finally {
       setSharingStory(false)
       setTimeout(() => setSelectedArticle(null), 1000)
@@ -78,28 +97,43 @@ export default function CommunityNewsScreen({ navigation }) {
         >
           <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
-        <Text style={styles.headerTitle}>חדשות הקהילה</Text>
+        <Text style={styles.headerTitle}>{t('news.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.subtitle}>עדכונים וחדשות מהקהילה</Text>
+        <Text style={styles.subtitle}>{t('news.subtitle')}</Text>
 
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={PRIMARY_RED} />
-            <Text style={styles.loadingText}>טוען חדשות...</Text>
+            <Text style={styles.loadingText}>{t('news.loading')}</Text>
           </View>
         ) : posts.length > 0 ? (
           posts.map((article, idx) => {
-            const date = article.date?.toDate ? article.date.toDate() : (article.date ? new Date(article.date) : new Date())
-            const formattedDate = date.toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })
+            // Handle date from publishedAt or createdAt
+            const articleDate = article.publishedAt 
+              ? (article.publishedAt.toDate 
+                  ? article.publishedAt.toDate().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })
+                  : new Date(article.publishedAt).toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }))
+              : (article.createdAt?.toDate 
+                  ? article.createdAt.toDate().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })
+                  : new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }))
+            
+            // Use content as summary (first 150 chars)
+            const articleSummary = article.content 
+              ? (article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content)
+              : (article.summary || '')
             
             return (
               <Pressable
-                key={article.id}
+                key={article.id || idx}
                 style={[styles.articleCard, idx === 0 && styles.articleCardFirst]}
+                onPress={() => {
+                  navigation.navigate('NewsDetail', { article })
+                }}
                 accessibilityRole="button"
+                accessibilityLabel={t('news.articleLabel', { title: article.title })}
               >
                 {article.imageUrl && (
                   <Image source={{ uri: article.imageUrl }} style={styles.articleImage} resizeMode="cover" />
@@ -108,16 +142,10 @@ export default function CommunityNewsScreen({ navigation }) {
                   <View style={styles.articleTextBlock}>
                     <View style={styles.articleHeader}>
                       <Text style={styles.articleTitle}>{article.title}</Text>
-                      {article.isEvent && (
-                        <View style={styles.eventBadge}>
-                          <Ionicons name="calendar-outline" size={14} color={PRIMARY_RED} />
-                          <Text style={styles.eventBadgeText}>אירוע</Text>
-                        </View>
-                      )}
                     </View>
-                    <Text style={styles.articleDate}>{formattedDate}</Text>
-                    {article.summary && (
-                      <Text style={styles.articleSummary}>{article.summary}</Text>
+                    <Text style={styles.articleDate}>{articleDate}</Text>
+                    {articleSummary && (
+                      <Text style={styles.articleSummary} numberOfLines={3}>{articleSummary}</Text>
                     )}
                   </View>
                   <View style={styles.shareButtons}>
@@ -142,9 +170,9 @@ export default function CommunityNewsScreen({ navigation }) {
           <View style={styles.footerCard}>
             <Ionicons name="newspaper-outline" size={32} color={PRIMARY_RED} />
             <View style={styles.footerTextBlock}>
-              <Text style={styles.footerTitle}>אין חדשות כרגע</Text>
+              <Text style={styles.footerTitle}>{t('news.noNews')}</Text>
               <Text style={styles.footerDesc}>
-                חדשות נוספות יופיעו כאן. האדמין יעדכן את החדשות דרך פאנל הניהול.
+                {t('news.noNewsDesc')}
               </Text>
             </View>
           </View>
@@ -157,8 +185,8 @@ export default function CommunityNewsScreen({ navigation }) {
           <View style={styles.storyModal}>
             <ViewShot ref={storyRef} options={{ format: 'png', quality: 1.0 }}>
               <StoryCard 
-                article={selectedArticle?.isEvent ? null : selectedArticle} 
-                event={selectedArticle?.isEvent ? selectedArticle : null} 
+                article={selectedArticle} 
+                event={null}
               />
             </ViewShot>
           </View>

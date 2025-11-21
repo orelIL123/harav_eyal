@@ -37,11 +37,21 @@ export default function LoginScreen({ navigation }) {
   }, [])
 
   const handleLogin = async () => {
-    // Validate email
-    const emailValidation = validateEmail(email)
-    if (!emailValidation.valid) {
-      Alert.alert('שגיאה', emailValidation.error)
-      return
+    // Validate email or phone
+    const isEmailInput = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    if (isEmailInput) {
+      const emailValidation = validateEmail(email)
+      if (!emailValidation.valid) {
+        Alert.alert('שגיאה', emailValidation.error)
+        return
+      }
+    } else {
+      const { validatePhone } = await import('../utils/validation')
+      const phoneValidation = validatePhone(email)
+      if (!phoneValidation.valid) {
+        Alert.alert('שגיאה', phoneValidation.error)
+        return
+      }
     }
 
     // Validate password
@@ -57,7 +67,7 @@ export default function LoginScreen({ navigation }) {
       if (error) {
         Alert.alert('שגיאה', error)
       } else {
-        // Save email for next time (password is never stored)
+        // Save email/phone for next time (password is never stored)
         await saveCredentials(email.trim())
         // Navigation will be handled by AuthContext
         navigation.goBack()
@@ -113,14 +123,14 @@ export default function LoginScreen({ navigation }) {
                   <Ionicons name="mail-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="כתובת אימייל"
+                    placeholder="כתובת אימייל או מספר טלפון"
                     placeholderTextColor="#9ca3af"
                     value={email}
                     onChangeText={setEmail}
                     autoCapitalize="none"
-                    keyboardType="email-address"
-                    textContentType="emailAddress"
-                    autoComplete="email"
+                    keyboardType="default"
+                    textContentType="username"
+                    autoComplete="username"
                     maxLength={254}
                   />
                 </View>

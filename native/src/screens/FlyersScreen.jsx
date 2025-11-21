@@ -1,8 +1,12 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator, Image } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { useTranslation } from 'react-i18next'
 import { getFlyers } from '../services/flyersService'
+import * as Print from 'expo-print'
+import * as Sharing from 'expo-sharing'
+import * as FileSystem from 'expo-file-system'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -10,6 +14,7 @@ const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
 export default function FlyersScreen({ navigation }) {
+  const { t } = useTranslation()
   const [flyers, setFlyers] = React.useState([])
   const [loading, setLoading] = React.useState(true)
 
@@ -26,17 +31,65 @@ export default function FlyersScreen({ navigation }) {
       setFlyers(activeFlyers)
     } catch (error) {
       console.error('Error loading flyers:', error)
-      Alert.alert('שגיאה', 'לא ניתן לטעון את העלונים')
+      Alert.alert(t('error'), t('flyers.loadError'))
     } finally {
       setLoading(false)
     }
   }
 
-  const handleFlyerPress = (flyer) => {
-    if (flyer.pdfUrl) {
-      navigation.navigate('PdfViewer', { pdfUrl: flyer.pdfUrl, title: flyer.title })
-    } else {
-      Alert.alert('בקרוב', `עלון ${flyer.title} יופיע כאן בקרוב`)
+  const handleFlyerPress = async (flyer) => {
+    // Navigate to FlyerDetailScreen with all flyers for navigation
+    navigation.navigate('FlyerDetail', { 
+      flyerId: flyer.id,
+      flyers: flyers 
+    })
+  }
+
+  const handlePrintImage = async (imageUrl, title) => {
+    try {
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              body {
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+              }
+              img {
+                max-width: 100%;
+                height: auto;
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${imageUrl}" alt="${title}" />
+          </body>
+        </html>
+      `
+      await Print.printAsync({ html })
+    } catch (error) {
+      console.error('Error printing:', error)
+      Alert.alert(t('error'), t('flyers.printError'))
+    }
+  }
+
+  const handleShareImage = async (imageUrl) => {
+    try {
+      if (await Sharing.isAvailableAsync()) {
+        // For remote images, share the URL directly
+        await Sharing.shareAsync(imageUrl)
+      } else {
+        Alert.alert(t('flyers.shareNotAvailable'), t('flyers.shareNotAvailableDesc'))
+      }
+    } catch (error) {
+      console.error('Error sharing:', error)
+      Alert.alert(t('error'), t('flyers.shareError'))
     }
   }
 
@@ -51,22 +104,22 @@ export default function FlyersScreen({ navigation }) {
         >
           <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
-        <Text style={styles.headerTitle}>עלונים להדפסה</Text>
+        <Text style={styles.headerTitle}>{t('flyers.title')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.subtitle}>עלונים שבועיים של המוסדות</Text>
+        <Text style={styles.subtitle}>{t('flyers.subtitle')}</Text>
 
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={PRIMARY_RED} />
-            <Text style={styles.loadingText}>טוען עלונים...</Text>
+            <Text style={styles.loadingText}>{t('flyers.loading')}</Text>
           </View>
         ) : flyers.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>אין עלונים זמינים כרגע</Text>
+            <Text style={styles.emptyText}>{t('flyers.noFlyers')}</Text>
           </View>
         ) : (
           flyers.map((flyer, idx) => {
@@ -81,12 +134,26 @@ export default function FlyersScreen({ navigation }) {
                 accessibilityRole="button"
               >
                 <View style={styles.flyerContent}>
-                  <View style={styles.flyerIcon}>
-                    <Ionicons name="document-text-outline" size={32} color={PRIMARY_RED} />
-                  </View>
+                  {flyer.imageUrl ? (
+                    <Image source={{ uri: flyer.imageUrl }} style={styles.flyerThumbnail} resizeMode="cover" />
+                  ) : flyer.pdfUrl ? (
+                    <View style={styles.flyerIcon}>
+                      <Ionicons name="document-text-outline" size={32} color={PRIMARY_RED} />
+                      <Text style={styles.flyerIconText}>PDF</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.flyerIcon}>
+                      <Ionicons name="document-outline" size={32} color={PRIMARY_RED} />
+                    </View>
+                  )}
                   <View style={styles.flyerTextBlock}>
                     <Text style={styles.flyerTitle}>{flyer.title}</Text>
                     {flyerDate && <Text style={styles.flyerDate}>{flyerDate}</Text>}
+                    {flyer.fileType && (
+                      <Text style={styles.flyerType}>
+                        {flyer.fileType === 'pdf' ? 'PDF' : t('flyers.image')}
+                      </Text>
+                    )}
                   </View>
                   <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
                 </View>
@@ -98,9 +165,9 @@ export default function FlyersScreen({ navigation }) {
         <View style={styles.footerCard}>
           <Ionicons name="document-outline" size={32} color={PRIMARY_RED} />
           <View style={styles.footerTextBlock}>
-            <Text style={styles.footerTitle}>עלונים נוספים</Text>
+            <Text style={styles.footerTitle}>{t('flyers.moreFlyers')}</Text>
             <Text style={styles.footerDesc}>
-              עלונים נוספים יופיעו כאן מדי שבוע. ניתן לקרוא ולהדפיס.
+              {t('flyers.moreFlyersDesc')}
             </Text>
           </View>
         </View>
@@ -173,6 +240,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(220,38,38,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+  },
+  flyerIconText: {
+    fontSize: 10,
+    fontFamily: 'Poppins_600SemiBold',
+    color: PRIMARY_RED,
   },
   flyerTextBlock: {
     flex: 1,
@@ -238,6 +311,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_500Medium',
     color: '#9ca3af',
+  },
+  flyerThumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+  },
+  flyerType: {
+    color: '#9ca3af',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    textAlign: 'right',
+    marginTop: 2,
   },
 })
 

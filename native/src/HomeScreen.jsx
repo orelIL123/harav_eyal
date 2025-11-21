@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import i18n from './config/i18n'
 import { getAlerts, updateAlert } from './services/alertsService'
 import { getPodcasts } from './services/podcastsService'
+import { getDailyVideos } from './services/dailyVideosService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -148,20 +149,22 @@ export default function HomeScreen({ navigation }) {
   const [activeAlerts, setActiveAlerts] = React.useState([])
   const [podcasts, setPodcasts] = React.useState([])
   const [loadingPodcasts, setLoadingPodcasts] = React.useState(true)
+  const [dailyVideos, setDailyVideos] = React.useState([])
+  const [loadingDailyVideos, setLoadingDailyVideos] = React.useState(true)
 
   // Load and filter alerts
   React.useEffect(() => {
     let isMounted = true // Flag to prevent state updates after unmount
-    
+
     const loadAlerts = async () => {
       try {
         const allAlerts = await getAlerts(true)
-        
+
         // Check if component is still mounted before updating state
         if (!isMounted) return
-        
+
         const now = new Date()
-        
+
         // Filter active alerts that haven't expired
         const validAlerts = allAlerts.filter(alert => {
           if (!alert.expiresAt) return true
@@ -198,11 +201,84 @@ export default function HomeScreen({ navigation }) {
     loadAlerts()
     // Refresh every 5 minutes
     const interval = setInterval(loadAlerts, 5 * 60 * 1000)
-    
+
     // Cleanup function
     return () => {
       isMounted = false
       clearInterval(interval)
+    }
+  }, [])
+
+  // Load podcasts
+  React.useEffect(() => {
+    let isMounted = true
+
+    const loadPodcasts = async () => {
+      try {
+        setLoadingPodcasts(true)
+        const allPodcasts = await getPodcasts()
+
+        if (!isMounted) return
+
+        // Show only first 5 podcasts on home screen
+        const limitedPodcasts = Array.isArray(allPodcasts) ? allPodcasts.slice(0, 5) : []
+        setPodcasts(limitedPodcasts)
+      } catch (error) {
+        console.error('Error loading podcasts:', error)
+        if (isMounted) {
+          setPodcasts([])
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingPodcasts(false)
+        }
+      }
+    }
+
+    loadPodcasts()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Load daily videos
+  React.useEffect(() => {
+    let isMounted = true
+
+    const loadDailyVideos = async () => {
+      try {
+        setLoadingDailyVideos(true)
+        const videos = await getDailyVideos()
+
+        if (!isMounted) return
+
+        // Filter videos that are less than 24 hours old
+        const now = Date.now()
+        const validVideos = videos.filter(video => {
+          if (!video.createdAt) return false
+          const createdAt = video.createdAt.toDate ? video.createdAt.toDate().getTime() : new Date(video.createdAt).getTime()
+          const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60)
+          return hoursSinceCreation < 24
+        })
+
+        setDailyVideos(validVideos)
+      } catch (error) {
+        console.error('Error loading daily videos:', error)
+        if (isMounted) {
+          setDailyVideos([])
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingDailyVideos(false)
+        }
+      }
+    }
+
+    loadDailyVideos()
+
+    return () => {
+      isMounted = false
     }
   }, [])
 
@@ -240,7 +316,7 @@ export default function HomeScreen({ navigation }) {
       return
     }
     if (key === 'faith-stories') {
-      Alert.alert(t('home.comingSoon'), t('home.faithStoriesComingSoon'))
+      navigation?.navigate('FaithStories')
       return
     }
     Alert.alert(t('home.comingSoon'), t('home.screenInDevelopment'))
@@ -285,6 +361,43 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.subtitle}>{t('home.tagline')}</Text>
         </View>
       </View>
+
+      {/* Daily Videos Stories Row - WhatsApp style */}
+      {dailyVideos.length > 0 && (
+        <View style={styles.storiesContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={styles.storiesRow}
+          >
+            {dailyVideos.map((video, index) => (
+              <Pressable
+                key={video.id}
+                style={styles.storyBubble}
+                onPress={() => navigation?.navigate('DailyInsight')}
+                accessibilityRole="button"
+              >
+                <View style={styles.storyRing}>
+                  {video.thumbnailUrl ? (
+                    <Image 
+                      source={{ uri: video.thumbnailUrl }} 
+                      style={styles.storyThumbnail}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Ionicons name="videocam" size={24} color="#fff" />
+                  )}
+                </View>
+                {video.title && (
+                  <Text style={styles.storyTitle} numberOfLines={1}>
+                    {video.title}
+                  </Text>
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Active Alerts Banner */}
       {activeAlerts.length > 0 && (
@@ -1318,6 +1431,44 @@ const styles = StyleSheet.create({
   alertDismissButton: {
     padding: 4,
     borderRadius: 12,
+  },
+  storiesContainer: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: BG,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(11,27,58,0.08)',
+  },
+  storiesRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  storyBubble: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  storyRing: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderWidth: 3,
+    borderColor: PRIMARY_RED,
+    overflow: 'hidden',
+  },
+  storyThumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  storyTitle: {
+    fontSize: 11,
+    fontFamily: 'Poppins_500Medium',
+    color: DEEP_BLUE,
+    textAlign: 'center',
+    maxWidth: 70,
   },
 })
 

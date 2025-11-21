@@ -18,9 +18,15 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 export async function getCommunityPosts() {
   try {
     const posts = await getAllDocuments('communityPosts', [], 'createdAt', 'desc')
-    return posts
+    return posts || []
   } catch (error) {
     console.error('Error getting community posts:', error)
+    // Return empty array instead of throwing - allows UI to show empty state
+    // Permission errors will be handled gracefully
+    if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+      console.warn('Permission denied for communityPosts - user may not be signed in or collection may not exist')
+      return []
+    }
     throw error
   }
 }

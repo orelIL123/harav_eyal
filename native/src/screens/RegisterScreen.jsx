@@ -30,11 +30,20 @@ export default function RegisterScreen({ navigation }) {
       return
     }
 
-    // Validate email
-    const emailValidation = validateEmail(form.email)
-    if (!emailValidation.valid) {
-      Alert.alert('שגיאה', emailValidation.error)
-      return
+    // Validate email or phone
+    const isEmailInput = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+    if (isEmailInput) {
+      const emailValidation = validateEmail(form.email)
+      if (!emailValidation.valid) {
+        Alert.alert('שגיאה', emailValidation.error)
+        return
+      }
+    } else {
+      const phoneValidation = validatePhone(form.email)
+      if (!phoneValidation.valid) {
+        Alert.alert('שגיאה', phoneValidation.error)
+        return
+      }
     }
 
     // Validate password
@@ -52,7 +61,11 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true)
     try {
-      const { user, error } = await register(form.email, form.password, nameValidation.sanitized)
+      // Extract phone if it's a phone number
+      const phone = isEmailInput ? null : form.email.trim()
+      const emailOrPhone = form.email.trim()
+      
+      const { user, error } = await register(emailOrPhone, form.password, nameValidation.sanitized, phone)
       if (error) {
         Alert.alert('שגיאה', error)
       } else {
@@ -119,14 +132,14 @@ export default function RegisterScreen({ navigation }) {
                 <Ionicons name="mail-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="כתובת אימייל"
+                  placeholder="כתובת אימייל או מספר טלפון"
                   placeholderTextColor="#9ca3af"
                   value={form.email}
                   onChangeText={(text) => setForm({...form, email: text})}
                   autoCapitalize="none"
-                  keyboardType="email-address"
-                  textContentType="emailAddress"
-                  autoComplete="email"
+                  keyboardType="default"
+                  textContentType="username"
+                  autoComplete="username"
                 />
               </View>
 

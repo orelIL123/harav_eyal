@@ -13,14 +13,37 @@ import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firesto
  */
 
 /**
- * Get all flyers, optionally filtered by date
+ * Get all active flyers (for regular users)
+ * Filters by isActive == true to optimize query and match security rules
+ * Documents without isActive field are handled by security rules (defaults to true)
  */
 export async function getFlyers() {
   try {
-    const flyers = await getAllDocuments('flyers', [], 'date', 'desc')
+    // Filter by isActive == true to optimize query
+    // Security rules allow isActive != false (including missing/null), but querying for == true
+    // is more efficient. Documents without isActive should have it set to true by default.
+    const flyers = await getAllDocuments('flyers', [
+      { field: 'isActive', operator: '==', value: true }
+    ], 'date', 'desc')
     return flyers
   } catch (error) {
     console.error('Error getting flyers:', error)
+    throw error
+  }
+}
+
+/**
+ * Get all flyers including inactive ones (for admins only)
+ * Security rules will enforce admin access
+ */
+export async function getAllFlyersForAdmin() {
+  try {
+    // No filter - get all flyers (admins can see inactive ones)
+    // Security rules will ensure only admins can access inactive flyers
+    const flyers = await getAllDocuments('flyers', [], 'date', 'desc')
+    return flyers
+  } catch (error) {
+    console.error('Error getting all flyers for admin:', error)
     throw error
   }
 }
@@ -61,8 +84,9 @@ export async function createFlyer(flyerData) {
     const flyer = {
       title: flyerData.title,
       pdfUrl: flyerData.pdfUrl || null,
+      imageUrl: flyerData.imageUrl || null,
+      fileType: flyerData.fileType || (flyerData.pdfUrl ? 'pdf' : flyerData.imageUrl ? 'image' : null), // 'pdf' or 'image'
       date: date,
-      description: flyerData.description || null,
       isActive: flyerData.isActive !== undefined ? flyerData.isActive : true,
     }
     

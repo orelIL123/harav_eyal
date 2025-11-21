@@ -17,12 +17,14 @@ import LiveAlertsScreen from './src/screens/LiveAlertsScreen'
 import AdminScreen from './src/screens/AdminScreen'
 import PrayersScreen from './src/screens/PrayersScreen'
 import PdfViewerScreen from './src/screens/PdfViewerScreen'
+import ImageViewerScreen from './src/screens/ImageViewerScreen'
 import ContactRabbiScreen from './src/screens/ContactRabbiScreen'
 import WeeklyLessonsScreen from './src/screens/WeeklyLessonsScreen'
 import ReelsScreen from './src/screens/ReelsScreen'
 import SideMenuScreen from './src/screens/SideMenuScreen'
 import DonationScreen from './src/screens/DonationScreen'
 import FlyersScreen from './src/screens/FlyersScreen'
+import FlyerDetailScreen from './src/screens/FlyerDetailScreen'
 import AboutScreen from './src/screens/AboutScreen'
 import LanguageScreen from './src/screens/LanguageScreen'
 import CommunityNewsScreen from './src/screens/CommunityNewsScreen'
@@ -40,7 +42,9 @@ import WomenLessonsScreen from './src/screens/WomenLessonsScreen'
 import CommunityActivitiesScreen from './src/screens/CommunityActivitiesScreen'
 import YouthClubScreen from './src/screens/YouthClubScreen'
 import LessonsLibraryScreen from './src/screens/LessonsLibraryScreen'
+import FaithStoriesScreen from './src/screens/FaithStoriesScreen'
 import PodcastsScreen from './src/screens/PodcastsScreen'
+import PodcastPlayerScreen from './src/screens/PodcastPlayerScreen'
 import LoginScreen from './src/screens/LoginScreen'
 import RegisterScreen from './src/screens/RegisterScreen'
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen'
@@ -186,12 +190,14 @@ export default function App() {
             <Stack.Screen name="Admin" component={AdminScreen} />
             <Stack.Screen name="Prayers" component={PrayersScreen} />
             <Stack.Screen name="PdfViewer" component={PdfViewerScreen} />
+            <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />
             <Stack.Screen name="ContactRabbi" component={ContactRabbiScreen} />
             <Stack.Screen name="WeeklyLessons" component={WeeklyLessonsScreen} />
             <Stack.Screen name="Reels" component={ReelsScreen} />
             <Stack.Screen name="SideMenu" component={SideMenuScreen} />
             <Stack.Screen name="Donation" component={DonationScreen} />
             <Stack.Screen name="Flyers" component={FlyersScreen} />
+            <Stack.Screen name="FlyerDetail" component={FlyerDetailScreen} />
             <Stack.Screen name="About" component={AboutScreen} />
             <Stack.Screen name="Language" component={LanguageScreen} />
             <Stack.Screen name="CommunityNews" component={CommunityNewsScreen} />
@@ -209,7 +215,9 @@ export default function App() {
             <Stack.Screen name="CommunityActivities" component={CommunityActivitiesScreen} />
             <Stack.Screen name="YouthClub" component={YouthClubScreen} />
             <Stack.Screen name="LessonsLibrary" component={LessonsLibraryScreen} />
+            <Stack.Screen name="FaithStories" component={FaithStoriesScreen} />
             <Stack.Screen name="Podcasts" component={PodcastsScreen} />
+            <Stack.Screen name="PodcastPlayer" component={PodcastPlayerScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

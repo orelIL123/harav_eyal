@@ -1,41 +1,46 @@
-import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Image, Linking, Alert } from 'react-native'
+import React, { useState, useEffect } from 'react'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Image, Linking, Alert, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { getBooks } from '../services/booksService'
+import { STATIC_BOOKS } from '../data/staticBooks'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
-const BOOKS = [
-  {
-    id: 'book-1',
-    title: 'אמונה וביטחון',
-    imageUrl: 'https://ayal-taarog.org.il/wp-content/uploads/elementor/thumbs/%D7%97%D7%95%D7%91%D7%AA-%D7%94%D7%9C%D7%91%D7%91%D7%95%D7%AA-r7o6xhx6eujg4qy4dw6jvwnuttfo2qyqmoq37e3cs0.jpg',
-    purchaseLink: 'https://ayal-taarog.org.il/product/%d7%90%d7%9e%d7%95%d7%a0%d7%94-%d7%95%d7%91%d7%99%d7%98%d7%97%d7%95%d7%9f/',
-  },
-  {
-    id: 'book-2',
-    title: 'חובת הלבבות',
-    imageUrl: 'https://ayal-taarog.org.il/wp-content/uploads/elementor/thumbs/%D7%97%D7%95%D7%91%D7%AA-%D7%94%D7%9C%D7%91%D7%91%D7%95%D7%AA-%D7%A2%D7%9D-%D7%A4%D7%99%D7%A8%D7%95%D7%A9-%D7%9B%D7%90%D7%99%D7%9C-%D7%AA%D7%A2%D7%A8%D7%95%D7%92-r7o70e99hgi9xgqkgna52oc0rl5et5gy114zh3snlc.jpg',
-    purchaseLink: 'https://ayal-taarog.org.il/product/%d7%97%d7%95%d7%91%d7%aa-%d7%94%d7%9c%d7%91%d7%91%d7%95%d7%aa/',
-  },
-  {
-    id: 'book-3',
-    title: 'כאיל תערוג',
-    imageUrl: 'https://ayal-taarog.org.il/wp-content/uploads/elementor/thumbs/%D7%9B%D7%90%D7%99%D7%9C-%D7%AA%D7%A2%D7%A8%D7%95%D7%92-r7o6z0ftf8m2u4qxjjqwwiwla5yyh6z666k91fuir4.jpg',
-    purchaseLink: 'https://ayal-taarog.org.il/product/%d7%9b%d7%90%d7%99%d7%9c-%d7%aa%d7%a2%d7%a8%d7%95%d7%92/',
-  },
-  {
-    id: 'book-4',
-    title: 'ליקוטי אמונה',
-    imageUrl: 'https://ayal-taarog.org.il/wp-content/uploads/elementor/thumbs/IMG-20251113-WA0014-renor9ks0cru1e5jqscj55a99tnureb7wuuei0wy9c.jpg',
-    purchaseLink: 'https://ayal-taarog.org.il/product/%d7%9c%d7%99%d7%a7%d7%95%d7%98%d7%99-%d7%90%d7%9e%d7%95%d7%a0%d7%94/',
-  },
-]
-
 export default function BooksScreen({ navigation }) {
+  const [books, setBooks] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadBooks()
+  }, [])
+
+  const loadBooks = async () => {
+    try {
+      setLoading(true)
+      const firebaseBooks = await getBooks()
+      
+      // Combine static and firebase books
+      // Firebase books take precedence if they have the same ID (unlikely for static)
+      const allBooks = [...STATIC_BOOKS, ...(firebaseBooks || [])]
+      
+      // Filter only active books and ensure they have required fields
+      const activeBooks = allBooks.filter(book => 
+        book.isActive !== false && book.title && book.imageUrl
+      )
+      setBooks(activeBooks)
+    } catch (error) {
+      console.error('Error loading books:', error)
+      Alert.alert('שגיאה', 'לא ניתן לטעון את הספרים')
+      // Fallback to static books on error
+      setBooks(STATIC_BOOKS)
+    } finally {
+      setLoading(false)
+    }
+  }
   const handlePurchase = React.useCallback((book) => {
     Linking.openURL(book.purchaseLink).catch(() => {
       Alert.alert('שגיאה', 'לא ניתן לפתוח את קישור הרכישה')
@@ -61,7 +66,18 @@ export default function BooksScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>ספרי תורה וחידושים מאת הרב אייל עמרמי שליט"א</Text>
 
-        {BOOKS.map((book, idx) => (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PRIMARY_RED} />
+            <Text style={styles.loadingText}>טוען ספרים...</Text>
+          </View>
+        ) : books.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="book-outline" size={48} color="#d1d5db" />
+            <Text style={styles.emptyText}>אין ספרים זמינים כרגע</Text>
+          </View>
+        ) : (
+          books.map((book, idx) => (
           <Pressable
             key={book.id}
             style={[styles.bookCard, idx === 0 && styles.bookCardFirst]}
@@ -87,7 +103,8 @@ export default function BooksScreen({ navigation }) {
               </View>
             </View>
           </Pressable>
-        ))}
+          ))
+        )}
 
         <View style={styles.footerCard}>
           <Ionicons name="book-outline" size={28} color={PRIMARY_RED} />
@@ -140,6 +157,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Poppins_500Medium',
     marginBottom: 8,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#9ca3af',
   },
   bookCard: {
     flexDirection: 'row',

@@ -62,7 +62,9 @@ export async function createAlert(alertData) {
     const alert = {
       title: alertData.title,
       type: alertData.type || 'reminder',
-      message: alertData.message,
+      message: alertData.message || '',
+      audioUrl: alertData.audioUrl || null,
+      imageUrl: alertData.imageUrl || null,
       priority: alertData.priority || 'medium',
       sendType: alertData.sendType || 'immediate',
       scheduledTime: alertData.scheduledTime || null,

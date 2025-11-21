@@ -24,8 +24,10 @@ export async function getDailyVideos() {
       CACHE_KEYS.DAILY_VIDEOS,
       async () => {
         const now = new Date()
-        // Limit to 20 most recent videos
-        const videos = await getAllDocuments('dailyVideos', [], 'createdAt', 'desc', 20)
+        // Limit to 20 most recent active videos
+        const videos = await getAllDocuments('dailyVideos', [
+          { field: 'isActive', operator: '==', value: true }
+        ], 'createdAt', 'desc', 20)
         
         // Filter out expired videos (older than 24 hours)
         const validVideos = videos.filter(video => {

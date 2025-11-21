@@ -42,6 +42,58 @@ service firebase.storage {
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
     
+    // ========== ALERTS ==========
+    // התראות - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /alerts/{alertId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ========== LESSONS ==========
+    // שיעורים - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /lessons/{lessonId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ========== PODCASTS ==========
+    // פודקאסטים - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /podcasts/{podcastId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ========== DAILY VIDEOS ==========
+    // וידאו יומי - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /dailyVideos/{videoId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ========== BOOKS ==========
+    // ספרים - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /books/{bookId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ========== FLYERS ==========
+    // עלונים - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /flyers/{flyerId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+                   (request.resource.contentType == 'application/pdf' ||
+                    request.resource.contentType.matches('image/.*')) &&
+                   request.resource.size < 20 * 1024 * 1024; // Max 20MB
+    }
+    
+    // ========== COMMUNITY POSTS ==========
+    // פוסטים קהילתיים - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /communityPosts/{postId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
     // ========== DEFAULT DENY ==========
     // כל השאר חסום
     match /{allPaths=**} {
