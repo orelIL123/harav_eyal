@@ -1,52 +1,51 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, Image, Dimensions, Modal } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, Image, Dimensions, Modal, TextInput, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { useAuth } from '../utils/AuthContext'
+import { getWeeklyLessons, createWeeklyLesson, updateWeeklyLesson, deleteWeeklyLesson } from '../services/weeklyLessonsService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
-const WEEKLY_LESSONS = [
-  {
-    id: 'lesson-1',
-    city: 'ירושלים',
-    location: 'בית המדרש המרכזי',
-    day: 'ראשון',
-    time: '20:00',
-    address: 'רחוב הרב קוק 15, ירושלים',
-  },
-  {
-    id: 'lesson-2',
-    city: 'תל אביב',
-    location: 'בית הכנסת הגדול',
-    day: 'שני',
-    time: '19:30',
-    address: 'רחוב דיזנגוף 100, תל אביב',
-  },
-  {
-    id: 'lesson-3',
-    city: 'באר שבע',
-    location: 'מרכז הקהילה',
-    day: 'שלישי',
-    time: '20:30',
-    address: 'רחוב הרצל 25, באר שבע',
-  },
-  {
-    id: 'lesson-4',
-    city: 'חיפה',
-    location: 'בית המדרש',
-    day: 'רביעי',
-    time: '19:00',
-    address: 'רחוב הרצל 10, חיפה',
-  },
-]
+const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
 export default function WeeklyLessonsScreen({ navigation }) {
+  const { isAdmin } = useAuth()
   const scrollViewRef = React.useRef(null)
   const [showSmallImage, setShowSmallImage] = React.useState(false)
   const [showFullImage, setShowFullImage] = React.useState(false)
+  const [lessons, setLessons] = React.useState([])
+  const [loading, setLoading] = React.useState(true)
+  const [isAdminMode, setIsAdminMode] = React.useState(false)
+  const [editingLesson, setEditingLesson] = React.useState(null)
+  const [showEditModal, setShowEditModal] = React.useState(false)
+  const [formData, setFormData] = React.useState({
+    city: '',
+    location: '',
+    day: 'ראשון',
+    time: '',
+    address: '',
+  })
+
+  React.useEffect(() => {
+    loadLessons()
+  }, [])
+
+  const loadLessons = async () => {
+    try {
+      setLoading(true)
+      const data = await getWeeklyLessons()
+      setLessons(data || [])
+    } catch (error) {
+      console.error('Error loading weekly lessons:', error)
+      setLessons([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleScroll = (event) => {
     const scrollY = event.nativeEvent.contentOffset.y
@@ -59,12 +58,92 @@ export default function WeeklyLessonsScreen({ navigation }) {
   }
 
   const handleLessonPress = (lesson) => {
+    if (isAdminMode) {
+      // במצב עריכה - פתח modal עריכה
+      setEditingLesson(lesson)
+      setFormData({
+        city: lesson.city || '',
+        location: lesson.location || '',
+        day: lesson.day || 'ראשון',
+        time: lesson.time || '',
+        address: lesson.address || '',
+      })
+      setShowEditModal(true)
+    } else {
+      // במצב רגיל - הצג פרטים
     Alert.alert(
       lesson.city,
       `${lesson.location}\n${lesson.day} בשעה ${lesson.time}\n${lesson.address}`,
       [
         { text: 'סגור', style: 'cancel' },
         { text: 'פתח במפות', onPress: () => Alert.alert('בקרוב', 'פתיחת מפות תתווסף בקרוב') },
+        ]
+      )
+    }
+  }
+
+  const handleAddLesson = () => {
+    setEditingLesson(null)
+    setFormData({
+      city: '',
+      location: '',
+      day: 'ראשון',
+      time: '',
+      address: '',
+    })
+    setShowEditModal(true)
+  }
+
+  const handleSaveLesson = async () => {
+    if (!formData.city || !formData.location || !formData.time || !formData.address) {
+      Alert.alert('שגיאה', 'אנא מלא את כל השדות')
+      return
+    }
+
+    try {
+      if (editingLesson) {
+        // עדכון שיעור קיים
+        await updateWeeklyLesson(editingLesson.id, {
+          ...formData,
+          order: editingLesson.order || lessons.length,
+        })
+        Alert.alert('הצלחה', 'השיעור עודכן בהצלחה')
+      } else {
+        // הוספת שיעור חדש
+        await createWeeklyLesson({
+          ...formData,
+          order: lessons.length,
+        })
+        Alert.alert('הצלחה', 'השיעור נוסף בהצלחה')
+      }
+      setShowEditModal(false)
+      await loadLessons()
+    } catch (error) {
+      console.error('Error saving lesson:', error)
+      Alert.alert('שגיאה', 'לא ניתן לשמור את השיעור')
+    }
+  }
+
+  const handleDeleteLesson = async (lessonId) => {
+    Alert.alert(
+      'מחיקת שיעור',
+      'האם אתה בטוח שברצונך למחוק את השיעור הזה?',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteWeeklyLesson(lessonId)
+              Alert.alert('הצלחה', 'השיעור נמחק בהצלחה')
+              await loadLessons()
+            } catch (error) {
+              console.error('Error deleting lesson:', error)
+              Alert.alert('שגיאה', 'לא ניתן למחוק את השיעור')
+            }
+          },
+        },
       ]
     )
   }
@@ -82,8 +161,32 @@ export default function WeeklyLessonsScreen({ navigation }) {
           <Ionicons name="arrow-back" size={24} color={PRIMARY_RED} />
         </Pressable>
         <Text style={styles.headerTitle}>שיעורים שבועיים</Text>
+        {isAdmin ? (
+          <Pressable
+            style={[styles.editBtn, isAdminMode && styles.editBtnActive]}
+            onPress={() => setIsAdminMode(!isAdminMode)}
+            accessibilityRole="button"
+            accessibilityLabel="עריכה"
+          >
+            <Ionicons name={isAdminMode ? 'create' : 'create-outline'} size={20} color={isAdminMode ? '#fff' : PRIMARY_RED} />
+          </Pressable>
+        ) : (
         <View style={{ width: 24 }} />
+        )}
       </View>
+
+      {isAdminMode && (
+        <View style={styles.adminBanner}>
+          <View style={styles.adminBannerContent}>
+            <Ionicons name="pencil" size={16} color="#fff" />
+            <Text style={styles.adminBannerText}>מצב עריכה פעיל</Text>
+          </View>
+          <Pressable style={styles.addBtn} onPress={handleAddLesson}>
+            <Ionicons name="add" size={20} color={PRIMARY_RED} />
+            <Text style={styles.addBtnText}>הוסף שיעור</Text>
+          </Pressable>
+        </View>
+      )}
 
       <ScrollView 
         ref={scrollViewRef}
@@ -94,13 +197,26 @@ export default function WeeklyLessonsScreen({ navigation }) {
       >
         <Text style={styles.subtitle}>רשימת השיעורים השבועיים של הרב</Text>
 
-        {WEEKLY_LESSONS.map((lesson, idx) => (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PRIMARY_RED} />
+            <Text style={styles.loadingText}>טוען שיעורים...</Text>
+          </View>
+        ) : lessons.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
+            <Text style={styles.emptyText}>
+              {isAdminMode ? 'אין שיעורים. לחץ על "הוסף שיעור" כדי להתחיל' : 'אין שיעורים כרגע'}
+            </Text>
+          </View>
+        ) : (
+          lessons.map((lesson, idx) => (
+            <View key={lesson.id} style={[styles.lessonCard, idx === 0 && styles.lessonCardFirst]}>
           <Pressable
-            key={lesson.id}
-            style={[styles.lessonCard, idx === 0 && styles.lessonCardFirst]}
             onPress={() => handleLessonPress(lesson)}
             accessibilityRole="button"
             accessibilityLabel={`שיעור ב${lesson.city}`}
+                style={styles.lessonPressable}
           >
             <View style={styles.lessonContent}>
               <View style={styles.cityIcon}>
@@ -115,10 +231,23 @@ export default function WeeklyLessonsScreen({ navigation }) {
                 </View>
                 <Text style={styles.addressText}>{lesson.address}</Text>
               </View>
+                  {isAdminMode ? (
+                    <Pressable
+                      style={styles.deleteBtn}
+                      onPress={() => handleDeleteLesson(lesson.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel="מחק שיעור"
+                    >
+                      <Ionicons name="trash-outline" size={20} color={PRIMARY_RED} />
+                    </Pressable>
+                  ) : (
               <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
+                  )}
+                </View>
+              </Pressable>
             </View>
-          </Pressable>
-        ))}
+          ))
+        )}
 
         <View style={styles.footerCard}>
           <Ionicons name="information-circle-outline" size={32} color={PRIMARY_RED} />
@@ -169,6 +298,120 @@ export default function WeeklyLessonsScreen({ navigation }) {
             style={styles.fullScreenImage}
             resizeMode="contain"
           />
+        </View>
+      </Modal>
+
+      {/* Edit/Add Lesson Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingLesson ? 'ערוך שיעור' : 'הוסף שיעור חדש'}
+              </Text>
+              <Pressable
+                style={styles.modalCloseBtn}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Ionicons name="close" size={24} color={DEEP_BLUE} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>עיר *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.city}
+                  onChangeText={(text) => setFormData({ ...formData, city: text })}
+                  placeholder="לדוגמה: ירושלים"
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>מיקום *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.location}
+                  onChangeText={(text) => setFormData({ ...formData, location: text })}
+                  placeholder="לדוגמה: בית המדרש המרכזי"
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>יום בשבוע *</Text>
+                <View style={styles.daysRow}>
+                  {DAYS.map((day) => (
+                    <Pressable
+                      key={day}
+                      style={[
+                        styles.dayBtn,
+                        formData.day === day && styles.dayBtnActive,
+                      ]}
+                      onPress={() => setFormData({ ...formData, day })}
+                    >
+                      <Text
+                        style={[
+                          styles.dayBtnText,
+                          formData.day === day && styles.dayBtnTextActive,
+                        ]}
+                      >
+                        {day}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>שעה *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.time}
+                  onChangeText={(text) => setFormData({ ...formData, time: text })}
+                  placeholder="לדוגמה: 20:00"
+                  placeholderTextColor="#9ca3af"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>כתובת *</Text>
+                <TextInput
+                  style={[styles.formInput, styles.formInputMultiline]}
+                  value={formData.address}
+                  onChangeText={(text) => setFormData({ ...formData, address: text })}
+                  placeholder="לדוגמה: רחוב הרב קוק 15, ירושלים"
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  numberOfLines={2}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <Pressable
+                style={styles.cancelBtn}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Text style={styles.cancelBtnText}>ביטול</Text>
+              </Pressable>
+              <Pressable style={styles.saveBtn} onPress={handleSaveLesson}>
+                <LinearGradient
+                  colors={[PRIMARY_RED, '#ef4444']}
+                  style={styles.saveBtnGradient}
+                >
+                  <Text style={styles.saveBtnText}>שמור</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -353,6 +596,204 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
+  },
+  // Admin mode styles
+  editBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(220,38,38,0.12)',
+  },
+  editBtnActive: {
+    backgroundColor: PRIMARY_RED,
+  },
+  adminBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: PRIMARY_RED,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  adminBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adminBannerText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addBtnText: {
+    color: PRIMARY_RED,
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  lessonPressable: {
+    flex: 1,
+  },
+  deleteBtn: {
+    padding: 8,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  loadingText: {
+    color: DEEP_BLUE,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  emptyText: {
+    color: '#9ca3af',
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    textAlign: 'center',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(11,27,58,0.1)',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins_700Bold',
+    color: DEEP_BLUE,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(11,27,58,0.1)',
+  },
+  modalBody: {
+    padding: 20,
+    maxHeight: 400,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+    marginBottom: 8,
+    textAlign: 'right',
+  },
+  formInput: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    fontFamily: 'Heebo_500Medium',
+    color: DEEP_BLUE,
+    textAlign: 'right',
+    borderWidth: 1,
+    borderColor: 'rgba(11,27,58,0.1)',
+  },
+  formInputMultiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  daysRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  dayBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f9fafb',
+    borderWidth: 1.5,
+    borderColor: 'rgba(220,38,38,0.3)',
+  },
+  dayBtnActive: {
+    backgroundColor: PRIMARY_RED,
+    borderColor: PRIMARY_RED,
+  },
+  dayBtnText: {
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
+    color: PRIMARY_RED,
+  },
+  dayBtnTextActive: {
+    color: '#fff',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(11,27,58,0.1)',
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+  },
+  saveBtn: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  saveBtnGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveBtnText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: '#fff',
   },
 })
 

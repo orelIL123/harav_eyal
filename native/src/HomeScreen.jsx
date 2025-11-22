@@ -31,6 +31,8 @@ const IMAGES = [
   require('../assets/icon.png'),
 ]
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+
 function useFadeIn(delay = 0) {
   const anim = useMemo(() => new Animated.Value(0), [])
   React.useEffect(() => {
@@ -38,6 +40,131 @@ function useFadeIn(delay = 0) {
   }, [anim, delay])
   return anim
 }
+
+// ============ 3D ANIMATED COMPONENTS ============
+
+// Floating Sparkle Particle
+const SparkleParticle = React.memo(({ delay, startX, startY }) => {
+  const translateY = React.useRef(new Animated.Value(0)).current
+  const translateX = React.useRef(new Animated.Value(0)).current
+  const opacity = React.useRef(new Animated.Value(0)).current
+  const scale = React.useRef(new Animated.Value(0)).current
+
+  React.useEffect(() => {
+    const animate = () => {
+      translateY.setValue(0)
+      translateX.setValue(0)
+      opacity.setValue(0)
+      scale.setValue(0)
+
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(translateY, { toValue: -60 - Math.random() * 40, duration: 1500, useNativeDriver: true }),
+          Animated.timing(translateX, { toValue: (Math.random() - 0.5) * 60, duration: 1500, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 1, duration: 900, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          ]),
+          Animated.sequence([
+            Animated.spring(scale, { toValue: 1, tension: 100, friction: 5, useNativeDriver: true }),
+            Animated.timing(scale, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+          ]),
+        ]),
+      ]).start(() => animate())
+    }
+    animate()
+  }, [])
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        left: startX,
+        top: startY,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: PRIMARY_GOLD,
+        shadowColor: PRIMARY_GOLD,
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+        transform: [{ translateY }, { translateX }, { scale }],
+        opacity,
+      }}
+    />
+  )
+})
+
+// Card Glow Effect
+const CardGlow = React.memo(({ color = PRIMARY_RED }) => {
+  const pulseAnim = React.useRef(new Animated.Value(0)).current
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+      ])
+    ).start()
+  }, [])
+
+  const glowOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] })
+  const glowScale = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] })
+
+  return (
+    <Animated.View
+      style={{
+        ...StyleSheet.absoluteFillObject,
+        borderRadius: 20,
+        borderWidth: 2,
+        borderColor: color,
+        opacity: glowOpacity,
+        transform: [{ scale: glowScale }],
+      }}
+      pointerEvents="none"
+    />
+  )
+})
+
+// Shimmer Effect
+const ShimmerEffect = React.memo(() => {
+  const shimmerAnim = React.useRef(new Animated.Value(0)).current
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmerAnim, { toValue: 1, duration: 2500, useNativeDriver: true })
+    ).start()
+  }, [])
+
+  const translateX = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-200, 400],
+  })
+
+  return (
+    <Animated.View
+      style={{
+        ...StyleSheet.absoluteFillObject,
+        overflow: 'hidden',
+        borderRadius: 20,
+      }}
+      pointerEvents="none"
+    >
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          width: 100,
+          backgroundColor: 'rgba(255,255,255,0.15)',
+          transform: [{ translateX }, { skewX: '-20deg' }],
+        }}
+      />
+    </Animated.View>
+  )
+})
 
 
 function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, onPress }) {
@@ -312,7 +439,7 @@ export default function HomeScreen({ navigation }) {
       return
     }
     if (key === 'lessons') {
-      navigation?.navigate('LessonsLibrary')
+      navigation?.navigate('WeeklyLessons')
       return
     }
     if (key === 'faith-stories') {
@@ -620,6 +747,19 @@ export default function HomeScreen({ navigation }) {
               </View>
             )}
           </View>
+
+          {/* Powered by footer */}
+          <Pressable
+            style={styles.poweredByFooter}
+            onPress={() => {
+              const phone = '972523985505'
+              const message = encodeURIComponent('אהבתי את האפליקציה של הרב אייל עמרמי! אשמח לשמוע פרטים על אפליקציה לעסק.')
+              Linking.openURL(`https://wa.me/${phone}?text=${message}`)
+            }}
+          >
+            <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
+            <Text style={styles.poweredByText}>Powered by Orel Aharon</Text>
+          </Pressable>
 
         </ScrollView>
       </View>
@@ -1469,6 +1609,20 @@ const styles = StyleSheet.create({
     color: DEEP_BLUE,
     textAlign: 'center',
     maxWidth: 70,
+  },
+  poweredByFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  poweredByText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontFamily: 'Poppins_400Regular',
   },
 })
 

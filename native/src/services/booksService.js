@@ -13,14 +13,32 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
  */
 
 /**
- * Get all books
+ * Get all books (public access)
+ * Client-side filtering for isActive can be done if needed
  */
 export async function getBooks() {
   try {
     const books = await getAllDocuments('books', [], 'createdAt', 'desc')
-    return books
+    // Filter active books on client side
+    return books.filter(book => book.isActive !== false)
   } catch (error) {
     console.error('Error getting books:', error)
+    throw error
+  }
+}
+
+/**
+ * Get all books including inactive ones (for admins only)
+ * Security rules will enforce admin access
+ */
+export async function getAllBooksForAdmin() {
+  try {
+    // No filter - get all books (admins can see inactive ones)
+    // Security rules will ensure only admins can access inactive books
+    const books = await getAllDocuments('books', [], 'createdAt', 'desc')
+    return books
+  } catch (error) {
+    console.error('Error getting all books for admin:', error)
     throw error
   }
 }

@@ -171,8 +171,8 @@ service cloud.firestore {
     // ========== BOOKS COLLECTION ==========
 
     match /books/{bookId} {
-      // All signed-in users can read books
-      allow read: if isSignedIn();
+      // Public read for all books (like lessons)
+      allow read: if true;
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }
@@ -205,6 +205,14 @@ service cloud.firestore {
       allow read: if isAdmin();
       // Signed-in users can read active stories
       allow read: if isSignedIn() && resource.data.isActive == true;
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== WEEKLY LESSONS COLLECTION ==========
+    match /weeklyLessons/{lessonId} {
+      // Public read for all weekly lessons
+      allow read: if true;
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }

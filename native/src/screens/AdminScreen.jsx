@@ -12,7 +12,7 @@ import { createNews, getNews, updateNews, deleteNews } from '../services/newsSer
 import { getInstitutionContent, saveInstitutionContent } from '../services/institutionsService'
 import { createPodcast, getAllPodcasts, updatePodcast, deletePodcast, uploadPodcastAudio, uploadPodcastThumbnail } from '../services/podcastsService'
 import { createDailyVideo, getDailyVideos, deleteDailyVideo, cleanupExpiredVideos } from '../services/dailyVideosService'
-import { createBook, getBooks, updateBook, deleteBook } from '../services/booksService'
+import { createBook, getBooks, getAllBooksForAdmin, updateBook, deleteBook } from '../services/booksService'
 import { createFlyer, getFlyers, getAllFlyersForAdmin, updateFlyer, deleteFlyer } from '../services/flyersService'
 import { createCommunityPost, getCommunityPosts, updateCommunityPost, deleteCommunityPost } from '../services/communityPostsService'
 import { clearConsent, clearAllAppData } from '../utils/storage'
@@ -2062,7 +2062,8 @@ function BooksForm() {
   const loadBooks = async () => {
     try {
       setLoading(true)
-      const firebaseBooks = await getBooks()
+      // Use admin function to get all books including inactive ones
+      const firebaseBooks = await getAllBooksForAdmin()
       
       // Combine static and firebase books
       // Firebase books take precedence if they have the same ID
