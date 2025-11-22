@@ -18,10 +18,11 @@ import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firesto
 export async function getWeeklyLessons() {
   try {
     const lessons = await getAllDocuments('weeklyLessons', [], 'order', 'asc')
-    return lessons
+    return lessons || []
   } catch (error) {
     console.error('Error getting weekly lessons:', error)
-    throw error
+    // Return empty array instead of throwing to prevent crashes
+    return []
   }
 }
 

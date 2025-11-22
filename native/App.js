@@ -88,9 +88,12 @@ export default function App() {
         await logEventCustom('app_opened', { platform: Platform.OS })
       } catch (error) {
         console.error('Error initializing Analytics:', error)
+        // Don't crash if analytics fails
       }
     }
-    initAnalyticsAsync()
+    initAnalyticsAsync().catch(() => {
+      // Silently handle errors to prevent crashes
+    })
 
     // Check for updates
     const checkForUpdates = async () => {
@@ -105,9 +108,12 @@ export default function App() {
         }
       } catch (error) {
         console.error('Error checking for updates:', error)
+        // Don't crash if update check fails
       }
     }
-    checkForUpdates()
+    checkForUpdates().catch(() => {
+      // Silently handle errors to prevent crashes
+    })
 
     // Check if user has accepted consent
     const checkConsent = async () => {
@@ -118,9 +124,14 @@ export default function App() {
         }
       } catch (error) {
         console.error('Error checking consent:', error)
+        // Default to Home if consent check fails
+        setInitialRoute('Home')
       }
     }
-    checkConsent()
+    checkConsent().catch(() => {
+      // Default to Home if consent check fails
+      setInitialRoute('Home')
+    })
 
     // Show for 2s, then fade out over 1s
     const t = setTimeout(() => {
