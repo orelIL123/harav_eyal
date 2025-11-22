@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import React from 'react'
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -17,7 +17,7 @@ const BG = '#FFFFFF'
  *   <YourComponent />
  * </ErrorBoundary>
  */
-class ErrorBoundary extends Component {
+class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
     this.state = { hasError: false, error: null, errorInfo: null }
@@ -38,8 +38,13 @@ class ErrorBoundary extends Component {
       errorInfo
     })
 
-    // שלח ל-Crashlytics/Analytics
-    logError(error, `ErrorBoundary: ${errorInfo.componentStack || 'Unknown component'}`)
+    // שלח ל-Crashlytics/Analytics - עם טיפול בשגיאות
+    try {
+      logError(error, `ErrorBoundary: ${errorInfo?.componentStack || 'Unknown component'}`)
+    } catch (logErr) {
+      // אם יש בעיה ב-logError, פשוט לוג לקונסול
+      console.error('Error logging to analytics:', logErr)
+    }
   }
 
   handleReset = () => {
