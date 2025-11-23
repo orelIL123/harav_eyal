@@ -2,12 +2,25 @@ import React, { useMemo } from 'react'
 import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform, Dimensions, Image, ImageBackground, ScrollView, Share, Alert, Easing, Linking, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
-import { Grayscale } from 'react-native-color-matrix-image-filters'
+// Conditional import for native-only module (not available on web)
+let Grayscale = null
+if (Platform.OS !== 'web') {
+  try {
+    Grayscale = require('react-native-color-matrix-image-filters').Grayscale
+  } catch (e) {
+    // Fallback if module not available
+    Grayscale = ({ children }) => children
+  }
+} else {
+  // Web fallback - just return children
+  Grayscale = ({ children }) => children
+}
 import { useTranslation } from 'react-i18next'
 import i18n from './config/i18n'
-import { getAlerts, updateAlert } from './services/alertsService'
+import { getAlerts, updateAlert, deleteAlert } from './services/alertsService'
 import { getPodcasts } from './services/podcastsService'
-import { getDailyVideos } from './services/dailyVideosService'
+import { getDailyInsightLastUpdated } from './services/cardsService'
+import { getDailyInsightLastViewed, saveDailyInsightLastViewed } from './utils/storage'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -167,7 +180,65 @@ const ShimmerEffect = React.memo(() => {
 })
 
 
-function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, onPress }) {
+// Center Nav Button with rotation animation
+const CenterNavButton = ({ onPress }) => {
+  const { width } = Dimensions.get('window')
+  const rotateAnim = React.useRef(new Animated.Value(0)).current
+  const scaleAnim = React.useRef(new Animated.Value(1)).current
+
+  const handlePress = () => {
+    // Start rotation animation - faster
+    rotateAnim.setValue(0)
+    Animated.parallel([
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 350,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.spring(scaleAnim, { toValue: 0.9, useNativeDriver: true, tension: 300, friction: 4 }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 300, friction: 4 }),
+      ]),
+    ]).start(() => {
+      // Navigate after animation completes
+      onPress?.()
+    })
+  }
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
+
+  return (
+    <View style={[styles.centerNavContainer, { left: (width / 2) - 40 }]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={handlePress}
+        style={styles.centerNavButton}
+      >
+        <View style={styles.centerNavGlowOuter} />
+        <Animated.View 
+          style={[
+            styles.centerNavGradient,
+            {
+              transform: [{ rotate }, { scale: scaleAnim }],
+            }
+          ]}
+        >
+          <Image 
+            source={require('../assets/iconspining.png')} 
+            style={styles.spinningIcon}
+            resizeMode="cover"
+          />
+        </Animated.View>
+      </Pressable>
+    </View>
+  )
+}
+
+function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, onPress, hasNewDailyInsight }) {
   const { t } = useTranslation();
   const fade = useFadeIn(index * 80)
   const pressAnim = React.useRef(new Animated.Value(0)).current
@@ -233,6 +304,11 @@ function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, on
               />
             </View>
           )}
+          {item.key === 'faith-daily' && hasNewDailyInsight && (
+            <View style={styles.newBadge}>
+              <Text style={styles.newBadgeText}>1</Text>
+            </View>
+          )}
         </Animated.View>
       </Pressable>
     </View>
@@ -276,8 +352,7 @@ export default function HomeScreen({ navigation }) {
   const [activeAlerts, setActiveAlerts] = React.useState([])
   const [podcasts, setPodcasts] = React.useState([])
   const [loadingPodcasts, setLoadingPodcasts] = React.useState(true)
-  const [dailyVideos, setDailyVideos] = React.useState([])
-  const [loadingDailyVideos, setLoadingDailyVideos] = React.useState(true)
+  const [hasNewDailyInsight, setHasNewDailyInsight] = React.useState(false)
 
   // Load and filter alerts
   React.useEffect(() => {
@@ -299,19 +374,25 @@ export default function HomeScreen({ navigation }) {
           return expiresAt > now
         })
 
-        // Auto-deactivate expired alerts
+        // Auto-delete expired alerts (after 24 hours)
         const expiredAlerts = allAlerts.filter(alert => {
           if (!alert.expiresAt) return false
           const expiresAt = alert.expiresAt.toDate ? alert.expiresAt.toDate() : new Date(alert.expiresAt)
-          return expiresAt <= now && alert.isActive
+          return expiresAt <= now
         })
 
-        // Deactivate expired alerts
+        // Delete expired alerts completely
         for (const alert of expiredAlerts) {
           try {
-            await updateAlert(alert.id, { isActive: false })
+            await deleteAlert(alert.id)
           } catch (error) {
-            console.error('Error deactivating expired alert:', error)
+            console.error('Error deleting expired alert:', error)
+            // Fallback: deactivate if delete fails
+            try {
+              await updateAlert(alert.id, { isActive: false })
+            } catch (updateError) {
+              console.error('Error deactivating expired alert:', updateError)
+            }
           }
         }
 
@@ -369,43 +450,39 @@ export default function HomeScreen({ navigation }) {
     }
   }, [])
 
-  // Load daily videos
+  // Check for new daily insight updates
   React.useEffect(() => {
     let isMounted = true
 
-    const loadDailyVideos = async () => {
+    const checkForNewDailyInsight = async () => {
       try {
-        setLoadingDailyVideos(true)
-        const videos = await getDailyVideos()
+        const lastUpdated = await getDailyInsightLastUpdated()
+        const lastViewed = await getDailyInsightLastViewed()
 
         if (!isMounted) return
 
-        // Filter videos that are less than 24 hours old
-        const now = Date.now()
-        const validVideos = videos.filter(video => {
-          if (!video.createdAt) return false
-          const createdAt = video.createdAt.toDate ? video.createdAt.toDate().getTime() : new Date(video.createdAt).getTime()
-          const hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60)
-          return hoursSinceCreation < 24
-        })
-
-        setDailyVideos(validVideos)
+        // If there's an update and user hasn't viewed it yet, or update is newer than last viewed
+        if (lastUpdated) {
+          if (!lastViewed || lastUpdated > lastViewed) {
+            setHasNewDailyInsight(true)
+          } else {
+            setHasNewDailyInsight(false)
+          }
+        } else {
+          setHasNewDailyInsight(false)
+        }
       } catch (error) {
-        console.error('Error loading daily videos:', error)
-        if (isMounted) {
-          setDailyVideos([])
-        }
-      } finally {
-        if (isMounted) {
-          setLoadingDailyVideos(false)
-        }
+        console.error('Error checking for new daily insight:', error)
       }
     }
 
-    loadDailyVideos()
+    checkForNewDailyInsight()
+    // Check every 30 seconds
+    const interval = setInterval(checkForNewDailyInsight, 30000)
 
     return () => {
       isMounted = false
+      clearInterval(interval)
     }
   }, [])
 
@@ -425,8 +502,11 @@ export default function HomeScreen({ navigation }) {
 "${quoteText}"` }).catch(() => {})
   }, [quote, quoteText])
 
-  const handleCardPress = React.useCallback((key) => {
+  const handleCardPress = React.useCallback(async (key) => {
     if (key === 'faith-daily') {
+      // Mark as viewed when user opens the screen
+      await saveDailyInsightLastViewed()
+      setHasNewDailyInsight(false)
       navigation?.navigate('DailyInsight')
       return
     }
@@ -489,43 +569,6 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* Daily Videos Stories Row - WhatsApp style */}
-      {dailyVideos.length > 0 && (
-        <View style={styles.storiesContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            contentContainerStyle={styles.storiesRow}
-          >
-            {dailyVideos.map((video, index) => (
-              <Pressable
-                key={video.id}
-                style={styles.storyBubble}
-                onPress={() => navigation?.navigate('DailyInsight')}
-                accessibilityRole="button"
-              >
-                <View style={styles.storyRing}>
-                  {video.thumbnailUrl ? (
-                    <Image 
-                      source={{ uri: video.thumbnailUrl }} 
-                      style={styles.storyThumbnail}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <Ionicons name="videocam" size={24} color="#fff" />
-                  )}
-                </View>
-                {video.title && (
-                  <Text style={styles.storyTitle} numberOfLines={1}>
-                    {video.title}
-                  </Text>
-                )}
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
       {/* Active Alerts Banner */}
       {activeAlerts.length > 0 && (
         <View style={styles.alertsBanner}>
@@ -540,6 +583,13 @@ export default function HomeScreen({ navigation }) {
               
               return (
                 <View key={alert.id} style={[styles.alertBanner, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                  {alert.imageUrl && (
+                    <Image 
+                      source={{ uri: alert.imageUrl }} 
+                      style={styles.alertBannerImage}
+                      resizeMode="cover"
+                    />
+                  )}
                   <View style={styles.alertBannerContent}>
                     <Text style={[styles.alertBannerTitle, { color: colors.text }]}>{alert.title}</Text>
                     <Text style={[styles.alertBannerMessage, { color: colors.text }]} numberOfLines={1}>
@@ -589,6 +639,7 @@ export default function HomeScreen({ navigation }) {
                 CARD_HEIGHT={CARD_HEIGHT}
                 OVERLAP={OVERLAP}
                 onPress={() => handleCardPress(item.key)}
+                hasNewDailyInsight={hasNewDailyInsight}
               />
             )}
           />
@@ -795,25 +846,12 @@ export default function HomeScreen({ navigation }) {
         </View>
 
         {/* CENTER - Short Lessons (Featured Button) */}
-        <View style={[styles.centerNavContainer, { left: (width / 2) - 40 }]}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => { 
-              setActiveTab('shortLessons'); 
-              navigation?.navigate('LessonsLibrary', { initialCategory: 'shortLessons' })
-            }}
-            style={styles.centerNavButton}
-          >
-            <View style={styles.centerNavGlowOuter} />
-            <View style={styles.centerNavGradient}>
-              <Image 
-                source={require('../assets/iconspining.png')} 
-                style={styles.spinningIcon}
-                resizeMode="cover"
-              />
-            </View>
-          </Pressable>
-        </View>
+        <CenterNavButton 
+          onPress={() => { 
+            setActiveTab('shortLessons'); 
+            navigation?.navigate('LessonsLibrary', { initialCategory: 'shortLessons' })
+          }}
+        />
 
         {/* חדשות הקהילה */}
         <View style={[styles.navItemContainer, styles.navItemSpacedLeft]}>
@@ -1552,6 +1590,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
     minWidth: 280,
     maxWidth: 320,
+    overflow: 'hidden',
+  },
+  alertBannerImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginLeft: 8,
   },
   alertBannerContent: {
     flex: 1,
@@ -1572,44 +1617,6 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 12,
   },
-  storiesContainer: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: BG,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(11,27,58,0.08)',
-  },
-  storiesRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  storyBubble: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  storyRing: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    borderWidth: 3,
-    borderColor: PRIMARY_RED,
-    overflow: 'hidden',
-  },
-  storyThumbnail: {
-    width: '100%',
-    height: '100%',
-  },
-  storyTitle: {
-    fontSize: 11,
-    fontFamily: 'Poppins_500Medium',
-    color: DEEP_BLUE,
-    textAlign: 'center',
-    maxWidth: 70,
-  },
   poweredByFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1623,6 +1630,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
     fontFamily: 'Poppins_400Regular',
+  },
+  newBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: PRIMARY_RED,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
+  },
+  newBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Poppins_700Bold',
+    fontWeight: 'bold',
   },
 })
 

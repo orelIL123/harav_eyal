@@ -1,286 +1,25 @@
-import { auth } from '../config/firebase'
+import { auth, db } from '../config/firebase'
 import { 
+  signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
   signOut,
-  sendPasswordResetEmail,
   onAuthStateChanged,
-  updateProfile,
-  updateEmail,
+  sendPasswordResetEmail,
   updatePassword,
   reauthenticateWithCredential,
-  EmailAuthProvider
+  EmailAuthProvider,
+  deleteUser
 } from 'firebase/auth'
-import { setDocument, getDocument, getAllDocuments } from './firestore'
-import { validateEmail, validatePassword, validatePhone } from '../utils/validation'
-import { Analytics, setUserPropertiesCustom, setCrashlyticsUser } from './analyticsService'
+import { doc, getDoc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 
 /**
- * Authentication Service - כל פונקציות ה-Auth
+ * Auth Service - Handle authentication operations
  */
 
 /**
- * Helper: Check if input is email or phone
- */
-function isEmail(input) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.trim())
-}
-
-/**
- * Helper: Normalize phone number for storage/search
- */
-function normalizePhone(phone) {
-  return phone.trim().replace(/[\s\-\(\)\+]/g, '')
-}
-
-/**
- * Helper: Find user email by phone number
- */
-async function findEmailByPhone(phone) {
-  try {
-    const normalizedPhone = normalizePhone(phone)
-    // Search in Firestore for user with this phone
-    const users = await getAllDocuments('users', [
-      { field: 'phone', operator: '==', value: normalizedPhone }
-    ], null, 'asc', 1)
-    
-    if (users && users.length > 0) {
-      // Return the email or the phone-based email format
-      const user = users[0]
-      if (user.email && !user.email.includes('@phone.local')) {
-        return user.email
-      }
-      // If user registered with phone, return the phone-based email
-      return `${normalizedPhone}@phone.local`
-    }
-    return null
-  } catch (error) {
-    console.error('Error finding email by phone:', error)
-    return null
-  }
-}
-
-/**
- * Register new user (with email or phone)
- */
-export async function register(emailOrPhone, password, displayName = '', phone = null) {
-  try {
-    let email = emailOrPhone
-    let phoneNumber = phone
-
-    // Determine if input is email or phone
-    if (isEmail(emailOrPhone)) {
-      // Validate email
-      const emailValidation = validateEmail(emailOrPhone)
-      if (!emailValidation.valid) {
-        return { user: null, error: emailValidation.error }
-      }
-      email = emailOrPhone.trim()
-    } else {
-      // It's a phone number
-      const phoneValidation = validatePhone(emailOrPhone)
-      if (!phoneValidation.valid) {
-        return { user: null, error: phoneValidation.error }
-      }
-      
-      // For phone registration, create email-like identifier
-      // Format: phone@phone.local (Firebase requires email format)
-      const normalizedPhone = normalizePhone(emailOrPhone)
-      email = `${normalizedPhone}@phone.local`
-      phoneNumber = normalizedPhone
-    }
-
-    // Validate password
-    const passwordValidation = validatePassword(password, { minLength: 6 })
-    if (!passwordValidation.valid) {
-      return { user: null, error: passwordValidation.error }
-    }
-
-    // Check if user already exists (by email or phone)
-    if (phoneNumber) {
-      const existingEmail = await findEmailByPhone(phoneNumber)
-      if (existingEmail) {
-        return { user: null, error: 'מספר טלפון זה כבר רשום במערכת' }
-      }
-    }
-
-    // Create user in Firebase Auth
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-    const user = userCredential.user
-    
-    // Update display name
-    if (displayName) {
-      await updateProfile(user, { displayName })
-    }
-    
-    // Create user document in Firestore
-    await setDocument('users', user.uid, {
-      uid: user.uid,
-      email: isEmail(emailOrPhone) ? email : null, // Only store real email
-      phone: phoneNumber || null,
-      displayName: displayName || (isEmail(emailOrPhone) ? email.split('@')[0] : 'משתמש'),
-      photoURL: null,
-      role: 'user',
-      tier: 'free',
-      notificationsEnabled: true,
-      fcmTokens: [],
-      metadata: {
-        onboardingCompleted: false,
-        preferredLanguage: 'he'
-      }
-    }, false) // false = don't merge, create new
-    
-    // Track registration in Analytics
-    Analytics.userRegister()
-    setUserPropertiesCustom(user.uid, { email: email, phone: phoneNumber })
-    setCrashlyticsUser(user.uid, email)
-    
-    return { user, error: null }
-  } catch (error) {
-    console.error('Registration error:', error)
-    return { user: null, error: getAuthErrorMessage(error.code) }
-  }
-}
-
-/**
- * Login user (with email or phone)
- */
-export async function login(emailOrPhone, password) {
-  try {
-    let email = emailOrPhone
-
-    // Determine if input is email or phone
-    if (!isEmail(emailOrPhone)) {
-      // It's a phone number - find the associated email
-      const phoneValidation = validatePhone(emailOrPhone)
-      if (!phoneValidation.valid) {
-        return { user: null, error: phoneValidation.error }
-      }
-      
-      const foundEmail = await findEmailByPhone(emailOrPhone)
-      if (!foundEmail) {
-        return { user: null, error: 'מספר טלפון זה לא רשום במערכת' }
-      }
-      email = foundEmail
-    } else {
-      // Validate email
-      const emailValidation = validateEmail(emailOrPhone)
-      if (!emailValidation.valid) {
-        return { user: null, error: emailValidation.error }
-      }
-      email = emailOrPhone.trim()
-    }
-
-    // Password is validated by Firebase, but we can add basic check
-    if (!password || password.length === 0) {
-      return { user: null, error: 'סיסמה נדרשת' }
-    }
-
-    const userCredential = await signInWithEmailAndPassword(auth, email, password)
-    const user = userCredential.user
-    
-    console.log('🔐 Login successful:', { uid: user.uid, email: user.email })
-    
-    // Clear ALL cache for this user to force refresh
-    try {
-      const { removeCached, CACHE_KEYS, clearAllCache } = await import('../utils/cache')
-      // Clear specific user caches
-      await removeCached(CACHE_KEYS.USER(user.uid))
-      await removeCached(CACHE_KEYS.USER_ADMIN(user.uid))
-      // Also clear all cache to be safe
-      await clearAllCache()
-      console.log('🧹 All cache cleared for user')
-    } catch (cacheError) {
-      console.warn('Warning: Could not clear cache:', cacheError)
-    }
-    
-    // Force refresh user data immediately
-    try {
-      const { userData } = await getUserData(user.uid)
-      console.log('📋 User data refreshed:', { role: userData?.role, email: userData?.email })
-    } catch (error) {
-      console.warn('Warning: Could not refresh user data:', error)
-    }
-    
-    // Update last login time
-    await setDocument('users', user.uid, {
-      lastLoginAt: new Date()
-    }, true) // true = merge
-    
-    // Track login in Analytics
-    Analytics.userLogin('email')
-    setUserPropertiesCustom(user.uid, { email: user.email })
-    setCrashlyticsUser(user.uid, user.email)
-    
-    return { user, error: null }
-  } catch (error) {
-    console.error('Login error:', error)
-    return { user: null, error: getAuthErrorMessage(error.code) }
-  }
-}
-
-/**
- * Logout user
- */
-export async function logout() {
-  try {
-    // Track logout in Analytics before signing out
-    Analytics.userLogout()
-    
-    await signOut(auth)
-    return { error: null }
-  } catch (error) {
-    console.error('Logout error:', error)
-    return { error: getAuthErrorMessage(error.code) }
-  }
-}
-
-/**
- * Send password reset (with email or phone)
- */
-export async function resetPassword(emailOrPhone) {
-  try {
-    let email = emailOrPhone
-
-    // Determine if input is email or phone
-    if (!isEmail(emailOrPhone)) {
-      // It's a phone number - find the associated email
-      const phoneValidation = validatePhone(emailOrPhone)
-      if (!phoneValidation.valid) {
-        return { error: phoneValidation.error }
-      }
-      
-      const foundEmail = await findEmailByPhone(emailOrPhone)
-      if (!foundEmail) {
-        return { error: 'מספר טלפון זה לא רשום במערכת. אנא פנה לתמיכה' }
-      }
-      email = foundEmail
-    } else {
-      // Validate email
-      const emailValidation = validateEmail(emailOrPhone)
-      if (!emailValidation.valid) {
-        return { error: emailValidation.error }
-      }
-      email = emailOrPhone.trim()
-    }
-
-    await sendPasswordResetEmail(auth, email)
-    return { error: null }
-  } catch (error) {
-    console.error('Password reset error:', error)
-    return { error: getAuthErrorMessage(error.code) }
-  }
-}
-
-/**
- * Get current user
- */
-export function getCurrentUser() {
-  return auth.currentUser
-}
-
-/**
- * Listen to auth state changes
+ * Listen to authentication state changes
+ * @param {Function} callback - Callback function that receives the user object
+ * @returns {Function} Unsubscribe function
  */
 export function onAuthStateChange(callback) {
   return onAuthStateChanged(auth, callback)
@@ -288,120 +27,302 @@ export function onAuthStateChange(callback) {
 
 /**
  * Get user data from Firestore
+ * @param {string} userId - User ID
+ * @returns {Promise<{userData: object | null, error: string | null}>}
  */
 export async function getUserData(userId) {
   try {
-    console.log(`🔍 Getting user data for: ${userId}`)
-    const userData = await getDocument('users', userId)
-    if (userData) {
-      console.log(`✅ User data retrieved:`, { 
-        uid: userData.uid, 
-        email: userData.email, 
-        role: userData.role,
-        tier: userData.tier 
-      })
-    } else {
-      console.log(`⚠️ User data is null for: ${userId}`)
+    const userDoc = await getDoc(doc(db, 'users', userId))
+    if (userDoc.exists()) {
+      return { userData: userDoc.data(), error: null }
     }
-    return { userData, error: null }
+    return { userData: null, error: 'User data not found' }
   } catch (error) {
-    console.error('❌ Error getting user data:', error)
-    console.error(`   Error code: ${error.code}`)
-    console.error(`   Error message: ${error.message}`)
-    if (error.code === 'permission-denied') {
-      console.error('   ⚠️ PERMISSION DENIED - Check Firestore Rules!')
-    }
+    console.error('Error getting user data:', error)
     return { userData: null, error: error.message }
   }
 }
 
 /**
- * Update user profile
- */
-export async function updateUserProfile(userId, updates) {
-  try {
-    // Update Firebase Auth profile if needed
-    const user = auth.currentUser
-    if (user && updates.displayName) {
-      await updateProfile(user, { displayName: updates.displayName })
-    }
-    if (user && updates.photoURL) {
-      await updateProfile(user, { photoURL: updates.photoURL })
-    }
-    
-    // Update Firestore
-    await setDocument('users', userId, updates, true)
-    return { error: null }
-  } catch (error) {
-    console.error('Error updating profile:', error)
-    return { error: getAuthErrorMessage(error.code) }
-  }
-}
-
-/**
- * Change password
- */
-export async function changePassword(currentPassword, newPassword) {
-  try {
-    const user = auth.currentUser
-    if (!user || !user.email) {
-      return { error: 'משתמש לא מחובר' }
-    }
-
-    // Validate new password
-    const passwordValidation = validatePassword(newPassword, { minLength: 6 })
-    if (!passwordValidation.valid) {
-      return { error: passwordValidation.error }
-    }
-    
-    // Re-authenticate
-    const credential = EmailAuthProvider.credential(user.email, currentPassword)
-    await reauthenticateWithCredential(user, credential)
-    
-    // Update password
-    await updatePassword(user, newPassword)
-    return { error: null }
-  } catch (error) {
-    console.error('Error changing password:', error)
-    return { error: getAuthErrorMessage(error.code) }
-  }
-}
-
-/**
  * Check if user is admin
+ * @param {string} userId - User ID
+ * @returns {Promise<boolean>}
  */
 export async function isUserAdmin(userId) {
   try {
-    const userData = await getDocument('users', userId)
-    console.log('🔍 isUserAdmin check:', { userId, role: userData?.role, userData })
-    const isAdmin = userData?.role === 'admin'
-    console.log('✅ isUserAdmin result:', isAdmin)
-    return isAdmin
+    const userDoc = await getDoc(doc(db, 'users', userId))
+    if (userDoc.exists()) {
+      const userData = userDoc.data()
+      return userData.role === 'admin'
+    }
+    return false
   } catch (error) {
-    console.error('❌ Error checking admin status:', error)
+    console.error('Error checking admin status:', error)
     return false
   }
 }
 
 /**
- * Get user-friendly error messages
+ * Login user with email/phone and password
+ * @param {string} emailOrPhone - User email or phone number
+ * @param {string} password - User password
+ * @returns {Promise<{user: object | null, error: string | null}>}
  */
-function getAuthErrorMessage(errorCode) {
-  const errorMessages = {
-    'auth/email-already-in-use': 'כתובת האימייל כבר בשימוש',
-    'auth/invalid-email': 'כתובת אימייל לא תקינה',
-    'auth/operation-not-allowed': 'פעולה לא מורשית',
-    'auth/weak-password': 'הסיסמה חלשה מדי (מינימום 6 תווים)',
-    'auth/user-disabled': 'המשתמש הושבת',
-    'auth/user-not-found': 'משתמש לא נמצא',
-    'auth/wrong-password': 'סיסמה שגויה',
-    'auth/invalid-credential': 'פרטי התחברות שגויים',
-    'auth/too-many-requests': 'יותר מדי ניסיונות. נסה שוב מאוחר יותר',
-    'auth/network-request-failed': 'בעיית רשת. בדוק את החיבור לאינטרנט',
-    'auth/requires-recent-login': 'נדרש להתחבר מחדש לביטחון',
+export async function login(emailOrPhone, password) {
+  try {
+    // Determine if input is email or phone
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailOrPhone.trim())
+
+    let authEmail = emailOrPhone.trim()
+
+    // If phone number, convert to fake email format
+    if (!isEmail) {
+      const cleanPhone = emailOrPhone.trim().replace(/[\s\-\(\)\+]/g, '')
+      const normalizedPhone = cleanPhone.startsWith('972') ? '0' + cleanPhone.slice(3) : cleanPhone
+      authEmail = `${normalizedPhone}@phone.local`
+    }
+
+    const userCredential = await signInWithEmailAndPassword(auth, authEmail, password)
+
+    // Update last login time
+    try {
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        lastLoginAt: serverTimestamp()
+      }, { merge: true })
+    } catch (error) {
+      console.warn('Could not update last login time:', error)
+    }
+
+    return { user: userCredential.user, error: null }
+  } catch (error) {
+    console.error('Login error:', error)
+    let errorMessage = 'שגיאה בהתחברות'
+
+    switch (error.code) {
+      case 'auth/user-not-found':
+        errorMessage = 'משתמש לא נמצא'
+        break
+      case 'auth/wrong-password':
+        errorMessage = 'סיסמה שגויה'
+        break
+      case 'auth/invalid-email':
+        errorMessage = 'כתובת אימייל או טלפון לא תקין'
+        break
+      case 'auth/user-disabled':
+        errorMessage = 'המשתמש הושבת'
+        break
+      case 'auth/too-many-requests':
+        errorMessage = 'יותר מדי ניסיונות. נסה שוב מאוחר יותר'
+        break
+      default:
+        errorMessage = error.message || 'שגיאה בהתחברות'
+    }
+
+    return { user: null, error: errorMessage }
   }
-  
-  return errorMessages[errorCode] || 'שגיאה לא ידועה. נסה שוב'
 }
 
+/**
+ * Register new user
+ * @param {string} emailOrPhone - User email or phone number
+ * @param {string} password - User password
+ * @param {string} displayName - User display name
+ * @param {string} phone - Phone number (optional, used if emailOrPhone is phone)
+ * @returns {Promise<{user: object | null, error: string | null}>}
+ */
+export async function register(emailOrPhone, password, displayName, phone = null) {
+  try {
+    // Determine if input is email or phone
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailOrPhone.trim())
+
+    let authEmail = emailOrPhone.trim()
+    let userPhone = phone
+
+    // If phone number, create a fake email for Firebase Auth
+    if (!isEmail) {
+      // Clean phone number - remove spaces, dashes, etc
+      const cleanPhone = emailOrPhone.trim().replace(/[\s\-\(\)\+]/g, '')
+      // Normalize to start with 0 if it starts with 972
+      const normalizedPhone = cleanPhone.startsWith('972') ? '0' + cleanPhone.slice(3) : cleanPhone
+      userPhone = normalizedPhone
+      // Create fake email from phone for Firebase Auth
+      authEmail = `${normalizedPhone}@phone.local`
+    }
+
+    const userCredential = await createUserWithEmailAndPassword(auth, authEmail, password)
+
+    // Create user document in Firestore
+    await setDoc(doc(db, 'users', userCredential.user.uid), {
+      uid: userCredential.user.uid,
+      email: isEmail ? emailOrPhone.trim() : null,
+      phone: userPhone,
+      displayName: displayName || '',
+      photoURL: null,
+      tier: 'free',
+      role: 'user',
+      createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
+      notificationsEnabled: true,
+      fcmTokens: [],
+      streakDays: 0,
+      completedCourses: [],
+      metadata: {
+        onboardingCompleted: false,
+        preferredLanguage: 'he'
+      }
+    })
+
+    return { user: userCredential.user, error: null }
+  } catch (error) {
+    console.error('Registration error:', error)
+    let errorMessage = 'שגיאה בהרשמה'
+
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+        errorMessage = 'האימייל או מספר הטלפון כבר בשימוש'
+        break
+      case 'auth/invalid-email':
+        errorMessage = 'כתובת אימייל לא תקינה'
+        break
+      case 'auth/weak-password':
+        errorMessage = 'הסיסמה חלשה מדי'
+        break
+      default:
+        errorMessage = error.message || 'שגיאה בהרשמה'
+    }
+
+    return { user: null, error: errorMessage }
+  }
+}
+
+/**
+ * Logout current user
+ * @returns {Promise<{error: string | null}>}
+ */
+export async function logout() {
+  try {
+    await signOut(auth)
+    return { error: null }
+  } catch (error) {
+    console.error('Logout error:', error)
+    return { error: error.message || 'שגיאה בהתנתקות' }
+  }
+}
+
+/**
+ * Reset password
+ * @param {string} email - User email
+ * @returns {Promise<{error: string | null}>}
+ */
+export async function resetPassword(email) {
+  try {
+    await sendPasswordResetEmail(auth, email)
+    return { error: null }
+  } catch (error) {
+    console.error('Password reset error:', error)
+    let errorMessage = 'שגיאה באיפוס סיסמה'
+    
+    switch (error.code) {
+      case 'auth/user-not-found':
+        errorMessage = 'משתמש לא נמצא'
+        break
+      case 'auth/invalid-email':
+        errorMessage = 'כתובת אימייל לא תקינה'
+        break
+      default:
+        errorMessage = error.message || 'שגיאה באיפוס סיסמה'
+    }
+    
+    return { error: errorMessage }
+  }
+}
+
+/**
+ * Update user password
+ * @param {string} newPassword - The new password
+ * @returns {Promise<{error: string | null}>}
+ */
+export async function updateUserPassword(newPassword) {
+  const user = auth.currentUser
+  if (!user) {
+    return { error: 'No user is currently signed in.' }
+  }
+
+  try {
+    await updatePassword(user, newPassword)
+    return { error: null }
+  } catch (error) {
+    console.error('Password update error:', error)
+    let errorMessage = 'שגיאה בעדכון הסיסמה.'
+    if (error.code === 'auth/requires-recent-login') {
+      errorMessage = 'פעולה זו דורשת אימות מחדש. אנא התחבר שוב ונסה שנית.'
+    }
+    return { error: errorMessage }
+  }
+}
+
+/**
+ * Delete user account permanently
+ * Requires reauthentication with password for security
+ * @param {string} password - User password for reauthentication
+ * @returns {Promise<{error: string | null}>}
+ */
+export async function deleteAccount(password) {
+  const user = auth.currentUser
+  if (!user) {
+    return { error: 'אין משתמש מחובר' }
+  }
+
+  try {
+    // Reauthenticate user with password
+    const email = user.email
+    if (!email) {
+      return { error: 'לא ניתן לזהות את המשתמש' }
+    }
+
+    // Create credential for reauthentication
+    const credential = EmailAuthProvider.credential(email, password)
+    await reauthenticateWithCredential(user, credential)
+
+    // Delete user document from Firestore
+    try {
+      await deleteDoc(doc(db, 'users', user.uid))
+      console.log('✅ User document deleted from Firestore')
+    } catch (firestoreError) {
+      console.error('Error deleting user document from Firestore:', firestoreError)
+      // Continue with auth deletion even if Firestore deletion fails
+    }
+
+    // Delete Firebase Auth account
+    await deleteUser(user)
+    console.log('✅ User account deleted from Firebase Auth')
+
+    // Sign out (should happen automatically, but ensure it)
+    await signOut(auth)
+
+    return { error: null }
+  } catch (error) {
+    console.error('Account deletion error:', error)
+    let errorMessage = 'שגיאה במחיקת החשבון'
+
+    switch (error.code) {
+      case 'auth/wrong-password':
+        errorMessage = 'סיסמה שגויה. אנא נסה שוב.'
+        break
+      case 'auth/requires-recent-login':
+        errorMessage = 'פעולה זו דורשת אימות מחדש. אנא התחבר שוב ונסה שנית.'
+        break
+      case 'auth/user-mismatch':
+        errorMessage = 'שגיאה באימות המשתמש'
+        break
+      case 'auth/invalid-credential':
+        errorMessage = 'פרטי התחברות לא תקינים'
+        break
+      default:
+        errorMessage = error.message || 'שגיאה במחיקת החשבון'
+    }
+
+    return { error: errorMessage }
+  }
+}
 

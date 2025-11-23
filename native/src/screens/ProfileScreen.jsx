@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert, Image } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert, Image, TextInput, ActivityIndicator, Modal } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAuth } from '../utils/AuthContext'
+import { useTranslation } from 'react-i18next'
+import { deleteAccount } from '../services/authService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -12,7 +14,11 @@ const BLACK = '#000000'
 
 export default function ProfileScreen({ navigation }) {
   const { user, userData, isAdmin, logout } = useAuth()
+  const { t } = useTranslation()
   const isLoggedIn = !!user
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
   
   // Debug logging
   React.useEffect(() => {
@@ -31,19 +37,85 @@ export default function ProfileScreen({ navigation }) {
   }
 
   const handleLogout = () => {
-    Alert.alert('התנתקות', 'האם אתה בטוח שברצונך להתנתק?', [
-      { text: 'ביטול', style: 'cancel' },
+    Alert.alert(t('profile.logoutConfirm'), t('profile.logoutMessage'), [
+      { text: t('profile.cancel'), style: 'cancel' },
       { 
-        text: 'התנתק', 
+        text: t('profile.logout'), 
         style: 'destructive',
         onPress: async () => {
           const { error } = await logout()
           if (error) {
-            Alert.alert('שגיאה', error)
+            Alert.alert(t('error'), error)
           }
         }
       }
     ])
+  }
+
+  const handleDeleteAccount = () => {
+    // First confirmation dialog
+    Alert.alert(
+      t('profile.deleteAccountTitle'),
+      t('profile.deleteAccountWarning'),
+      [
+        { text: t('profile.cancel'), style: 'cancel' },
+        {
+          text: t('profile.deleteAccountConfirm'),
+          style: 'destructive',
+          onPress: () => {
+            setDeletePassword('')
+            setShowPasswordModal(true)
+          }
+        }
+      ]
+    )
+  }
+
+  const handlePasswordSubmit = async () => {
+    if (!deletePassword || deletePassword.trim() === '') {
+      Alert.alert(t('error'), t('profile.wrongPassword'))
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      const { error } = await deleteAccount(deletePassword.trim())
+      setIsDeleting(false)
+      setShowPasswordModal(false)
+      setDeletePassword('')
+
+      if (error) {
+        Alert.alert(t('profile.deleteAccountError'), error)
+      } else {
+        Alert.alert(
+          t('profile.deleteAccountSuccess'),
+          '',
+          [
+            {
+              text: t('profile.confirm'),
+              onPress: () => {
+                // User will be automatically logged out
+                // Navigate to home or login screen
+                navigation?.reset({
+                  index: 0,
+                  routes: [{ name: 'Home' }],
+                })
+              }
+            }
+          ]
+        )
+      }
+    } catch (err) {
+      setIsDeleting(false)
+      setShowPasswordModal(false)
+      setDeletePassword('')
+      Alert.alert(t('profile.deleteAccountError'), err.message || t('profile.deleteAccountError'))
+    }
+  }
+
+  const handlePasswordModalCancel = () => {
+    setShowPasswordModal(false)
+    setDeletePassword('')
   }
 
   return (
@@ -117,7 +189,7 @@ export default function ProfileScreen({ navigation }) {
             <Pressable 
               style={styles.optionCard} 
               accessibilityRole="button"
-              onPress={() => Alert.alert('בקרוב', 'עריכת פרטים אישיים תתווסף בקרוב')}
+              onPress={() => navigation.navigate('EditProfile')}
             >
               <View style={styles.optionContent}>
                 <View style={styles.optionRight}>
@@ -136,7 +208,7 @@ export default function ProfileScreen({ navigation }) {
             <Pressable 
               style={styles.optionCard} 
               accessibilityRole="button"
-              onPress={() => Alert.alert('בקרוב', 'שינוי סיסמה תתווסף בקרוב')}
+              onPress={() => navigation.navigate('ChangePassword')}
             >
               <View style={styles.optionContent}>
                 <View style={styles.optionRight}>
@@ -155,7 +227,7 @@ export default function ProfileScreen({ navigation }) {
             <Pressable 
               style={styles.optionCard} 
               accessibilityRole="button"
-              onPress={() => Alert.alert('בקרוב', 'הגדרות התראות תתווספנה בקרוב')}
+              onPress={() => navigation.navigate('Notifications')}
             >
               <View style={styles.optionContent}>
                 <View style={styles.optionRight}>
@@ -276,6 +348,38 @@ export default function ProfileScreen({ navigation }) {
           </Pressable>
         </View>
 
+        {/* Danger Zone - Delete Account - Show when logged in */}
+        {isLoggedIn && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.dangerZoneTitle}>{t('profile.dangerZone')}</Text>
+            </View>
+            <Pressable 
+              style={[styles.optionCard, styles.dangerCard]} 
+              accessibilityRole="button"
+              onPress={handleDeleteAccount}
+              disabled={isDeleting}
+            >
+              <View style={styles.optionContent}>
+                <View style={styles.optionRight}>
+                  <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+                  <View style={styles.optionText}>
+                    <Text style={[styles.optionTitle, styles.dangerText]}>{t('profile.deleteAccount')}</Text>
+                    <Text style={[styles.optionDesc, styles.dangerDesc]}>{t('profile.deleteAccountDesc')}</Text>
+                  </View>
+                </View>
+                <View style={[styles.optionIcon, styles.dangerIcon]}>
+                  {isDeleting ? (
+                    <ActivityIndicator size="small" color={PRIMARY_RED} />
+                  ) : (
+                    <Ionicons name="trash-outline" size={22} color={PRIMARY_RED} />
+                  )}
+                </View>
+              </View>
+            </Pressable>
+          </View>
+        )}
+
         {/* Logout Button - Show when logged in */}
         {isLoggedIn && (
           <View style={styles.section}>
@@ -285,13 +389,60 @@ export default function ProfileScreen({ navigation }) {
               onPress={handleLogout}
             >
               <Ionicons name="log-out-outline" size={22} color={PRIMARY_RED} />
-              <Text style={styles.logoutText}>התנתק</Text>
+              <Text style={styles.logoutText}>{t('profile.logout')}</Text>
             </Pressable>
           </View>
         )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Password Modal for Account Deletion */}
+      <Modal
+        visible={showPasswordModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handlePasswordModalCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('profile.deleteAccountTitle')}</Text>
+            <Text style={styles.modalMessage}>{t('profile.deleteAccountPassword')}</Text>
+            
+            <TextInput
+              style={styles.passwordInput}
+              placeholder={t('profile.deleteAccountPasswordPlaceholder')}
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              autoFocus
+              editable={!isDeleting}
+            />
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={handlePasswordModalCancel}
+                disabled={isDeleting}
+              >
+                <Text style={styles.modalButtonCancelText}>{t('profile.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonDelete]}
+                onPress={handlePasswordSubmit}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.modalButtonDeleteText}>{t('profile.deleteAccountConfirm')}</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -562,5 +713,101 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: PRIMARY_RED,
+  },
+  dangerZoneTitle: {
+    fontSize: 17,
+    fontFamily: 'Poppins_600SemiBold',
+    color: PRIMARY_RED,
+    letterSpacing: 0.3,
+  },
+  dangerCard: {
+    borderColor: 'rgba(220,38,38,0.3)',
+    borderWidth: 1.5,
+  },
+  dangerText: {
+    color: PRIMARY_RED,
+  },
+  dangerDesc: {
+    color: '#991b1b',
+  },
+  dangerIcon: {
+    backgroundColor: 'rgba(220,38,38,0.15)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins_700Bold',
+    color: PRIMARY_RED,
+    marginBottom: 12,
+    textAlign: 'right',
+  },
+  modalMessage: {
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: DEEP_BLUE,
+    marginBottom: 20,
+    textAlign: 'right',
+    lineHeight: 20,
+  },
+  passwordInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(11,27,58,0.2)',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    fontFamily: 'Poppins_400Regular',
+    color: DEEP_BLUE,
+    marginBottom: 20,
+    textAlign: 'right',
+    backgroundColor: '#f9fafb',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: 'rgba(11,27,58,0.1)',
+  },
+  modalButtonCancelText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+  },
+  modalButtonDelete: {
+    backgroundColor: PRIMARY_RED,
+  },
+  modalButtonDeleteText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: '#ffffff',
   },
 })
