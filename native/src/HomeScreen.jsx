@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
-import { View, Text, StyleSheet, FlatList, Pressable, Animated, Platform, Dimensions, Image, ImageBackground, ScrollView, Share, Alert, Easing, Linking, ActivityIndicator } from 'react-native'
+import { View, Text, StyleSheet, Pressable, Animated, Platform, Dimensions, Image, ImageBackground, ScrollView, Share, Alert, Linking, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import Svg, { Path } from 'react-native-svg'
 // Conditional import for native-only module (not available on web)
 let Grayscale = null
 if (Platform.OS !== 'web') {
@@ -17,7 +18,7 @@ if (Platform.OS !== 'web') {
 }
 import { useTranslation } from 'react-i18next'
 import i18n from './config/i18n'
-import { getAlerts, updateAlert, deleteAlert } from './services/alertsService'
+import { getAlerts, updateAlert, deleteAlert, getUnreadAlertsCount, markAlertAsViewed } from './services/alertsService'
 import { getPodcasts } from './services/podcastsService'
 import { getDailyInsightLastUpdated } from './services/cardsService'
 import { getDailyInsightLastViewed, saveDailyInsightLastViewed } from './utils/storage'
@@ -30,9 +31,11 @@ const BLACK = '#000000'
 
 const CARDS = [
   { key: 'faith-daily', title: 'home.faithBoost', desc: 'home.faithBoostDesc', icon: 'sparkles-outline', image: require('../assets/photos/זריקת אמונה.png') },
-  { key: 'books', title: 'home.books', desc: 'home.booksDesc', icon: 'book-outline', image: require('../assets/photos/ספרים/hbooks183_06072020180826.jpg') },
-  { key: 'institutions', title: 'home.rabbiInstitutions', desc: 'home.rabbiInstitutionsDesc', icon: 'school-outline', image: require('../assets/icon.png') },
   { key: 'lessons', title: 'home.lessonsLibrary', desc: 'home.lessonsLibraryDesc', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
+  { key: 'institutions', title: 'home.rabbiInstitutions', desc: 'home.rabbiInstitutionsDesc', icon: 'school-outline', image: require('../assets/icon.png') },
+  { key: 'lessons-library', title: 'ספריית לימוד', desc: 'ספריית שיעורים מקיפה', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
+  { key: 'flyers', title: 'עלונים', desc: 'עלונים שבועיים ופרסומים', icon: 'document-text-outline', image: require('../assets/alonim.png') },
+  { key: 'books', title: 'home.books', desc: 'home.booksDesc', icon: 'book-outline', image: require('../assets/photos/ספרים/hbooks183_06072020180826.jpg') },
   { key: 'faith-stories', title: 'home.faithStories', desc: 'home.faithStoriesDesc', icon: 'videocam-outline', image: require('../assets/photos/artworks-f5GgAyzhR486zQ8F-9vQqvw-t500x500.jpg') },
 ]
 
@@ -46,6 +49,12 @@ const IMAGES = [
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
 
+// Bottom Nav Constants
+const TAB_HEIGHT = 80
+const FAB_RADIUS = SCREEN_WIDTH < 380 ? 39 : 43
+const FAB_MARGIN = 8
+const CENTER_WIDTH = (FAB_RADIUS + FAB_MARGIN) * 2.2
+
 function useFadeIn(delay = 0) {
   const anim = useMemo(() => new Animated.Value(0), [])
   React.useEffect(() => {
@@ -54,263 +63,116 @@ function useFadeIn(delay = 0) {
   return anim
 }
 
-// ============ 3D ANIMATED COMPONENTS ============
+// ============ NEW DESIGN COMPONENTS ============
 
-// Floating Sparkle Particle
-const SparkleParticle = React.memo(({ delay, startX, startY }) => {
-  const translateY = React.useRef(new Animated.Value(0)).current
-  const translateX = React.useRef(new Animated.Value(0)).current
-  const opacity = React.useRef(new Animated.Value(0)).current
-  const scale = React.useRef(new Animated.Value(0)).current
-
-  React.useEffect(() => {
-    const animate = () => {
-      translateY.setValue(0)
-      translateX.setValue(0)
-      opacity.setValue(0)
-      scale.setValue(0)
-
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(translateY, { toValue: -60 - Math.random() * 40, duration: 1500, useNativeDriver: true }),
-          Animated.timing(translateX, { toValue: (Math.random() - 0.5) * 60, duration: 1500, useNativeDriver: true }),
-          Animated.sequence([
-            Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-            Animated.timing(opacity, { toValue: 1, duration: 900, useNativeDriver: true }),
-            Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-          ]),
-          Animated.sequence([
-            Animated.spring(scale, { toValue: 1, tension: 100, friction: 5, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 0.3, duration: 800, useNativeDriver: true }),
-          ]),
-        ]),
-      ]).start(() => animate())
-    }
-    animate()
-  }, [])
+const HeroCard = ({ item, onPress, hasNewDailyInsight }) => {
+  const { t } = useTranslation();
 
   return (
-    <Animated.View
-      style={{
-        position: 'absolute',
-        left: startX,
-        top: startY,
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: PRIMARY_GOLD,
-        shadowColor: PRIMARY_GOLD,
-        shadowOpacity: 0.8,
-        shadowRadius: 4,
-        transform: [{ translateY }, { translateX }, { scale }],
-        opacity,
-      }}
-    />
-  )
-})
-
-// Card Glow Effect
-const CardGlow = React.memo(({ color = PRIMARY_RED }) => {
-  const pulseAnim = React.useRef(new Animated.Value(0)).current
-
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
-      ])
-    ).start()
-  }, [])
-
-  const glowOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] })
-  const glowScale = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] })
-
-  return (
-    <Animated.View
-      style={{
-        ...StyleSheet.absoluteFillObject,
-        borderRadius: 20,
-        borderWidth: 2,
-        borderColor: color,
-        opacity: glowOpacity,
-        transform: [{ scale: glowScale }],
-      }}
-      pointerEvents="none"
-    />
-  )
-})
-
-// Shimmer Effect
-const ShimmerEffect = React.memo(() => {
-  const shimmerAnim = React.useRef(new Animated.Value(0)).current
-
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.timing(shimmerAnim, { toValue: 1, duration: 2500, useNativeDriver: true })
-    ).start()
-  }, [])
-
-  const translateX = shimmerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-200, 400],
-  })
-
-  return (
-    <Animated.View
-      style={{
-        ...StyleSheet.absoluteFillObject,
-        overflow: 'hidden',
-        borderRadius: 20,
-      }}
-      pointerEvents="none"
+    <Pressable
+      onPress={() => onPress(item)}
+      style={({ pressed }) => [
+        styles.heroCard,
+        pressed && styles.cardPressed
+      ]}
     >
-      <Animated.View
-        style={{
-          position: 'absolute',
-          top: 0,
-          bottom: 0,
-          width: 100,
-          backgroundColor: 'rgba(255,255,255,0.15)',
-          transform: [{ translateX }, { skewX: '-20deg' }],
-        }}
-      />
-    </Animated.View>
-  )
-})
+      <ImageBackground
+        source={item.image}
+        style={styles.heroImage}
+        imageStyle={{ borderRadius: 20 }}
+      >
+        <LinearGradient
+          colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.8)']}
+          style={styles.heroGradient}
+        >
+          <View style={styles.heroContent}>
+            <View style={styles.heroBadgeContainer}>
+              <View style={styles.heroBadge}>
+                <Ionicons name="sparkles" size={12} color="#FFFFFF" />
+                <Text style={styles.heroBadgeText}>{t('עיקר העבודה היא האמונה')}</Text>
+              </View>
+              {hasNewDailyInsight && (
+                <View style={styles.newBadge}>
+                  <Text style={styles.newBadgeText}>NEW</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.heroTitle}>{t(item.title)}</Text>
+            <Text style={styles.heroDesc} numberOfLines={2}>{t(item.desc)}</Text>
+          </View>
+        </LinearGradient>
+      </ImageBackground>
+    </Pressable>
+  );
+};
 
+const GridCard = ({ item, onPress, index }) => {
+  const { t } = useTranslation();
 
-// Center Nav Button with rotation animation
-const CenterNavButton = ({ onPress }) => {
-  const { width } = Dimensions.get('window')
-  const rotateAnim = React.useRef(new Animated.Value(0)).current
-  const scaleAnim = React.useRef(new Animated.Value(1)).current
+  return (
+    <Pressable
+      onPress={() => onPress(item)}
+      style={({ pressed }) => [
+        styles.gridCard,
+        pressed && styles.cardPressed,
+        Platform.select({
+          android: index % 2 === 0 ? { marginLeft: 8 } : { marginRight: 8 },
+          default: index % 2 === 0 ? { marginRight: 8 } : { marginLeft: 8 }
+        })
+      ]}
+    >
+      <View style={styles.gridCardIconContainer}>
+        <Ionicons name={item.icon} size={24} color={PRIMARY_RED} />
+      </View>
+      <Text style={styles.gridCardTitle} numberOfLines={1}>{t(item.title)}</Text>
+      <Text style={styles.gridCardDesc} numberOfLines={2}>{t(item.desc)}</Text>
+    </Pressable>
+  );
+};
+
+// Center FAB Button with spin animation on press
+const CenterFabButton = ({ onPress, screenWidth }) => {
+  const spinValue = React.useRef(new Animated.Value(0)).current
 
   const handlePress = () => {
-    // Start rotation animation - faster
-    rotateAnim.setValue(0)
-    Animated.parallel([
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 350,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.sequence([
-        Animated.spring(scaleAnim, { toValue: 0.9, useNativeDriver: true, tension: 300, friction: 4 }),
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 300, friction: 4 }),
-      ]),
-    ]).start(() => {
-      // Navigate after animation completes
-      onPress?.()
+    // Start spinning animation on press
+    Animated.timing(spinValue, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start(() => {
+      spinValue.setValue(0)
     })
+    onPress?.()
   }
 
-  const rotate = rotateAnim.interpolate({
+  const spin = spinValue.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   })
 
-  return (
-    <View style={[styles.centerNavContainer, { left: (width / 2) - 40 }]}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={handlePress}
-        style={styles.centerNavButton}
-      >
-        <View style={styles.centerNavGlowOuter} />
-        <Animated.View 
-          style={[
-            styles.centerNavGradient,
-            {
-              transform: [{ rotate }, { scale: scaleAnim }],
-            }
-          ]}
-        >
-          <Image 
-            source={require('../assets/iconspining.png')} 
-            style={styles.spinningIcon}
-            resizeMode="cover"
-          />
-        </Animated.View>
-      </Pressable>
-    </View>
-  )
-}
-
-function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, onPress, hasNewDailyInsight }) {
-  const { t } = useTranslation();
-  const fade = useFadeIn(index * 80)
-  const pressAnim = React.useRef(new Animated.Value(0)).current
-
-  const onPressIn = () => Animated.spring(pressAnim, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 10 }).start()
-  const onPressOut = () => Animated.spring(pressAnim, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 10 }).start()
-
-  const inputRange = [ (index - 1) * SNAP, index * SNAP, (index + 1) * SNAP ]
-  const animatedStyle = {
-    opacity: fade,
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    transform: [
-      { translateY: scrollX.interpolate({ inputRange, outputRange: [12, -8, 12], extrapolate: 'clamp' }) },
-      { scale: scrollX.interpolate({ inputRange, outputRange: [0.9, 1, 0.9], extrapolate: 'clamp' }) },
-      { perspective: 900 },
-      { rotateY: scrollX.interpolate({ inputRange, outputRange: ['12deg', '0deg', '-12deg'], extrapolate: 'clamp' }) },
-      { rotateZ: scrollX.interpolate({ inputRange, outputRange: ['2deg', '0deg', '-2deg'], extrapolate: 'clamp' }) },
-      { scale: pressAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.985] }) },
-    ],
-  }
-
-  const imageStyle = [StyleSheet.absoluteFill, item?.imageScale ? { transform: [{ scale: item.imageScale }] } : null]
+  const fabRadius = screenWidth < 380 ? 39 : 43
+  const fabSize = screenWidth < 380 ? 78 : 86
+  const fabHalfSize = fabSize / 2
 
   return (
-    <View style={[styles.cardItemContainer, { width: CARD_WIDTH, marginRight: -OVERLAP }]}>
-      <View style={styles.cardLabelContainer}>
-        <Text style={[styles.cardLabelTitle, { textAlign: 'right' }]}>{t(item.title)}</Text>
-        <Text style={[styles.cardLabelDesc, { textAlign: 'right' }]} numberOfLines={2}>{t(item.desc)}</Text>
-      </View>
-      <Pressable
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        onPress={() => {
-          if (item.locked) {
-            Alert.alert(t('home.lockedContent'), t('home.lockedContentMessage'))
-            return
-          }
-          onPress?.(item)
-        }}
-        style={styles.cardPressable}
-        accessibilityRole="button"
-        accessibilityLabel={`${t(item.title)} - ${t(item.desc)}`}
+    <View style={[styles.centerFab, { 
+      left: screenWidth / 2 - fabHalfSize,
+    }]}>
+      <LinearGradient
+        colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.2)']}
+        style={[styles.fabGradient, { width: fabSize, height: fabSize, borderRadius: fabRadius }]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
-        <Animated.View style={[styles.card, animatedStyle]}>
-          <ImageBackground
-            source={item.image || IMAGES[index % IMAGES.length]}
+        <Pressable style={[styles.fab, { borderRadius: screenWidth < 380 ? 37 : 41 }]} onPress={handlePress}>
+          <Animated.Image
+            source={require('../assets/spining_bootom.png')}
+            style={[styles.fabIcon, { width: screenWidth < 380 ? 104 : 112, height: screenWidth < 380 ? 104 : 112, transform: [{ rotate: spin }] }]}
             resizeMode="cover"
-            style={StyleSheet.absoluteFill}
-            imageStyle={imageStyle}
           />
-          <LinearGradient
-            colors={[ 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.0)' ]}
-            locations={[0, 0.45]}
-            style={StyleSheet.absoluteFill}
-          />
-          {item.key === 'lessons' && (
-            <View style={styles.cardSmallImageContainer}>
-              <Image
-                source={require('../assets/photos/שיעורי_הרב.jpg')}
-                style={styles.cardSmallImage}
-                resizeMode="cover"
-              />
-            </View>
-          )}
-          {item.key === 'faith-daily' && hasNewDailyInsight && (
-            <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>1</Text>
-            </View>
-          )}
-        </Animated.View>
-      </Pressable>
+        </Pressable>
+      </LinearGradient>
     </View>
   )
 }
@@ -318,41 +180,28 @@ function Card({ item, index, scrollX, SNAP, CARD_WIDTH, CARD_HEIGHT, OVERLAP, on
 export default function HomeScreen({ navigation }) {
   const { t } = useTranslation();
   const { width } = Dimensions.get('window')
-  const SPACING = 12
-  const CARD_WIDTH = Math.min(width * 0.76, 360)
-  const CARD_HEIGHT = Math.round(CARD_WIDTH * (16/9))
-  const OVERLAP = 56
-  const SNAP = CARD_WIDTH - OVERLAP
-  const sideInset = (width - CARD_WIDTH) / 2
 
-  const scrollX = React.useRef(new Animated.Value(0)).current
   const [activeTab, setActiveTab] = React.useState('home')
-  const pulse = React.useRef(new Animated.Value(0)).current
-  const centerButtonOffset = (width / 2) - 40 // 40 is half of button width
-
-  const triggerPulse = React.useCallback(() => {
-    pulse.setValue(0)
-    Animated.timing(pulse, {
-      toValue: 1,
-      duration: 800,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start()
-  }, [pulse])
-
-  const pulseStyle = {
-    opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }),
-    transform: [
-      { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 2.0] }) },
-    ],
-  }
-  const quote = t('home.dailyQuote')
+  const quote = t('עיקר העבודה היא האמונה')
   const quoteText = t('home.quoteText')
   const [unreadCount, setUnreadCount] = React.useState(0)
   const [activeAlerts, setActiveAlerts] = React.useState([])
   const [podcasts, setPodcasts] = React.useState([])
   const [loadingPodcasts, setLoadingPodcasts] = React.useState(true)
   const [hasNewDailyInsight, setHasNewDailyInsight] = React.useState(false)
+  const [notificationsOpen, setNotificationsOpen] = React.useState(false)
+  const notificationsAnim = React.useRef(new Animated.Value(0)).current
+  const fadeAnim = React.useRef(new Animated.Value(0)).current
+
+  // Fade in animation on mount
+  React.useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      delay: 500,
+      useNativeDriver: true,
+    }).start()
+  }, [fadeAnim])
 
   // Load and filter alerts
   React.useEffect(() => {
@@ -399,7 +248,9 @@ export default function HomeScreen({ navigation }) {
         // Only update state if component is still mounted
         if (isMounted) {
           setActiveAlerts(validAlerts)
-          setUnreadCount(validAlerts.length)
+          // Get unread count based on viewed alerts
+          const count = await getUnreadAlertsCount()
+          setUnreadCount(count)
         }
       } catch (error) {
         console.error('Error loading alerts:', error)
@@ -497,9 +348,11 @@ export default function HomeScreen({ navigation }) {
   }
 
   const onShareQuote = React.useCallback(() => {
-    Share.share({ message: `"${quote}"
+    Share.share({
+      message: `"${quote}"
 
-"${quoteText}"` }).catch(() => {})
+"${quoteText}"`
+    }).catch(() => { })
   }, [quote, quoteText])
 
   const handleCardPress = React.useCallback(async (key) => {
@@ -508,6 +361,10 @@ export default function HomeScreen({ navigation }) {
       await saveDailyInsightLastViewed()
       setHasNewDailyInsight(false)
       navigation?.navigate('DailyInsight')
+      return
+    }
+    if (key === 'flyers') {
+      navigation?.navigate('Flyers')
       return
     }
     if (key === 'books') {
@@ -526,12 +383,45 @@ export default function HomeScreen({ navigation }) {
       navigation?.navigate('FaithStories')
       return
     }
+    if (key === 'lessons-library') {
+      navigation?.navigate('LessonsLibrary')
+      return
+    }
     Alert.alert(t('home.comingSoon'), t('home.screenInDevelopment'))
   }, [navigation, t])
 
+  // Animate notifications dropdown
+  React.useEffect(() => {
+    if (notificationsOpen) {
+      Animated.spring(notificationsAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 10,
+        useNativeDriver: true,
+      }).start()
+    } else {
+      Animated.timing(notificationsAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start()
+    }
+  }, [notificationsOpen, notificationsAnim])
+
   const handleNotificationPress = React.useCallback(() => {
-    Alert.alert(t('home.comingSoon'), t('home.notificationsComingSoon'))
-  }, [t])
+    setNotificationsOpen(!notificationsOpen)
+  }, [notificationsOpen])
+
+  const handleCloseNotifications = React.useCallback(() => {
+    setNotificationsOpen(false)
+  }, [])
+
+  const handleNotificationItemPress = React.useCallback(async (alert) => {
+    await markAlertAsViewed(alert.id)
+    // Refresh unread count
+    const count = await getUnreadAlertsCount()
+    setUnreadCount(count)
+  }, [])
 
   const openSocialLink = React.useCallback((url) => {
     Linking.openURL(url).catch(() => {
@@ -539,8 +429,12 @@ export default function HomeScreen({ navigation }) {
     })
   }, [t])
 
+  // Split cards into Hero (Daily Insight) and Grid (others)
+  const heroItem = CARDS.find(c => c.key === 'faith-daily');
+  const gridItems = CARDS.filter(c => c.key !== 'faith-daily');
+
   return (
-    <View style={styles.screen}>
+    <Animated.View style={[styles.screen, { opacity: fadeAnim }]}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
@@ -568,6 +462,87 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.subtitle}>{t('home.tagline')}</Text>
         </View>
       </View>
+
+      {/* Notifications Dropdown */}
+      {notificationsOpen && (
+        <>
+          {/* Backdrop to close on outside click */}
+          <Pressable
+            style={styles.notificationsBackdrop}
+            onPress={handleCloseNotifications}
+          />
+          <Animated.View
+            style={[
+              styles.notificationsDropdown,
+              {
+                opacity: notificationsAnim,
+                transform: [
+                  {
+                    translateY: notificationsAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-20, 0],
+                    }),
+                  },
+                  {
+                    scale: notificationsAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.95, 1],
+                    }),
+                  },
+                ],
+              }
+            ]}
+          >
+            <View style={styles.notificationsHeader}>
+              <Text style={styles.notificationsTitle}>התראות</Text>
+              <Pressable onPress={handleCloseNotifications} hitSlop={8}>
+                <Ionicons name="close" size={24} color={BLACK} />
+              </Pressable>
+            </View>
+          <ScrollView style={styles.notificationsList} showsVerticalScrollIndicator={false}>
+            {activeAlerts.length === 0 ? (
+              <View style={styles.emptyNotifications}>
+                <Ionicons name="notifications-off-outline" size={48} color="#9ca3af" />
+                <Text style={styles.emptyNotificationsText}>אין התראות חדשות</Text>
+              </View>
+            ) : (
+              activeAlerts.map((alert) => {
+                const priorityColors = {
+                  high: { bg: '#fee2e2', border: '#dc2626', text: '#991b1b' },
+                  medium: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+                  low: { bg: '#f3f4f6', border: '#6b7280', text: '#374151' }
+                }
+                const colors = priorityColors[alert.priority] || priorityColors.medium
+
+                return (
+                  <Pressable
+                    key={alert.id}
+                    style={[styles.notificationItem, { backgroundColor: colors.bg, borderLeftColor: colors.border }]}
+                    onPress={() => handleNotificationItemPress(alert)}
+                  >
+                    <View style={styles.notificationContent}>
+                      <Text style={[styles.notificationTitle, { color: colors.text }]}>{alert.title}</Text>
+                      {alert.message && (
+                        <Text style={[styles.notificationMessage, { color: colors.text }]} numberOfLines={2}>
+                          {alert.message}
+                        </Text>
+                      )}
+                    </View>
+                    {alert.imageUrl && (
+                      <Image
+                        source={{ uri: alert.imageUrl }}
+                        style={styles.notificationImage}
+                        resizeMode="cover"
+                      />
+                    )}
+                  </Pressable>
+                )
+              })
+            )}
+          </ScrollView>
+        </Animated.View>
+        </>
+      )}
 
       {/* Active Alerts Banner */}
       {activeAlerts.length > 0 && (
@@ -615,34 +590,31 @@ export default function HomeScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Animated.FlatList
-            data={CARDS}
-            keyExtractor={(it) => it.key}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={SNAP}
-            decelerationRate="fast"
-            bounces={false}
-            contentContainerStyle={{ paddingHorizontal: sideInset, paddingVertical: 4 }}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: true }
-            )}
-            scrollEventThrottle={16}
-            renderItem={({ item, index }) => (
-              <Card
-                item={item}
-                index={index}
-                scrollX={scrollX}
-                SNAP={SNAP}
-                CARD_WIDTH={CARD_WIDTH}
-                CARD_HEIGHT={CARD_HEIGHT}
-                OVERLAP={OVERLAP}
-                onPress={() => handleCardPress(item.key)}
+          {/* Hero Section */}
+          {heroItem && (
+            <View style={styles.section}>
+              <HeroCard
+                item={heroItem}
+                onPress={() => handleCardPress(heroItem.key)}
                 hasNewDailyInsight={hasNewDailyInsight}
               />
-            )}
-          />
+            </View>
+          )}
+
+          {/* Grid Section */}
+          <View style={styles.section}>
+            <View style={styles.gridContainer}>
+              {gridItems.map((item, index) => (
+                <View key={item.key} style={styles.gridItemWrapper}>
+                  <GridCard
+                item={item}
+                index={index}
+                onPress={() => handleCardPress(item.key)}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
 
           {/* Quote */}
           <View style={styles.section}>
@@ -799,6 +771,91 @@ export default function HomeScreen({ navigation }) {
             )}
           </View>
 
+          {/* Partnership Section */}
+          <View style={styles.partnershipSection}>
+            <LinearGradient
+              colors={[DEEP_BLUE, '#1e3a5f']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.partnershipGradient}
+            >
+              <View style={styles.partnershipContent}>
+                <Text style={styles.partnershipTitle}>אתם יכולים להיות שותפים של הרב!</Text>
+                
+                <View style={styles.partnershipRabbiInfo}>
+                  <Text style={styles.partnershipRabbiName}>הרב הגאון אייל עמרמי שליט״א</Text>
+                  <Text style={styles.partnershipRabbiRole}>ראש מוסדות כאייל תערוג</Text>
+                </View>
+
+                <Text style={styles.partnershipIntro}>
+                  מציע לכם להיות שותפים של ממש בכל פעילות המוסדות ולקנות זכויות לנצח!
+                </Text>
+
+                <View style={styles.partnershipList}>
+                  <View style={styles.partnershipListItem}>
+                    <Ionicons name="flame" size={16} color={PRIMARY_GOLD} />
+                    <Text style={styles.partnershipListText}>הפצת האמונה וזיכוי הרבים</Text>
+                  </View>
+                  <View style={styles.partnershipListItem}>
+                    <Ionicons name="restaurant" size={16} color={PRIMARY_GOLD} />
+                    <Text style={styles.partnershipListText}>בית התבשיל</Text>
+                  </View>
+                  <View style={styles.partnershipListItem}>
+                    <Ionicons name="heart" size={16} color={PRIMARY_GOLD} />
+                    <Text style={styles.partnershipListText}>חלוקה לנזקקים</Text>
+                  </View>
+                  <View style={styles.partnershipListItem}>
+                    <Ionicons name="library" size={16} color={PRIMARY_GOLD} />
+                    <Text style={styles.partnershipListText}>כולל אברכים</Text>
+                  </View>
+                  <View style={styles.partnershipListItem}>
+                    <Ionicons name="shield" size={16} color={PRIMARY_GOLD} />
+                    <Text style={styles.partnershipListText}>חלוקה לחיילים בבסיסים</Text>
+                  </View>
+                  <View style={styles.partnershipListItem}>
+                    <Ionicons name="school" size={16} color={PRIMARY_GOLD} />
+                    <Text style={styles.partnershipListText}>ישיבה לחוזרים בתשובה</Text>
+                  </View>
+                  <View style={styles.partnershipListItem}>
+                    <Ionicons name="ellipsis-horizontal" size={16} color={PRIMARY_GOLD} />
+                    <Text style={styles.partnershipListText}>ועוד ועוד...</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.partnershipOpportunity}>
+                  זו ההזדמנות שלכם לקנות נצח!
+                </Text>
+
+                <View style={styles.partnershipFooter}>
+                  <Text style={styles.partnershipFooterTitle}>מוסדות כאייל תערוג</Text>
+                  <Text style={styles.partnershipFooterSubtitle}>אמונה תורה וחסד במקום אחד</Text>
+                </View>
+
+                <Pressable
+                  style={styles.partnershipButton}
+                  onPress={() => {
+                    const phoneNumber = '972545557248' // 0545557248
+                    Linking.openURL(`https://wa.me/${phoneNumber}`).catch(() => {
+                      Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
+                    })
+                  }}
+                >
+                  <LinearGradient colors={[PRIMARY_GOLD, '#ffed4e']} style={styles.partnershipButtonGradient}>
+                    <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+                    <Text style={styles.partnershipButtonText}>אני רוצה להשתתף</Text>
+                  </LinearGradient>
+                </Pressable>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* Memorial Section */}
+          <View style={styles.memorialSection}>
+            <Ionicons name="flame" size={16} color="#DC2626" />
+            <Text style={styles.memorialText}>לעילוי נשמת: רוז׳ה אהרון בן רחל</Text>
+            <Ionicons name="flame" size={16} color="#DC2626" />
+          </View>
+
           {/* Powered by footer */}
           <Pressable
             style={styles.poweredByFooter}
@@ -815,81 +872,132 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      <View style={styles.bottomNav}>
-        {/* בית - צד שמאל */}
-        <View style={styles.navItemContainer}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => { setActiveTab('home'); triggerPulse(); navigation?.navigate('Home') }}
-            style={styles.navItemPressable}
-          >
-            <View style={styles.iconBox}>
-              <Animated.View style={[styles.pulseRing, pulseStyle]} />
-              <Ionicons name="home-outline" size={22} color={activeTab === 'home' ? PRIMARY_RED : '#B3B3B3'} />
-            </View>
-            <Text style={[styles.navLabel, { color: activeTab === 'home' ? PRIMARY_RED : '#B3B3B3' }]}>{t('home.homeTab')}</Text>
-          </Pressable>
+      {/* Custom Curved Bottom Nav */}
+      <View style={styles.bottomNavWrapper}>
+        {/* Fallback background */}
+        <View style={styles.bottomNavBackground} />
+        {/* SVG Background with curve */}
+        {width > 0 && Number.isFinite(width) && Platform.OS !== 'web' && (
+          <View style={styles.svgContainer}>
+            {(() => {
+              const svgWidth = Math.max(100, Math.floor(width))
+              const svgHeight = TAB_HEIGHT + 50
+              const fabRadius = svgWidth < 380 ? 39 : 43
+              const centerWidth = (fabRadius + 8) * 2.2
+              const centerX = svgWidth / 2
+              const curveStart = Math.max(0, centerX - centerWidth / 2)
+              const curveEnd = Math.min(svgWidth, centerX + centerWidth / 2)
+              const curveDepth = Math.min(svgHeight - 10, fabRadius + 10)
+              
+              // Ensure all values are positive and within bounds
+              const x1 = Math.max(0, Math.floor(curveStart))
+              const x2 = Math.max(0, Math.min(svgWidth, Math.floor(curveStart + centerWidth * 0.2)))
+              const x3 = Math.max(0, Math.min(svgWidth, Math.floor(centerX - centerWidth * 0.2)))
+              const x4 = Math.floor(centerX)
+              const x5 = Math.max(0, Math.min(svgWidth, Math.floor(centerX + centerWidth * 0.2)))
+              const x6 = Math.max(0, Math.min(svgWidth, Math.floor(curveEnd - centerWidth * 0.2)))
+              const x7 = Math.max(0, Math.min(svgWidth, Math.floor(curveEnd)))
+              const y1 = Math.max(0, Math.floor(curveDepth))
+              
+              const pathD = `M0,0 L${x1},0 C${x2},0 ${x3},${y1} ${x4},${y1} C${x5},${y1} ${x6},0 ${x7},0 L${svgWidth},0 L${svgWidth},${svgHeight} L0,${svgHeight} Z`
+              
+              return (
+                <Svg 
+                  width={svgWidth} 
+                  height={svgHeight} 
+                  viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                  style={styles.bottomNavSvg}
+                  preserveAspectRatio="none"
+                >
+                  <Path
+                    d={pathD}
+                    fill={PRIMARY_RED}
+                  />
+                </Svg>
+              )
+            })()}
+          </View>
+        )}
+
+        <View style={styles.navBar}>
+          {/* Left Side */}
+          <View style={styles.leftSide}>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.iconBtn}
+              onPress={() => { setActiveTab('home'); navigation?.navigate('Home') }}
+            >
+              <View style={activeTab === 'home' ? styles.iconGlow : null}>
+                <Ionicons name="home" size={22} color={activeTab === 'home' ? '#FFD700' : '#fff'} />
+              </View>
+              <Text style={[styles.navLabel, activeTab === 'home' && styles.navLabelActive]}>בית</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.iconBtn}
+              onPress={() => { setActiveTab('contact'); navigation?.navigate('ContactRabbi') }}
+            >
+              <View style={activeTab === 'contact' ? styles.iconGlow : null}>
+                <Ionicons name="mail" size={22} color={activeTab === 'contact' ? '#FFD700' : '#fff'} />
+              </View>
+              <Text style={[styles.navLabel, activeTab === 'contact' && styles.navLabelActive]}>צור קשר</Text>
+            </Pressable>
+          </View>
+
+          {/* Center FAB */}
+          <CenterFabButton
+            screenWidth={width}
+            onPress={() => { 
+              setActiveTab('shortLessons'); 
+              navigation?.navigate('LessonsLibrary', { initialCategory: 'shortLessons' })
+            }}
+          />
+
+          {/* Right Side */}
+          <View style={styles.rightSide}>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.iconBtn}
+              onPress={() => { setActiveTab('community'); navigation?.navigate('CommunityNews') }}
+            >
+              <View style={activeTab === 'community' ? styles.iconGlow : null}>
+                <Ionicons name="newspaper" size={22} color={activeTab === 'community' ? '#FFD700' : '#fff'} />
+              </View>
+              <Text style={[styles.navLabel, activeTab === 'community' && styles.navLabelActive]}>חדשות</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.iconBtn}
+              onPress={() => { setActiveTab('profile'); navigation?.navigate('Profile') }}
+            >
+              <View style={activeTab === 'profile' ? styles.iconGlow : null}>
+                <Ionicons name="person" size={22} color={activeTab === 'profile' ? '#FFD700' : '#fff'} />
+              </View>
+              <Text style={[styles.navLabel, activeTab === 'profile' && styles.navLabelActive]}>פרופיל</Text>
+            </Pressable>
+          </View>
         </View>
 
-        {/* כתיבה לרב */}
-        <View style={[styles.navItemContainer, styles.navItemSpacedRight]}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => { setActiveTab('contact'); navigation?.navigate('ContactRabbi') }}
-            style={styles.navItemPressable}
-          >
-            <View style={styles.iconBox}>
-              <Ionicons name="mail-outline" size={22} color={activeTab === 'contact' ? PRIMARY_RED : '#B3B3B3'} />
-            </View>
-            <Text style={[styles.navLabel, { color: activeTab === 'contact' ? PRIMARY_RED : '#B3B3B3' }]}>{t('home.contactTab')}</Text>
-          </Pressable>
-        </View>
-
-        {/* CENTER - Short Lessons (Featured Button) */}
-        <CenterNavButton 
-          onPress={() => { 
-            setActiveTab('shortLessons'); 
-            navigation?.navigate('LessonsLibrary', { initialCategory: 'shortLessons' })
-          }}
-        />
-
-        {/* חדשות הקהילה */}
-        <View style={[styles.navItemContainer, styles.navItemSpacedLeft]}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => { setActiveTab('community'); navigation?.navigate('CommunityNews') }}
-            style={styles.navItemPressable}
-          >
-            <View style={styles.iconBox}>
-              <Ionicons name="newspaper-outline" size={22} color={activeTab === 'community' ? PRIMARY_RED : '#B3B3B3'} />
-            </View>
-            <Text style={[styles.navLabel, { color: activeTab === 'community' ? PRIMARY_RED : '#B3B3B3' }]}>{t('home.newsTab')}</Text>
-          </Pressable>
-        </View>
-
-        {/* פרופיל - צד ימין */}
-        <View style={styles.navItemContainer}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => { setActiveTab('profile'); navigation?.navigate('Profile') }}
-            style={styles.navItemPressable}
-          >
-            <View style={styles.iconBox}>
-              <Ionicons name="person-circle-outline" size={22} color={activeTab === 'profile' ? PRIMARY_RED : '#B3B3B3'} />
-            </View>
-            <Text style={[styles.navLabel, { color: activeTab === 'profile' ? PRIMARY_RED : '#B3B3B3' }]}>{t('home.profileTab')}</Text>
-          </Pressable>
+        {/* Home Indicator */}
+        <View style={styles.homeIndicatorWrapper}>
+          <View style={styles.homeIndicator} />
         </View>
       </View>
-    </View>
+    </Animated.View>
   )
 }
+
 
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: BG,
+    ...Platform.select({
+      android: {
+        direction: 'rtl',
+      },
+    }),
   },
   header: {
     paddingTop: Platform.select({ ios: 48, android: 34, default: 42 }),
@@ -911,12 +1019,6 @@ const styles = StyleSheet.create({
   headerBell: {
     position: 'absolute',
     right: 16,
-    top: Platform.select({ ios: 54, android: 52, default: 48 }),
-    zIndex: 10,
-  },
-  headerWebsite: {
-    position: 'absolute',
-    right: 60,
     top: Platform.select({ ios: 54, android: 52, default: 48 }),
     zIndex: 10,
   },
@@ -949,6 +1051,13 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(220,38,38,0.3)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
+    textAlign: 'right',
+    ...Platform.select({
+      android: {
+        textAlign: 'right',
+        writingDirection: 'rtl',
+      },
+    }),
   },
   titleEnglish: {
     fontSize: 20,
@@ -960,20 +1069,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     letterSpacing: 0.5,
+    textAlign: 'right',
+    ...Platform.select({
+      android: {
+        textAlign: 'right',
+        writingDirection: 'rtl',
+      },
+    }),
   },
   main: {
     flex: 1,
     paddingHorizontal: 8,
     paddingBottom: 72,
     marginTop: -4,
+    ...Platform.select({
+      android: {
+        direction: 'rtl',
+      },
+    }),
   },
   scrollContent: {
     paddingBottom: 92,
     gap: 20,
-  },
-  grid: {
-  },
-  gridRow: {
   },
   section: {
     paddingHorizontal: 8,
@@ -989,49 +1106,154 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: 'Poppins_600SemiBold',
     letterSpacing: 0.3,
+    textAlign: 'right',
+    ...Platform.select({
+      android: {
+        textAlign: 'right',
+        writingDirection: 'rtl',
+      },
+    }),
   },
-  snapshotBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+
+  // Hero Card Styles
+  heroCard: {
+    width: '100%',
+    height: 220,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+    backgroundColor: '#fff',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroGradient: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    padding: 20,
+  },
+  heroContent: {
+    gap: 8,
+  },
+  heroBadgeContainer: {
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(11,27,58,0.1)',
+    gap: 8,
+    marginBottom: 4,
+  },
+  heroBadge: {
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  heroBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  heroTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontFamily: 'Heebo_700Bold',
+    textAlign: Platform.select({ android: 'right', default: 'left' }),
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+  heroDesc: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    fontFamily: 'Heebo_400Regular',
+    textAlign: Platform.select({ android: 'right', default: 'left' }),
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+  newBadge: {
+    backgroundColor: PRIMARY_RED,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  newBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: 'Poppins_700Bold',
+  },
+
+  // Grid Styles
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -8,
+  },
+  gridItemWrapper: {
+    width: '50%',
+    padding: 8,
+  },
+  gridCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    height: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
   },
-  snapshotItem: {
-    alignItems: 'flex-end',
-    minWidth: 96,
+  gridCardIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(220,38,38,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  snapshotLabel: {
-    color: '#6b7280',
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-  },
-  snapshotValue: {
+  gridCardTitle: {
     color: DEEP_BLUE,
     fontSize: 15,
-    marginTop: 2,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'Heebo_700Bold',
+    textAlign: 'center',
+    marginBottom: 4,
   },
-  snapshotChangeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-    justifyContent: 'flex-end',
-  },
-  snapshotChange: {
+  gridCardDesc: {
+    color: '#6b7280',
     fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
+    fontFamily: 'Heebo_400Regular',
+    textAlign: 'center',
+    lineHeight: 16,
   },
+  cardPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+
+  // Quote Styles
   quoteCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
@@ -1071,17 +1293,12 @@ const styles = StyleSheet.create({
   },
   quoteFooter: {
     marginTop: 10,
-    flexDirection: 'row',
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  quoteAuthor: {
-    color: '#6b7280',
-    fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-  },
   shareBtn: {
-    flexDirection: 'row',
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
     alignItems: 'center',
     gap: 6,
     backgroundColor: PRIMARY_RED,
@@ -1098,9 +1315,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
+    textAlign: Platform.select({ android: 'right', default: 'center' }),
   },
   donationLinkBtn: {
-    flexDirection: 'row',
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -1116,7 +1334,10 @@ const styles = StyleSheet.create({
     color: PRIMARY_RED,
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
+    textAlign: Platform.select({ android: 'right', default: 'center' }),
   },
+
+  // Social & YouTube
   socialIconsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1139,6 +1360,47 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(11,27,58,0.1)',
   },
+  youtubeCard: {
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(11,27,58,0.1)',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  youtubeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  youtubeOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
+    alignItems: 'center',
+    gap: 12,
+  },
+  youtubeText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
+    textAlign: Platform.select({ android: 'right', default: 'left' }),
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+
+  // Podcasts
   podcastRow: {
     gap: 10,
     paddingHorizontal: 2,
@@ -1163,18 +1425,36 @@ const styles = StyleSheet.create({
     color: DEEP_BLUE,
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
+    textAlign: 'right',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
   },
   podcastDesc: {
     color: '#6b7280',
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
     marginTop: 4,
+    textAlign: 'right',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
   },
   podcastCategory: {
     color: PRIMARY_RED,
     fontSize: 10,
     fontFamily: 'Poppins_500Medium',
     marginTop: 4,
+    textAlign: 'right',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
   },
   podcastThumbnail: {
     width: '100%',
@@ -1217,444 +1497,456 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: PRIMARY_RED,
+    textAlign: 'right',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
   },
-  youtubeCard: {
-    width: '100%',
-    height: 200,
-    borderRadius: 16,
+
+  // Partnership
+  partnershipSection: {
+    marginHorizontal: 8,
+    borderRadius: 20,
     overflow: 'hidden',
-    marginBottom: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(11,27,58,0.1)',
+    marginTop: 12,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
   },
-  youtubeImage: {
-    width: '100%',
-    height: '100%',
+  partnershipGradient: {
+    padding: 20,
   },
-  youtubeOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    flexDirection: 'row',
+  partnershipContent: {
     alignItems: 'center',
-    gap: 12,
   },
-  youtubeText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  medalCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(11,27,58,0.08)',
-  },
-  medalIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(30,58,138,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  medalTitle: {
-    color: DEEP_BLUE,
-    fontSize: 14,
-    marginBottom: 8,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  progressBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(11,27,58,0.06)',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: PRIMARY_RED,
-  },
-  progressText: {
-    marginTop: 6,
-    color: '#6b7280',
-    fontSize: 12,
-    textAlign: 'right',
-    fontFamily: 'Poppins_500Medium',
-  },
-  recoBanner: {
-    height: 120,
-    borderRadius: 14,
-    overflow: 'hidden',
-    padding: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(11,27,58,0.08)',
-  },
-  recoTitle: {
-    color: PRIMARY_RED,
-    fontSize: 14,
-    marginBottom: 6,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  recoDesc: {
-    color: '#e5e7eb',
-    fontSize: 12,
-    marginBottom: 10,
-    textAlign: 'right',
-    fontFamily: 'Poppins_400Regular',
-  },
-  recoCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(30,58,138,0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  recoCtaText: {
-    color: PRIMARY_RED,
-    fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  cardItemContainer: {
-    alignItems: 'flex-end',
-  },
-  cardLabelContainer: {
-    alignItems: 'flex-end',
-    paddingRight: 32,
-    paddingLeft: 8,
-    marginBottom: 10,
-  },
-  cardLabelTitle: {
-    color: PRIMARY_RED,
-    fontSize: 20,
+  partnershipTitle: {
+    color: PRIMARY_GOLD,
+    fontSize: 22,
     fontFamily: 'Heebo_900Black',
-    marginBottom: 2,
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textAlign: 'center',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  cardLabelDesc: {
-    color: '#4b5563',
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: 'Poppins_400Regular',
-    marginTop: 2,
-  },
-  cardPressable: {
-    justifyContent: 'center',
-  },
-  card: {
-    borderRadius: 20,
-    padding: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 10,
-  },
-  lockIcon: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-  },
-  cardContent: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    padding: 16,
-    paddingRight: 28,
-    alignItems: 'flex-end',
-    justifyContent: 'flex-start',
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 10,
-  },
-  cardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    marginBottom: 12,
+  partnershipRabbiInfo: {
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(30,58,138,0.12)',
+    marginBottom: 16,
   },
-  cardTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-    fontFamily: 'Poppins_600SemiBold',
-    marginBottom: 6,
+  partnershipRabbiName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: 'Heebo_700Bold',
+    marginBottom: 2,
   },
-  cardDesc: {
-    color: '#B3B3B3',
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: 'Poppins_400Regular',
-  },
-  bottomNav: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: Platform.select({ ios: 20, android: 12, default: 12 }),
-    paddingHorizontal: 4,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(11,27,58,0.1)',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 8,
-  },
-  navItemContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    maxWidth: 80,
-  },
-  navItemSpacedRight: {
-    marginRight: 12,
-  },
-  navItemSpacedLeft: {
-    marginLeft: 12,
-  },
-  navItemPressable: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    width: '100%',
-  },
-  centerNavContainer: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: -58,
-    zIndex: 10,
-  },
-  navItem: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  navItemActive: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  iconBox: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 16,
-  },
-  pulseRing: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: PRIMARY_RED,
-  },
-  navLabel: {
-    fontSize: 11,
-    color: '#6b7280',
-    fontFamily: 'Poppins_500Medium',
-    marginTop: 2,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: 8,
-  },
-  socialButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(11,27,58,0.04)',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(11,27,58,0.08)',
-    gap: 8,
-  },
-  socialLabel: {
-    color: DEEP_BLUE,
-    fontSize: 14,
-    fontFamily: 'Poppins_500Medium',
-  },
-  centerNavButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerNavGlowOuter: {
-    position: 'absolute',
-    width: 85,
-    height: 85,
-    borderRadius: 42.5,
-    backgroundColor: PRIMARY_GOLD,
-    opacity: 0.08,
-    top: -6,
-    left: -6,
-  },
-  centerNavGradient: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-    overflow: 'hidden',
-  },
-  centerNavLabel: {
-    marginTop: 6,
+  partnershipRabbiRole: {
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
+  partnershipIntro: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontFamily: 'Heebo_500Medium',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  partnershipList: {
+    width: '100%',
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 24,
+  },
+  partnershipListItem: {
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  partnershipListText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontFamily: 'Heebo_400Regular',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+  partnershipOpportunity: {
     color: PRIMARY_GOLD,
-    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 16,
+    fontFamily: 'Heebo_700Bold',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  spinningIcon: {
-    width: 140,
-    height: 140,
+  partnershipFooter: {
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  cardSmallImageContainer: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    width: 80,
-    height: 80,
-    borderRadius: 12,
+  partnershipFooterTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontFamily: 'Heebo_700Bold',
+  },
+  partnershipFooterSubtitle: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
+  partnershipButton: {
+    width: '100%',
+    borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-    shadowColor: '#000',
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowColor: PRIMARY_GOLD,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  cardSmallImage: {
-    width: '100%',
-    height: '100%',
-  },
-  alertsBanner: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: BG,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(11,27,58,0.08)',
-  },
-  alertsScrollContent: {
+  partnershipButtonGradient: {
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    paddingRight: 4,
+    paddingVertical: 16,
   },
-  alertBanner: {
+  partnershipButtonText: {
+    color: DEEP_BLUE,
+    fontSize: 16,
+    fontFamily: 'Heebo_900Black',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+
+  // Memorial
+  memorialSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    marginRight: 8,
-    minWidth: 280,
-    maxWidth: 320,
-    overflow: 'hidden',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    opacity: 0.8,
   },
-  alertBannerImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginLeft: 8,
-  },
-  alertBannerContent: {
-    flex: 1,
-    alignItems: 'flex-end',
-    marginRight: 8,
-  },
-  alertBannerTitle: {
-    fontSize: 14,
-    fontFamily: 'Poppins_700Bold',
-    marginBottom: 2,
-  },
-  alertBannerMessage: {
+  memorialText: {
+    color: '#6b7280',
     fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-    opacity: 0.9,
+    fontFamily: 'Poppins_500Medium',
   },
-  alertDismissButton: {
-    padding: 4,
-    borderRadius: 12,
-  },
+
+  // Footer
   poweredByFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    marginTop: 8,
-    marginBottom: 4,
+    paddingVertical: 16,
+    opacity: 0.6,
   },
   poweredByText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    fontSize: 10,
+    fontFamily: 'Poppins_500Medium',
   },
-  newBadge: {
+
+  // Bottom Nav
+  bottomNavWrapper: {
+    width: '100%',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    height: TAB_HEIGHT,
+  },
+  bottomNavBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: PRIMARY_RED,
+    zIndex: 0,
+  },
+  svgContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  bottomNavSvg: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
+    pointerEvents: 'none',
+  },
+  navBar: {
+    flexDirection: 'row',
+    backgroundColor: 'transparent',
+    paddingTop: 15,
+    paddingHorizontal: 20,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    width: '100%',
+    height: '100%',
+    zIndex: 100,
+  },
+  leftSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 30,
+    flex: 1,
+    justifyContent: 'flex-start',
+    paddingLeft: 10,
+  },
+  rightSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 30,
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingRight: 10,
+  },
+  iconBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  navLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.85)',
+    fontFamily: 'Heebo_400Regular',
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  navLabelActive: {
+    color: '#FFD700',
+    fontFamily: 'Heebo_700Bold',
+    textShadowColor: 'rgba(255, 215, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
+  },
+  iconGlow: {
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  centerFab: {
+    position: 'absolute',
+    top: -35,
+    zIndex: 101,
+  },
+  fabGradient: {
+    padding: 2,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 30,
+    elevation: 30,
+  },
+  fab: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 20,
   },
-  newBadgeText: {
-    color: '#fff',
+  fabIcon: {
+    borderRadius: 56,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 25,
+    elevation: 25,
+  },
+  homeIndicatorWrapper: {
+    position: 'absolute',
+    bottom: 8,
+    alignItems: 'center',
+    width: '100%',
+    zIndex: 102,
+  },
+  homeIndicator: {
+    width: 130,
+    height: 5,
+    backgroundColor: '#fff',
+    borderRadius: 100,
+    opacity: 0.3,
+  },
+
+  // Notifications
+  notificationsDropdown: {
+    position: 'absolute',
+    top: Platform.select({ ios: 90, android: 80, default: 85 }),
+    right: 16,
+    width: SCREEN_WIDTH - 32,
+    maxWidth: 400,
+    maxHeight: 500,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 12,
+    zIndex: 1000,
+    overflow: 'hidden',
+  },
+  notificationsHeader: {
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  notificationsTitle: {
+    fontSize: 18,
+    fontFamily: 'Heebo_700Bold',
+    color: DEEP_BLUE,
+    textAlign: Platform.select({ android: 'right', default: 'left' }),
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+  notificationsList: {
+    maxHeight: 440,
+  },
+  emptyNotifications: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyNotificationsText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontFamily: 'Heebo_500Medium',
+    color: '#9ca3af',
+    textAlign: 'center',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+  notificationItem: {
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    borderLeftWidth: Platform.select({ android: 0, default: 4 }),
+    borderRightWidth: Platform.select({ android: 4, default: 0 }),
+  },
+  notificationContent: {
+    flex: 1,
+    paddingRight: Platform.select({ android: 0, default: 12 }),
+    paddingLeft: Platform.select({ android: 12, default: 0 }),
+  },
+  notificationTitle: {
+    fontSize: 15,
+    fontFamily: 'Heebo_700Bold',
+    marginBottom: 4,
+    textAlign: Platform.select({ android: 'right', default: 'left' }),
+  },
+  notificationMessage: {
+    fontSize: 14,
+    fontFamily: 'Heebo_400Regular',
+    lineHeight: 20,
+    textAlign: Platform.select({ android: 'right', default: 'left' }),
+  },
+  notificationImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  notificationsBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 999,
+  },
+
+  // Alerts Banner
+  alertsBanner: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    maxHeight: 100,
+  },
+  alertsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  alertBanner: {
+    flexDirection: Platform.select({ android: 'row-reverse', default: 'row' }),
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    minWidth: 280,
+    maxWidth: 320,
+    gap: 10,
+  },
+  alertBannerImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
+  alertBannerContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  alertBannerTitle: {
+    fontSize: 13,
+    fontFamily: 'Heebo_700Bold',
+    marginBottom: 2,
+    textAlign: Platform.select({ android: 'right', default: 'left' }),
+  },
+  alertBannerMessage: {
     fontSize: 12,
-    fontFamily: 'Poppins_700Bold',
-    fontWeight: 'bold',
+    fontFamily: 'Heebo_400Regular',
+    textAlign: Platform.select({ android: 'right', default: 'left' }),
+  },
+  alertDismissButton: {
+    padding: 4,
   },
 })
-
-
