@@ -57,6 +57,7 @@
     "errorPlayback": "שגיאה בהפעלת האודיו",
     "homeTab": "בית",
     "contactTab": "כתוב לרב",
+    "contactTabDesc": "שלח הודעה ישירה דרך וואטסאפ",
     "newsTab": "חדשות",
     "profileTab": "פרופיל",
     "comingSoon": "בקרוב",
@@ -344,7 +345,14 @@
     "openVideoError": "לא ניתן לפתוח את הסרטון",
     "lessonLabel": "שיעור: {{title}}",
     "watchOnYouTube": "צפייה ביוטיוב",
-    "back": "חזרה"
+    "watchVideo": "צפה בסרטון",
+    "back": "חזרה",
+    "videoPlayer": "נגן וידאו",
+    "invalidVideo": "סרטון לא תקין",
+    "loadingVideo": "טוען סרטון...",
+    "videoLoadError": "שגיאה בטעינת הסרטון",
+    "retry": "נסה שוב",
+    "cannotOpenLink": "לא ניתן לפתוח את הקישור"
   },
   "flyers": {
     "title": "עלונים להדפסה",
@@ -417,6 +425,43 @@
     "deleteAccountLoading": "מוחק חשבון...",
     "wrongPassword": "סיסמה שגויה",
     "reauthenticationRequired": "פעולה זו דורשת אימות מחדש. אנא התחבר שוב ונסה שנית."
+  },
+  "faithInsight": {
+    "title": "זריקת אמונה",
+    "dailyVideos": "סרטונים יומיים",
+    "dailyVideosSubtitle": "נמחקים אוטומטית לאחר 24 שעות",
+    "live": "חי",
+    "noStories": "אין סרטונים כרגע",
+    "editMode": "מצב עריכה פעיל",
+    "saveAll": "שמור הכל",
+    "upload": "העלה",
+    "record": "צלם",
+    "dedications": "הקדשות",
+    "addDedication": "הוסף הקדשה",
+    "enterName": "הקלד שם...",
+    "add": "הוסף",
+    "noDedications": "אין הקדשות כרגע",
+    "audio": "הקלטות",
+    "addAudio": "הוסף הקלטה",
+    "noAudio": "אין הקלטות כרגע",
+    "translate": "תרגם",
+    "showOriginal": "הצג מקור",
+    "selectLanguage": "בחר שפה",
+    "dedicationTypes": {
+      "neshama": "לעילוי נשמת",
+      "refuah": "לרפואת",
+      "success": "להצלחת"
+    },
+    "alerts": {
+      "enterName": "הזן שם להקדשה",
+      "fileAdded": "הקובץ נוסף בהצלחה",
+      "errorPick": "לא ניתן לבחור קובץ",
+      "errorPlay": "לא ניתן לנגן את הקובץ",
+      "videoUploaded": "הוידאו הועלה בהצלחה!",
+      "errorVideo": "לא ניתן להעלות את הוידאו",
+      "saved": "השינויים נשמרו בהצלחה!",
+      "errorSave": "לא ניתן לשמור את השינויים",
+      "errorTranslation": "לא ניתן לתרגם את התוכן"
+    }
   }
 }
-

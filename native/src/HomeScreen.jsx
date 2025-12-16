@@ -2,7 +2,6 @@ import React, { useMemo } from 'react'
 import { View, Text, StyleSheet, Pressable, Animated, Platform, Dimensions, Image, ImageBackground, ScrollView, Share, Alert, Linking, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
-import Svg, { Path } from 'react-native-svg'
 // Conditional import for native-only module (not available on web)
 let Grayscale = null
 if (Platform.OS !== 'web') {
@@ -36,7 +35,7 @@ const CARDS = [
   { key: 'lessons-library', title: 'ספריית לימוד', desc: 'ספריית שיעורים מקיפה', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
   { key: 'flyers', title: 'עלונים', desc: 'עלונים שבועיים ופרסומים', icon: 'document-text-outline', image: require('../assets/alonim.png') },
   { key: 'books', title: 'home.books', desc: 'home.booksDesc', icon: 'book-outline', image: require('../assets/photos/ספרים/hbooks183_06072020180826.jpg') },
-  { key: 'faith-stories', title: 'home.faithStories', desc: 'home.faithStoriesDesc', icon: 'videocam-outline', image: require('../assets/photos/artworks-f5GgAyzhR486zQ8F-9vQqvw-t500x500.jpg') },
+  { key: 'contact', title: 'home.contactTab', desc: 'home.contactTabDesc', icon: 'mail-outline', image: require('../assets/icon.png') },
 ]
 
 // Carousel image order
@@ -379,8 +378,8 @@ export default function HomeScreen({ navigation }) {
       navigation?.navigate('WeeklyLessons')
       return
     }
-    if (key === 'faith-stories') {
-      navigation?.navigate('FaithStories')
+    if (key === 'contact') {
+      navigation?.navigate('ContactRabbi')
       return
     }
     if (key === 'lessons-library') {
@@ -856,6 +855,13 @@ export default function HomeScreen({ navigation }) {
             <Ionicons name="flame" size={16} color="#DC2626" />
           </View>
 
+          {/* Memorial Section */}
+          <View style={[styles.memorialSection, { marginTop: -8 }]}>
+            <Ionicons name="flame" size={16} color="#DC2626" />
+            <Text style={styles.memorialText}>לעילוי נשמת: אביבה בת דליה</Text>
+            <Ionicons name="flame" size={16} color="#DC2626" />
+          </View>
+
           {/* Powered by footer */}
           <Pressable
             style={styles.poweredByFooter}
@@ -872,52 +878,10 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Custom Curved Bottom Nav */}
+      {/* Bottom Nav */}
       <View style={styles.bottomNavWrapper}>
-        {/* Fallback background */}
+        {/* Background */}
         <View style={styles.bottomNavBackground} />
-        {/* SVG Background with curve */}
-        {width > 0 && Number.isFinite(width) && Platform.OS !== 'web' && (
-          <View style={styles.svgContainer}>
-            {(() => {
-              const svgWidth = Math.max(100, Math.floor(width))
-              const svgHeight = TAB_HEIGHT + 50
-              const fabRadius = svgWidth < 380 ? 39 : 43
-              const centerWidth = (fabRadius + 8) * 2.2
-              const centerX = svgWidth / 2
-              const curveStart = Math.max(0, centerX - centerWidth / 2)
-              const curveEnd = Math.min(svgWidth, centerX + centerWidth / 2)
-              const curveDepth = Math.min(svgHeight - 10, fabRadius + 10)
-              
-              // Ensure all values are positive and within bounds
-              const x1 = Math.max(0, Math.floor(curveStart))
-              const x2 = Math.max(0, Math.min(svgWidth, Math.floor(curveStart + centerWidth * 0.2)))
-              const x3 = Math.max(0, Math.min(svgWidth, Math.floor(centerX - centerWidth * 0.2)))
-              const x4 = Math.floor(centerX)
-              const x5 = Math.max(0, Math.min(svgWidth, Math.floor(centerX + centerWidth * 0.2)))
-              const x6 = Math.max(0, Math.min(svgWidth, Math.floor(curveEnd - centerWidth * 0.2)))
-              const x7 = Math.max(0, Math.min(svgWidth, Math.floor(curveEnd)))
-              const y1 = Math.max(0, Math.floor(curveDepth))
-              
-              const pathD = `M0,0 L${x1},0 C${x2},0 ${x3},${y1} ${x4},${y1} C${x5},${y1} ${x6},0 ${x7},0 L${svgWidth},0 L${svgWidth},${svgHeight} L0,${svgHeight} Z`
-              
-              return (
-                <Svg 
-                  width={svgWidth} 
-                  height={svgHeight} 
-                  viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-                  style={styles.bottomNavSvg}
-                  preserveAspectRatio="none"
-                >
-                  <Path
-                    d={pathD}
-                    fill={PRIMARY_RED}
-                  />
-                </Svg>
-              )
-            })()}
-          </View>
-        )}
 
         <View style={styles.navBar}>
           {/* Left Side */}
@@ -1685,22 +1649,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: PRIMARY_RED,
     zIndex: 0,
-  },
-  svgContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
-  },
-  bottomNavSvg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
-    pointerEvents: 'none',
   },
   navBar: {
     flexDirection: 'row',

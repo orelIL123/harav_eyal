@@ -51,6 +51,7 @@
     "podcastDesc": "Audio files / Reels",
     "homeTab": "Home",
     "contactTab": "Write to the Rabbi",
+    "contactTabDesc": "Send a direct message via WhatsApp",
     "newsTab": "News",
     "profileTab": "Profile",
     "comingSoon": "Coming Soon",
@@ -338,7 +339,13 @@
     "openVideoError": "Could not open the video",
     "lessonLabel": "Lesson: {{title}}",
     "watchOnYouTube": "Watch on YouTube",
-    "back": "Back"
+    "watchVideo": "Watch Video",
+    "back": "Back",
+    "videoPlayer": "Video Player",
+    "invalidVideo": "Invalid video",
+    "loadingVideo": "Loading video...",
+    "videoLoadError": "Error loading video",
+    "retry": "Retry"
   },
   "flyers": {
     "title": "Flyers for Printing",
@@ -411,5 +418,43 @@
     "deleteAccountLoading": "Deleting account...",
     "wrongPassword": "Wrong password",
     "reauthenticationRequired": "This action requires reauthentication. Please sign in again and try again."
+  },
+  "faithInsight": {
+    "title": "Faith Boost",
+    "dailyVideos": "Daily Videos",
+    "dailyVideosSubtitle": "Automatically deleted after 24 hours",
+    "live": "LIVE",
+    "noStories": "No videos at the moment",
+    "editMode": "Edit Mode Active",
+    "saveAll": "Save All",
+    "upload": "Upload",
+    "record": "Record",
+    "dedications": "Dedications",
+    "addDedication": "Add Dedication",
+    "enterName": "Enter name...",
+    "add": "Add",
+    "noDedications": "No dedications yet",
+    "audio": "Recordings",
+    "addAudio": "Add Audio",
+    "noAudio": "No recordings yet",
+    "translate": "Translate",
+    "showOriginal": "Show Original",
+    "selectLanguage": "Select Language",
+    "dedicationTypes": {
+      "neshama": "In Memory of",
+      "refuah": "Refuah Shelema for",
+      "success": "For Success of"
+    },
+    "alerts": {
+      "enterName": "Please enter a name",
+      "fileAdded": "File added successfully",
+      "errorPick": "Could not select file",
+      "errorPlay": "Could not play file",
+      "videoUploaded": "Video uploaded successfully!",
+      "errorVideo": "Could not upload video",
+      "saved": "Changes saved successfully!",
+      "errorSave": "Could not save changes",
+      "errorTranslation": "Could not translate content"
+    }
   }
 }

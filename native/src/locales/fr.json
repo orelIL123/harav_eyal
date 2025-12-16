@@ -51,6 +51,7 @@
     "podcastDesc": "Fichiers audio / Reels",
     "homeTab": "Accueil",
     "contactTab": "Écrire au Rabbin",
+    "contactTabDesc": "Envoyer un message direct via WhatsApp",
     "newsTab": "Nouvelles",
     "profileTab": "Profil",
     "comingSoon": "Bientôt disponible",
@@ -339,7 +340,13 @@
     "openVideoError": "Impossible d'ouvrir la vidéo",
     "lessonLabel": "Leçon : {{title}}",
     "watchOnYouTube": "Regarder sur YouTube",
-    "back": "Retour"
+    "watchVideo": "Regarder la vidéo",
+    "back": "Retour",
+    "videoPlayer": "Lecteur vidéo",
+    "invalidVideo": "Vidéo invalide",
+    "loadingVideo": "Chargement de la vidéo...",
+    "videoLoadError": "Erreur de chargement de la vidéo",
+    "retry": "Réessayer"
   },
   "flyers": {
     "title": "Dépliants à imprimer",
@@ -370,5 +377,43 @@
     "contact": "Contactez-nous",
     "contactDesc": "Pour questions, demandes ou contacts avec les institutions du Rabbin",
     "linkError": "Impossible d'ouvrir le lien"
+  },
+  "faithInsight": {
+    "title": "Boost de Foi",
+    "dailyVideos": "Vidéos Quotidiennes",
+    "dailyVideosSubtitle": "Supprimées automatiquement après 24 heures",
+    "live": "EN DIRECT",
+    "noStories": "Aucune vidéo pour le moment",
+    "editMode": "Mode Édition Actif",
+    "saveAll": "Tout Enregistrer",
+    "upload": "Télécharger",
+    "record": "Enregistrer",
+    "dedications": "Dédicaces",
+    "addDedication": "Ajouter une dédicace",
+    "enterName": "Entrez un nom...",
+    "add": "Ajouter",
+    "noDedications": "Pas encore de dédicaces",
+    "audio": "Enregistrements",
+    "addAudio": "Ajouter Audio",
+    "noAudio": "Pas encore d'enregistrements",
+    "translate": "Traduire",
+    "showOriginal": "Voir l'original",
+    "selectLanguage": "Sélectionner la langue",
+    "dedicationTypes": {
+      "neshama": "À la mémoire de",
+      "refuah": "Refuah Shelema pour",
+      "success": "Pour la réussite de"
+    },
+    "alerts": {
+      "enterName": "Veuillez entrer un nom",
+      "fileAdded": "Fichier ajouté avec succès",
+      "errorPick": "Impossible de sélectionner le fichier",
+      "errorPlay": "Impossible de lire le fichier",
+      "videoUploaded": "Vidéo téléchargée avec succès !",
+      "errorVideo": "Impossible de télécharger la vidéo",
+      "saved": "Modifications enregistrées avec succès !",
+      "errorSave": "Impossible d'enregistrer les modifications",
+      "errorTranslation": "Impossible de traduire le contenu"
+    }
   }
 }
