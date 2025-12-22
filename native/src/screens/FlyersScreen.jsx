@@ -135,16 +135,38 @@ export default function FlyersScreen({ navigation }) {
               >
                 <View style={styles.flyerContent}>
                   {flyer.imageUrl ? (
-                    <Image source={{ uri: flyer.imageUrl }} style={styles.flyerThumbnail} resizeMode="cover" />
+                    <Image 
+                      source={{ uri: flyer.imageUrl }} 
+                      style={styles.flyerThumbnail} 
+                      resizeMode="cover"
+                      accessibilityLabel={flyer.title || 'תצוגה מקדימה של עלון'}
+                      accessibilityRole="image"
+                    />
+                  ) : flyer.thumbnailUrl ? (
+                    <Image 
+                      source={{ uri: flyer.thumbnailUrl }} 
+                      style={styles.flyerThumbnail} 
+                      resizeMode="cover"
+                      accessibilityLabel={flyer.title || 'תצוגה מקדימה של עלון'}
+                      accessibilityRole="image"
+                    />
                   ) : flyer.pdfUrl ? (
-                    <View style={styles.flyerIcon}>
-                      <Ionicons name="document-text-outline" size={32} color={PRIMARY_RED} />
-                      <Text style={styles.flyerIconText}>PDF</Text>
-                    </View>
+                    // For PDFs, show default flyer image as preview
+                    <Image 
+                      source={require('../../assets/alonim.png')} 
+                      style={styles.flyerThumbnail} 
+                      resizeMode="cover"
+                      accessibilityLabel={flyer.title || 'תצוגה מקדימה של עלון PDF'}
+                      accessibilityRole="image"
+                    />
                   ) : (
-                    <View style={styles.flyerIcon}>
-                      <Ionicons name="document-outline" size={32} color={PRIMARY_RED} />
-                    </View>
+                    <Image 
+                      source={require('../../assets/alonim.png')} 
+                      style={styles.flyerThumbnail} 
+                      resizeMode="cover"
+                      accessibilityLabel={flyer.title || 'תצוגה מקדימה של עלון'}
+                      accessibilityRole="image"
+                    />
                   )}
                   <View style={styles.flyerTextBlock}>
                     <Text style={styles.flyerTitle}>{flyer.title}</Text>

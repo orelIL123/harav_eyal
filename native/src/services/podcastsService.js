@@ -22,14 +22,40 @@ export async function getPodcasts(category = null) {
       filters.push({ field: 'category', operator: '==', value: category })
     }
     
-    // Only active podcasts
+    // Only active podcasts (default to true if not set)
     filters.push({ field: 'isActive', operator: '==', value: true })
     
-    const result = await getDocuments('podcasts', filters, 'order', 'desc')
-    return result?.data || []
+    console.log('Getting podcasts with filters:', filters)
+    
+    // Try to get podcasts ordered by 'order' field, fallback to 'createdAt' if order doesn't exist
+    let result
+    try {
+      result = await getDocuments('podcasts', filters, 'order', 'desc', 100)
+    } catch (orderError) {
+      // If order field doesn't exist, try with createdAt
+      console.warn('Error ordering by "order", trying "createdAt":', orderError)
+      result = await getDocuments('podcasts', filters, 'createdAt', 'desc', 100)
+    }
+    
+    const podcasts = result?.data || []
+    console.log(`Found ${podcasts.length} active podcasts`)
+    
+    // Sort by order if available, otherwise by createdAt
+    const sortedPodcasts = podcasts.sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) {
+        return (b.order || 0) - (a.order || 0)
+      }
+      // Fallback to createdAt
+      const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0)
+      const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0)
+      return bTime - aTime
+    })
+    
+    return sortedPodcasts
   } catch (error) {
     console.error('Error getting podcasts:', error)
-    throw error
+    // Return empty array instead of throwing to prevent app crash
+    return []
   }
 }
 
@@ -74,12 +100,16 @@ export async function createPodcast(podcastData) {
       title: podcastData.title,
       description: podcastData.description || '',
       audioUrl: podcastData.audioUrl || '',
+      youtubeUrl: podcastData.youtubeUrl || '',
+      youtubeVideoId: podcastData.youtubeVideoId || '',
       duration: podcastData.duration || 0,
       thumbnailUrl: podcastData.thumbnailUrl || null,
       category: podcastData.category || null,
       order: maxOrder + 1,
       isActive: podcastData.isActive !== undefined ? podcastData.isActive : true
     }
+    
+    console.log('Creating podcast with data:', podcast)
     
     // Add document with auto-generated ID
     const docRef = await addDoc(collection(db, 'podcasts'), {
@@ -88,6 +118,7 @@ export async function createPodcast(podcastData) {
       updatedAt: serverTimestamp()
     })
     
+    console.log('Podcast created with ID:', docRef.id)
     return docRef.id
   } catch (error) {
     console.error('Error creating podcast:', error)

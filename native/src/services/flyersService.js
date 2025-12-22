@@ -7,6 +7,10 @@ import {
 } from './firestore'
 import { db } from '../config/firebase'
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore'
+import { getOrFetch, removeCached, CACHE_TTL } from '../utils/cache'
+
+const FLYERS_CACHE_KEY_ACTIVE = 'flyers_active'
+const FLYERS_CACHE_KEY_ADMIN = 'flyers_admin'
 
 /**
  * Flyers Service - Manage flyers/announcements in Firestore
@@ -18,18 +22,22 @@ import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firesto
  * Documents without isActive field are handled by security rules (defaults to true)
  */
 export async function getFlyers() {
-  try {
-    // Filter by isActive == true to optimize query
-    // Security rules allow isActive != false (including missing/null), but querying for == true
-    // is more efficient. Documents without isActive should have it set to true by default.
-    const flyers = await getAllDocuments('flyers', [
-      { field: 'isActive', operator: '==', value: true }
-    ], 'date', 'desc')
-    return flyers
-  } catch (error) {
-    console.error('Error getting flyers:', error)
-    throw error
+  const fetcher = async () => {
+    try {
+      // Filter by isActive == true to optimize query
+      // Security rules allow isActive != false (including missing/null), but querying for == true
+      // is more efficient. Documents without isActive should have it set to true by default.
+      const flyers = await getAllDocuments('flyers', [
+        { field: 'isActive', operator: '==', value: true }
+      ], 'date', 'desc')
+      return flyers
+    } catch (error) {
+      console.error('Error getting flyers:', error)
+      throw error
+    }
   }
+  // Weekly flyers, so a very long cache TTL is appropriate
+  return getOrFetch(FLYERS_CACHE_KEY_ACTIVE, fetcher, CACHE_TTL.VERY_LONG)
 }
 
 /**
@@ -37,23 +45,28 @@ export async function getFlyers() {
  * Security rules will enforce admin access
  */
 export async function getAllFlyersForAdmin() {
-  try {
-    // No filter - get all flyers (admins can see inactive ones)
-    // Security rules will ensure only admins can access inactive flyers
-    const flyers = await getAllDocuments('flyers', [], 'date', 'desc')
-    return flyers
-  } catch (error) {
-    console.error('Error getting all flyers for admin:', error)
-    throw error
+  const fetcher = async () => {
+    try {
+      // No filter - get all flyers (admins can see inactive ones)
+      // Security rules will ensure only admins can access inactive flyers
+      const flyers = await getAllDocuments('flyers', [], 'date', 'desc')
+      return flyers
+    } catch (error) {
+      console.error('Error getting all flyers for admin:', error)
+      throw error
+    }
   }
+  return getOrFetch(FLYERS_CACHE_KEY_ADMIN, fetcher, CACHE_TTL.VERY_LONG)
 }
 
 /**
  * Get a single flyer by ID
  */
 export async function getFlyer(flyerId) {
+  const cacheKey = `flyer_${flyerId}`
+  const fetcher = () => getDocument('flyers', flyerId)
   try {
-    return await getDocument('flyers', flyerId)
+    return await getOrFetch(cacheKey, fetcher, CACHE_TTL.VERY_LONG)
   } catch (error) {
     console.error('Error getting flyer:', error)
     throw error
@@ -97,6 +110,10 @@ export async function createFlyer(flyerData) {
       updatedAt: serverTimestamp()
     })
     
+    // Invalidate caches
+    await removeCached(FLYERS_CACHE_KEY_ACTIVE)
+    await removeCached(FLYERS_CACHE_KEY_ADMIN)
+    
     return docRef.id
   } catch (error) {
     console.error('Error creating flyer:', error)
@@ -125,6 +142,12 @@ export async function updateFlyer(flyerId, flyerData) {
     updateData.updatedAt = serverTimestamp()
     
     await updateDocument('flyers', flyerId, updateData)
+
+    // Invalidate caches
+    await removeCached(FLYERS_CACHE_KEY_ACTIVE)
+    await removeCached(FLYERS_CACHE_KEY_ADMIN)
+    await removeCached(`flyer_${flyerId}`)
+    
     return flyerId
   } catch (error) {
     console.error('Error updating flyer:', error)
@@ -138,10 +161,17 @@ export async function updateFlyer(flyerId, flyerData) {
 export async function deleteFlyer(flyerId) {
   try {
     await deleteDocument('flyers', flyerId)
+
+    // Invalidate caches
+    await removeCached(FLYERS_CACHE_KEY_ACTIVE)
+    await removeCached(FLYERS_CACHE_KEY_ADMIN)
+    await removeCached(`flyer_${flyerId}`)
+    
     return true
   } catch (error) {
     console.error('Error deleting flyer:', error)
     throw error
   }
 }
+
 

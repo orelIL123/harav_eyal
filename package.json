@@ -9,7 +9,9 @@
     "native:android": "cd native && npm run android",
     "init:backend": "node scripts/initBackend.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "firebase": "^12.6.0"
+  },
   "devDependencies": {
     "firebase-admin": "^13.6.0"
   }

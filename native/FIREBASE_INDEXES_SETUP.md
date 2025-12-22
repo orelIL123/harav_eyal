@@ -96,3 +96,4 @@ Indexes לוקחים **2-5 דקות** ליצירה.
 הקובץ `firestore.indexes.json` מכיל את כל ההגדרות.
 ניתן לייבא אותו ישירות ל-Firebase Console.
 
+

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert, Image, TextInput, ActivityIndicator, Modal } from 'react-native'
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert, Image, TextInput, ActivityIndicator, Modal, KeyboardAvoidingView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useAuth } from '../utils/AuthContext'
@@ -404,44 +404,49 @@ export default function ProfileScreen({ navigation }) {
         animationType="fade"
         onRequestClose={handlePasswordModalCancel}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('profile.deleteAccountTitle')}</Text>
-            <Text style={styles.modalMessage}>{t('profile.deleteAccountPassword')}</Text>
-            
-            <TextInput
-              style={styles.passwordInput}
-              placeholder={t('profile.deleteAccountPasswordPlaceholder')}
-              placeholderTextColor="#9ca3af"
-              secureTextEntry
-              value={deletePassword}
-              onChangeText={setDeletePassword}
-              autoFocus
-              editable={!isDeleting}
-            />
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t('profile.deleteAccountTitle')}</Text>
+              <Text style={styles.modalMessage}>{t('profile.deleteAccountPassword')}</Text>
+              
+              <TextInput
+                style={styles.passwordInput}
+                placeholder={t('profile.deleteAccountPasswordPlaceholder')}
+                placeholderTextColor="#9ca3af"
+                secureTextEntry
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+                autoFocus
+                editable={!isDeleting}
+              />
 
-            <View style={styles.modalButtons}>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={handlePasswordModalCancel}
-                disabled={isDeleting}
-              >
-                <Text style={styles.modalButtonCancelText}>{t('profile.cancel')}</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonDelete]}
-                onPress={handlePasswordSubmit}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={styles.modalButtonDeleteText}>{t('profile.deleteAccountConfirm')}</Text>
-                )}
-              </Pressable>
+              <View style={styles.modalButtons}>
+                <Pressable
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={handlePasswordModalCancel}
+                  disabled={isDeleting}
+                >
+                  <Text style={styles.modalButtonCancelText}>{t('profile.cancel')}</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, styles.modalButtonDelete]}
+                  onPress={handlePasswordSubmit}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.modalButtonDeleteText}>{t('profile.deleteAccountConfirm')}</Text>
+                  )}
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   )

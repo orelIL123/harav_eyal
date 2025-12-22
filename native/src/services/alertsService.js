@@ -146,3 +146,50 @@ export async function markAlertAsSent(alertId) {
   }
 }
 
+/**
+ * Get user-specific viewed alerts from local storage
+ */
+export async function getViewedAlerts() {
+  try {
+    const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default)
+    const viewed = await AsyncStorage.getItem('@viewed_alerts')
+    return viewed ? JSON.parse(viewed) : []
+  } catch (error) {
+    console.error('Error getting viewed alerts:', error)
+    return []
+  }
+}
+
+/**
+ * Mark alert as viewed by user
+ */
+export async function markAlertAsViewed(alertId) {
+  try {
+    const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default)
+    const viewed = await getViewedAlerts()
+    if (!viewed.includes(alertId)) {
+      viewed.push(alertId)
+      await AsyncStorage.setItem('@viewed_alerts', JSON.stringify(viewed))
+    }
+    return true
+  } catch (error) {
+    console.error('Error marking alert as viewed:', error)
+    throw error
+  }
+}
+
+/**
+ * Get unread alerts count
+ */
+export async function getUnreadAlertsCount() {
+  try {
+    const alerts = await getAlerts(true)
+    const viewedAlerts = await getViewedAlerts()
+    const unread = alerts.filter(alert => !viewedAlerts.includes(alert.id))
+    return unread.length
+  } catch (error) {
+    console.error('Error getting unread alerts count:', error)
+    return 0
+  }
+}
+

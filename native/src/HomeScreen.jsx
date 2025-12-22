@@ -21,6 +21,8 @@ import { getAlerts, updateAlert, deleteAlert, getUnreadAlertsCount, markAlertAsV
 import { getPodcasts } from './services/podcastsService'
 import { getDailyInsightLastUpdated } from './services/cardsService'
 import { getDailyInsightLastViewed, saveDailyInsightLastViewed } from './utils/storage'
+import { getPrimaryWhatsAppGroup } from './services/whatsappGroupsService'
+import { FAITH_TOPICS } from './data/faithTopics'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -32,7 +34,7 @@ const CARDS = [
   { key: 'faith-daily', title: 'home.faithBoost', desc: 'home.faithBoostDesc', icon: 'sparkles-outline', image: require('../assets/photos/זריקת אמונה.png') },
   { key: 'lessons', title: 'home.lessonsLibrary', desc: 'home.lessonsLibraryDesc', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
   { key: 'institutions', title: 'home.rabbiInstitutions', desc: 'home.rabbiInstitutionsDesc', icon: 'school-outline', image: require('../assets/icon.png') },
-  { key: 'lessons-library', title: 'ספריית לימוד', desc: 'ספריית שיעורים מקיפה', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
+  { key: 'lessons-library', title: 'סרטוני אמונה', desc: 'סרטוני אמונה של הרב', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
   { key: 'flyers', title: 'עלונים', desc: 'עלונים שבועיים ופרסומים', icon: 'document-text-outline', image: require('../assets/alonim.png') },
   { key: 'books', title: 'home.books', desc: 'home.booksDesc', icon: 'book-outline', image: require('../assets/photos/ספרים/hbooks183_06072020180826.jpg') },
   { key: 'contact', title: 'home.contactTab', desc: 'home.contactTabDesc', icon: 'mail-outline', image: require('../assets/icon.png') },
@@ -47,6 +49,39 @@ const IMAGES = [
 ]
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+
+// Helper function to extract YouTube ID from URL
+function extractYouTubeId(url) {
+  if (!url) return null
+  
+  const cleanUrl = url.trim()
+  
+  const patterns = [
+    /youtube\.com\/live\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    /(?:youtube\.com\/watch\?v=|youtube\.com\/watch\?.*&v=)([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+    /youtu\.be\/([a-zA-Z0-9_-]{11})(?:\?|&|$)/,
+    /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
+  ]
+  
+  for (const pattern of patterns) {
+    const match = cleanUrl.match(pattern)
+    if (match && match[1]) {
+      return match[1]
+    }
+  }
+  
+  const fallbackPattern = /(?:youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  const fallbackMatch = cleanUrl.match(fallbackPattern)
+  if (fallbackMatch && fallbackMatch[1]) {
+    return fallbackMatch[1]
+  }
+  
+  return null
+}
 
 // Bottom Nav Constants
 const TAB_HEIGHT = 80
@@ -189,6 +224,7 @@ export default function HomeScreen({ navigation }) {
   const [loadingPodcasts, setLoadingPodcasts] = React.useState(true)
   const [hasNewDailyInsight, setHasNewDailyInsight] = React.useState(false)
   const [notificationsOpen, setNotificationsOpen] = React.useState(false)
+  const [primaryWhatsAppGroup, setPrimaryWhatsAppGroup] = React.useState(null)
   const notificationsAnim = React.useRef(new Animated.Value(0)).current
   const fadeAnim = React.useRef(new Animated.Value(0)).current
 
@@ -629,7 +665,7 @@ export default function HomeScreen({ navigation }) {
                   <Text style={styles.shareBtnText}>{t('home.share')}</Text>
                 </Pressable>
               </View>
-              <Pressable 
+              <Pressable
                 style={styles.donationLinkBtn}
                 onPress={() => {
                   const donationUrl = 'https://www.jgive.com/new/he/ils/donation-targets/142539?fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPMTI0MDI0NTc0Mjg3NDE0AAGneTs411D0SUzm0ox_gnuWPlxtVYAo5WTjwYpjMtO5LF7NsfEFaSluhrNTOGE_aem_C7zwEIXjMrBF46Exo9F4Jg'
@@ -640,6 +676,35 @@ export default function HomeScreen({ navigation }) {
                 <Ionicons name="heart" size={18} color={PRIMARY_RED} />
                 <Text style={styles.donationLinkText}>{t('home.donation')}</Text>
               </Pressable>
+            </View>
+          </View>
+
+          {/* Faith Learning Topics */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>לימודי אמונה</Text>
+              <Text style={styles.faithSubtitle}>לימוד ממוקד לחיזוק האמונה</Text>
+            </View>
+            <View style={styles.faithTopicsGrid}>
+              {FAITH_TOPICS.map(topic => (
+                <Pressable
+                  key={topic.key}
+                  style={styles.faithTopicCard}
+                  onPress={() => navigation?.navigate('FaithLearning', { category: topic.key })}
+                  accessibilityRole="button"
+                >
+                  <LinearGradient
+                    colors={[`${topic.color}15`, `${topic.color}08`]}
+                    style={styles.faithTopicGradient}
+                  >
+                    <View style={[styles.faithTopicIcon, { backgroundColor: `${topic.color}20` }]}>
+                      <Ionicons name="sparkles" size={20} color={topic.color} />
+                    </View>
+                    <Text style={styles.faithTopicTitle}>{topic.title}</Text>
+                    <Text style={styles.faithTopicHint} numberOfLines={1}>לחץ ללימוד מעמיק</Text>
+                  </LinearGradient>
+                </Pressable>
+              ))}
             </View>
           </View>
 
@@ -698,7 +763,7 @@ export default function HomeScreen({ navigation }) {
               </Pressable>
               <Pressable
                 style={styles.socialIconBtn}
-                onPress={() => openSocialLink('https://chat.whatsapp.com/H4t7m6NfuBD9GgEuw80EeP')}
+                onPress={() => openSocialLink(primaryWhatsAppGroup?.url || 'https://chat.whatsapp.com/H4t7m6NfuBD9GgEuw80EeP')}
                 accessibilityRole="button"
                 accessibilityLabel={t('home.whatsapp')}
               >
@@ -728,12 +793,24 @@ export default function HomeScreen({ navigation }) {
             ) : podcasts.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.podcastRow}>
                 {podcasts.map((podcast) => (
-                  <Pressable
-                    key={podcast.id}
-                    style={styles.podcastCard}
+                  <View key={podcast.id} style={styles.podcastCardWrapper}>
+                    <Text style={styles.podcastCardTitle} numberOfLines={2}>{podcast.title}</Text>
+                    <Pressable
+                      style={styles.podcastCard}
                     onPress={() => {
-                      // Navigate to podcast player or detail screen
-                      if (podcast.audioUrl) {
+                      // Navigate to podcast player or YouTube video
+                      if (podcast.youtubeUrl || podcast.youtubeVideoId) {
+                        const videoId = podcast.youtubeVideoId || (podcast.youtubeUrl ? extractYouTubeId(podcast.youtubeUrl) : null)
+                        if (videoId) {
+                          navigation?.navigate('VideoPlayer', { 
+                            videoId, 
+                            title: podcast.title,
+                            url: podcast.youtubeUrl 
+                          })
+                        } else {
+                          Alert.alert(t('home.comingSoon'), t('home.podcastDesc'))
+                        }
+                      } else if (podcast.audioUrl) {
                         navigation?.navigate('PodcastPlayer', { podcast })
                       } else {
                         Alert.alert(t('home.comingSoon'), t('home.podcastDesc'))
@@ -741,25 +818,43 @@ export default function HomeScreen({ navigation }) {
                     }}
                     accessibilityRole="button"
                   >
-                    {podcast.thumbnailUrl ? (
-                      <Image 
-                        source={{ uri: podcast.thumbnailUrl }} 
-                        style={styles.podcastThumbnail}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={styles.podcastIconContainer}>
-                        <Ionicons name="headset-outline" size={34} color={PRIMARY_RED} />
-                      </View>
-                    )}
-                    <Text style={styles.podcastTitle} numberOfLines={2}>{podcast.title}</Text>
-                    {podcast.description && (
-                      <Text style={styles.podcastDesc} numberOfLines={1}>{podcast.description}</Text>
-                    )}
-                    {podcast.category && (
-                      <Text style={styles.podcastCategory}>{podcast.category}</Text>
-                    )}
-                  </Pressable>
+                    {(() => {
+                      // Priority: thumbnailUrl > YouTube thumbnail > icon
+                      if (podcast.thumbnailUrl) {
+                        return (
+                          <Image 
+                            source={{ uri: podcast.thumbnailUrl }} 
+                            style={styles.podcastThumbnail}
+                            resizeMode="cover"
+                          />
+                        )
+                      } else if (podcast.youtubeVideoId || (podcast.youtubeUrl && extractYouTubeId(podcast.youtubeUrl))) {
+                        const videoId = podcast.youtubeVideoId || extractYouTubeId(podcast.youtubeUrl)
+                        return (
+                          <View style={styles.podcastThumbnailContainer}>
+                            <Image 
+                              source={{ uri: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` }} 
+                              style={[styles.podcastThumbnail, { marginBottom: 0 }]}
+                              resizeMode="cover"
+                            />
+                            <View style={styles.youtubePlayIcon}>
+                              <Ionicons name="play-circle" size={32} color="#fff" />
+                            </View>
+                          </View>
+                        )
+                      } else {
+                        return (
+                          <View style={styles.podcastIconContainer}>
+                            <Ionicons name="headset-outline" size={34} color={PRIMARY_RED} />
+                          </View>
+                        )
+                      }
+                    })()}
+                      {podcast.description && (
+                        <Text style={styles.podcastDesc} numberOfLines={1}>{podcast.description}</Text>
+                      )}
+                    </Pressable>
+                  </View>
                 ))}
               </ScrollView>
             ) : (
@@ -833,15 +928,24 @@ export default function HomeScreen({ navigation }) {
                 <Pressable
                   style={styles.partnershipButton}
                   onPress={() => {
-                    const phoneNumber = '972545557248' // 0545557248
-                    Linking.openURL(`https://wa.me/${phoneNumber}`).catch(() => {
-                      Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
-                    })
+                    // Use primary WhatsApp group or fallback to phone number
+                    const whatsappUrl = primaryWhatsAppGroup?.url
+                    if (whatsappUrl) {
+                      Linking.openURL(whatsappUrl).catch(() => {
+                        Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
+                      })
+                    } else {
+                      // Fallback to phone number if no group available
+                      const phoneNumber = '972506785912' // 0506785912
+                      Linking.openURL(`https://wa.me/${phoneNumber}`).catch(() => {
+                        Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
+                      })
+                    }
                   }}
                 >
                   <LinearGradient colors={[PRIMARY_GOLD, '#ffed4e']} style={styles.partnershipButtonGradient}>
                     <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-                    <Text style={styles.partnershipButtonText}>אני רוצה להשתתף</Text>
+                    <Text style={styles.partnershipButtonText}>אני רוצה להצטרף</Text>
                   </LinearGradient>
                 </Pressable>
               </View>
@@ -1366,28 +1470,45 @@ const styles = StyleSheet.create({
 
   // Podcasts
   podcastRow: {
-    gap: 10,
+    gap: 12,
     paddingHorizontal: 2,
   },
+  podcastCardWrapper: {
+    width: 200,
+    alignItems: 'flex-end',
+  },
+  podcastCardTitle: {
+    color: DEEP_BLUE,
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
+    textAlign: 'right',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
   podcastCard: {
-    width: 160,
-    height: 110,
-    borderRadius: 14,
+    width: 200,
+    height: 160,
+    borderRadius: 16,
     backgroundColor: '#ffffff',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(11,27,58,0.1)',
-    padding: 14,
+    padding: 16,
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   podcastTitle: {
     color: DEEP_BLUE,
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     textAlign: 'right',
     ...Platform.select({
@@ -1398,9 +1519,9 @@ const styles = StyleSheet.create({
   },
   podcastDesc: {
     color: '#6b7280',
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Poppins_400Regular',
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'right',
     ...Platform.select({
       android: {
@@ -1408,32 +1529,54 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  podcastCategory: {
-    color: PRIMARY_RED,
-    fontSize: 10,
-    fontFamily: 'Poppins_500Medium',
+  podcastCategoryBadge: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(220,38,38,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 10,
     marginTop: 4,
+  },
+  podcastCategoryBadgeText: {
+    color: PRIMARY_RED,
+    fontSize: 12,
+    fontFamily: 'Poppins_600SemiBold',
     textAlign: 'right',
-    ...Platform.select({
-      android: {
-        writingDirection: 'rtl',
-      },
-    }),
+  },
+  podcastThumbnailContainer: {
+    width: '100%',
+    height: 120,
+    borderRadius: 14,
+    marginBottom: 10,
+    position: 'relative',
+    overflow: 'hidden',
   },
   podcastThumbnail: {
     width: '100%',
-    height: 80,
-    borderRadius: 12,
-    marginBottom: 8,
+    height: 120,
+    borderRadius: 14,
+  },
+  youtubePlayIcon: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{ translateX: -20 }, { translateY: -20 }],
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   podcastIconContainer: {
     width: '100%',
-    height: 80,
-    borderRadius: 12,
+    height: 120,
+    borderRadius: 14,
     backgroundColor: 'rgba(220,38,38,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   podcastLoadingContainer: {
     alignItems: 'center',
@@ -1896,5 +2039,75 @@ const styles = StyleSheet.create({
   },
   alertDismissButton: {
     padding: 4,
+  },
+
+  // Faith Learning Topics
+  faithSubtitle: {
+    color: '#6b7280',
+    fontSize: 13,
+    fontFamily: 'Heebo_400Regular',
+    textAlign: 'right',
+    marginTop: 4,
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+  faithTopicsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  faithTopicCard: {
+    width: '48%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    backgroundColor: '#fff',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(11,27,58,0.1)',
+  },
+  faithTopicGradient: {
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 130,
+    justifyContent: 'center',
+  },
+  faithTopicIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  faithTopicTitle: {
+    color: DEEP_BLUE,
+    fontSize: 16,
+    fontFamily: 'Heebo_700Bold',
+    textAlign: 'center',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
+  },
+  faithTopicHint: {
+    color: '#9ca3af',
+    fontSize: 12,
+    fontFamily: 'Heebo_400Regular',
+    textAlign: 'center',
+    ...Platform.select({
+      android: {
+        writingDirection: 'rtl',
+      },
+    }),
   },
 })

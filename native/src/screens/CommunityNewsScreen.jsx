@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Share, Alert, Modal, Image, ActivityIndicator } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Share, Alert, Modal, Image, ActivityIndicator, Dimensions } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from '@react-navigation/native'
@@ -14,10 +14,49 @@ const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+
+// Dynamic Image Component that adapts to image aspect ratio (smaller for list view)
+const DynamicImage = React.memo(({ source, style, onPress }) => {
+  const [imageHeight, setImageHeight] = useState(180) // Smaller default height for list view
+  const [imageWidth, setImageWidth] = useState(SCREEN_WIDTH - 32) // Screen width minus padding
+
+  React.useEffect(() => {
+    if (source?.uri) {
+      Image.getSize(
+        source.uri,
+        (width, height) => {
+          // Calculate height based on image aspect ratio and screen width
+          const aspectRatio = height / width
+          const calculatedHeight = imageWidth * aspectRatio
+          // Limit maximum height to 180px for list view (smaller)
+          const maxHeight = 180
+          setImageHeight(Math.min(calculatedHeight, maxHeight))
+        },
+        (error) => {
+          console.error('Error getting image size:', error)
+          // Keep default height on error
+        }
+      )
+    }
+  }, [source?.uri, imageWidth])
+
+  return (
+    <Pressable onPress={onPress}>
+      <Image
+        source={source}
+        style={[style, { height: imageHeight }]}
+        resizeMode="cover"
+      />
+    </Pressable>
+  )
+})
+
 export default function CommunityNewsScreen({ navigation }) {
   const { t } = useTranslation()
   const [sharingStory, setSharingStory] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState(null)
+  const [selectedImage, setSelectedImage] = useState(null)
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const storyRef = useRef(null)
@@ -120,10 +159,10 @@ export default function CommunityNewsScreen({ navigation }) {
                   ? article.createdAt.toDate().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })
                   : new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' }))
             
-            // Use content as summary (first 150 chars)
+            // Use content as summary (first 80 chars for smaller cards)
             const articleSummary = article.content 
-              ? (article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content)
-              : (article.summary || '')
+              ? (article.content.length > 80 ? article.content.substring(0, 80) + '...' : article.content)
+              : (article.summary ? (article.summary.length > 80 ? article.summary.substring(0, 80) + '...' : article.summary) : '')
             
             return (
               <Pressable
@@ -136,7 +175,13 @@ export default function CommunityNewsScreen({ navigation }) {
                 accessibilityLabel={t('news.articleLabel', { title: article.title })}
               >
                 {article.imageUrl && (
-                  <Image source={{ uri: article.imageUrl }} style={styles.articleImage} resizeMode="cover" />
+                  <DynamicImage
+                    source={{ uri: article.imageUrl }}
+                    style={styles.articleImage}
+                    onPress={() => {
+                      setSelectedImage(article.imageUrl)
+                    }}
+                  />
                 )}
                 <View style={styles.articleContent}>
                   <View style={styles.articleTextBlock}>
@@ -145,7 +190,7 @@ export default function CommunityNewsScreen({ navigation }) {
                     </View>
                     <Text style={styles.articleDate}>{articleDate}</Text>
                     {articleSummary && (
-                      <Text style={styles.articleSummary} numberOfLines={3}>{articleSummary}</Text>
+                      <Text style={styles.articleSummary} numberOfLines={2}>{articleSummary}</Text>
                     )}
                   </View>
                   <View style={styles.shareButtons}>
@@ -192,6 +237,34 @@ export default function CommunityNewsScreen({ navigation }) {
           </View>
         </Modal>
       )}
+
+      {/* Image Lightbox Modal */}
+      <Modal
+        visible={!!selectedImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <Pressable 
+          style={styles.lightboxContainer}
+          onPress={() => setSelectedImage(null)}
+          activeOpacity={1}
+        >
+          <Pressable style={styles.lightboxImageContainer} onPress={(e) => e.stopPropagation()}>
+            <Image 
+              source={{ uri: selectedImage }} 
+              style={styles.lightboxImage}
+              resizeMode="contain"
+            />
+            <Pressable
+              style={styles.lightboxCloseButton}
+              onPress={() => setSelectedImage(null)}
+            >
+              <Ionicons name="close-circle" size={32} color="#fff" />
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -225,7 +298,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingBottom: 32,
-    gap: 18,
+    gap: 12,
   },
   subtitle: {
     alignSelf: 'flex-end',
@@ -235,20 +308,44 @@ const styles = StyleSheet.create({
   },
   articleCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(11,27,58,0.08)',
   },
   articleImage: {
     width: '100%',
-    height: 200,
+    minHeight: 150,
+    maxHeight: 180,
     backgroundColor: '#f3f4f6',
+  },
+  lightboxContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lightboxImageContainer: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  lightboxImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  lightboxCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
   },
   articleCardFirst: {
     marginTop: 6,
@@ -256,8 +353,8 @@ const styles = StyleSheet.create({
   articleContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    padding: 18,
+    gap: 10,
+    padding: 14,
   },
   articleHeader: {
     flexDirection: 'row',
@@ -298,22 +395,22 @@ const styles = StyleSheet.create({
   },
   articleTitle: {
     color: DEEP_BLUE,
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Poppins_700Bold',
     textAlign: 'right',
   },
   articleDate: {
     color: PRIMARY_RED,
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Poppins_500Medium',
     textAlign: 'right',
   },
   articleSummary: {
     color: '#6b7280',
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: 'Poppins_400Regular',
     textAlign: 'right',
-    lineHeight: 22,
+    lineHeight: 18,
     marginTop: 4,
   },
   shareButtons: {

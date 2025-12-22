@@ -192,6 +192,21 @@ export async function isAdmin(userId) {
 }
 
 /**
+ * Update a user document in the 'users' collection
+ * @param {string} userId - The ID of the user to update
+ * @param {object} data - The data to update
+ * @returns {Promise<{error: string | null}>}
+ */
+export async function updateUserData(userId, data) {
+  try {
+    await updateDocument('users', userId, data);
+    return { error: null };
+  } catch (error) {
+    return { error: 'שגיאה בעדכון פרטי המשתמש.' };
+  }
+}
+
+/**
  * Batch write operations (more efficient than individual writes)
  * @param {Array} operations - Array of {type: 'set'|'update'|'delete', collection, docId, data}
  */

@@ -19,19 +19,28 @@ let analyticsEnabled = false
  */
 export async function initAnalytics() {
   try {
-    // Check if Analytics is supported (mainly for web)
-    const supported = await isSupported()
-    
-    if (supported) {
-      analytics = getAnalytics(app)
-      analyticsEnabled = true
-      console.log('📊 Analytics initialized')
+    // Firebase Analytics only works on web, not on native
+    // Skip initialization on native platforms to prevent crashes
+    if (Platform.OS === 'web') {
+      // Check if Analytics is supported (mainly for web)
+      const supported = await isSupported()
+      
+      if (supported) {
+        analytics = getAnalytics(app)
+        analyticsEnabled = true
+        console.log('📊 Analytics initialized')
+      } else {
+        console.warn('📊 Analytics not supported on this platform')
+        analyticsEnabled = false
+      }
     } else {
-      console.warn('📊 Analytics not supported on this platform')
+      // On native platforms, disable analytics to prevent crashes
+      console.log('📊 Analytics disabled on native platform')
       analyticsEnabled = false
     }
   } catch (error) {
     console.error('Error initializing Analytics:', error)
+    // Always set to false on error to prevent crashes
     analyticsEnabled = false
   }
 }

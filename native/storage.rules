@@ -87,6 +87,13 @@ service firebase.storage {
                    request.resource.size < 20 * 1024 * 1024; // Max 20MB
     }
     
+    // ========== FAITH VIDEOS ==========
+    // סרטוני אמונה - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /faith_videos/{videoId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
     // ========== COMMUNITY POSTS ==========
     // פוסטים קהילתיים - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
     match /communityPosts/{postId}/{allPaths=**} {

@@ -49,6 +49,12 @@
     "podcasts": "Podcasts",
     "podcast": "Podcast {{i}}",
     "podcastDesc": "Audio files / Reels",
+    "loadingPodcasts": "Loading podcasts...",
+    "noPodcasts": "No podcasts available",
+    "seeAll": "See All",
+    "seconds": "seconds",
+    "errorLoadingAudio": "Error loading audio file",
+    "errorPlayback": "Error playing audio",
     "homeTab": "Home",
     "contactTab": "Write to the Rabbi",
     "contactTabDesc": "Send a direct message via WhatsApp",
@@ -345,7 +351,8 @@
     "invalidVideo": "Invalid video",
     "loadingVideo": "Loading video...",
     "videoLoadError": "Error loading video",
-    "retry": "Retry"
+    "retry": "Retry",
+    "cannotOpenLink": "Could not open the link"
   },
   "flyers": {
     "title": "Flyers for Printing",

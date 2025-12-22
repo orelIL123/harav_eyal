@@ -85,25 +85,28 @@ export const CACHE_KEYS = {
   HOME_CARDS: 'home_cards',
   APP_CONFIG: 'app_config',
   ACTIVE_ALERTS: 'active_alerts',
-  
+
   // Lessons (cache for 15 minutes)
   LESSONS_ALL: 'lessons_all',
   LESSONS_CATEGORY: (category) => `lessons_${category}`,
-  
+
   // News (cache for 10 minutes)
   NEWS_ALL: 'news_all',
   NEWS_PUBLISHED: 'news_published',
-  
+
   // Daily videos (cache for 5 minutes - changes frequently)
   DAILY_VIDEOS: 'daily_videos',
-  
+
+  // Daily insight content (cache for 5 minutes - changes frequently)
+  DAILY_INSIGHT_CONTENT: 'daily_insight_content',
+
   // Podcasts (cache for 15 minutes)
   PODCASTS_ALL: 'podcasts_all',
   PODCASTS_ACTIVE: 'podcasts_active',
-  
+
   // Institutions (cache for 30 minutes - rarely changes)
   INSTITUTION: (activityId) => `institution_${activityId}`,
-  
+
   // User data (cache for 5 minutes)
   USER: (userId) => `user_${userId}`,
   USER_ADMIN: (userId) => `user_admin_${userId}`,
@@ -139,4 +142,5 @@ export async function getOrFetch(key, fetchFn, ttl = DEFAULT_TTL) {
   
   return data
 }
+
 

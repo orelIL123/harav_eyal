@@ -1,5 +1,5 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, Image, Dimensions, Modal, TextInput, ActivityIndicator } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, Image, Dimensions, Modal, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../utils/AuthContext'
@@ -11,6 +11,7 @@ const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+const MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
 export default function WeeklyLessonsScreen({ navigation }) {
   const { isAdmin } = useAuth()
@@ -22,10 +23,15 @@ export default function WeeklyLessonsScreen({ navigation }) {
   const [isAdminMode, setIsAdminMode] = React.useState(false)
   const [editingLesson, setEditingLesson] = React.useState(null)
   const [showEditModal, setShowEditModal] = React.useState(false)
+  const [showDatePicker, setShowDatePicker] = React.useState(false)
+  const [selectedDay, setSelectedDay] = React.useState(1)
+  const [selectedMonth, setSelectedMonth] = React.useState(new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = React.useState(new Date().getFullYear())
   const [formData, setFormData] = React.useState({
     city: '',
     location: '',
     day: 'ראשון',
+    date: null,
     time: '',
     address: '',
   })
@@ -59,24 +65,35 @@ export default function WeeklyLessonsScreen({ navigation }) {
 
   const handleLessonPress = (lesson) => {
     if (isAdminMode) {
-      // במצב עריכה - פתח modal עריכה
       setEditingLesson(lesson)
+      if (lesson.date) {
+        const lessonDate = new Date(lesson.date)
+        setSelectedDay(lessonDate.getDate())
+        setSelectedMonth(lessonDate.getMonth() + 1)
+        setSelectedYear(lessonDate.getFullYear())
+      } else {
+        const today = new Date()
+        setSelectedDay(today.getDate())
+        setSelectedMonth(today.getMonth() + 1)
+        setSelectedYear(today.getFullYear())
+      }
       setFormData({
         city: lesson.city || '',
         location: lesson.location || '',
         day: lesson.day || 'ראשון',
+        date: lesson.date || null,
         time: lesson.time || '',
         address: lesson.address || '',
       })
       setShowEditModal(true)
     } else {
-      // במצב רגיל - הצג פרטים
-    Alert.alert(
-      lesson.city,
-      `${lesson.location}\n${lesson.day} בשעה ${lesson.time}\n${lesson.address}`,
-      [
-        { text: 'סגור', style: 'cancel' },
-        { text: 'פתח במפות', onPress: () => Alert.alert('בקרוב', 'פתיחת מפות תתווסף בקרוב') },
+      const dateDisplay = lesson.date ? formatDate(lesson.date) : lesson.day
+      Alert.alert(
+        lesson.city,
+        `${lesson.location}\n${dateDisplay} בשעה ${lesson.time}\n${lesson.address}`,
+        [
+          { text: 'סגור', style: 'cancel' },
+          { text: 'פתח במפות', onPress: () => Alert.alert('בקרוב', 'פתיחת מפות תתווסף בקרוב') },
         ]
       )
     }
@@ -84,19 +101,53 @@ export default function WeeklyLessonsScreen({ navigation }) {
 
   const handleAddLesson = () => {
     setEditingLesson(null)
+    const today = new Date()
+    setSelectedDay(today.getDate())
+    setSelectedMonth(today.getMonth() + 1)
+    setSelectedYear(today.getFullYear())
     setFormData({
       city: '',
       location: '',
       day: 'ראשון',
+      date: null,
       time: '',
       address: '',
     })
     setShowEditModal(true)
   }
 
+  const getDaysInMonth = (month, year) => {
+    return new Date(year, month, 0).getDate()
+  }
+
+  const handleDateConfirm = () => {
+    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear)
+    const day = Math.min(selectedDay, daysInMonth)
+    const date = new Date(selectedYear, selectedMonth - 1, day)
+    const dayIndex = date.getDay()
+    const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+    const dateString = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    
+    setFormData({ 
+      ...formData, 
+      date: dateString, 
+      day: dayNames[dayIndex] 
+    })
+    setShowDatePicker(false)
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'בחר תאריך'
+    const date = new Date(dateString)
+    const day = date.getDate()
+    const month = date.getMonth() + 1
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
+  }
+
   const handleSaveLesson = async () => {
-    if (!formData.city || !formData.location || !formData.time || !formData.address) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות')
+    if (!formData.city || !formData.location || !formData.time || !formData.address || (!formData.date && !formData.day)) {
+      Alert.alert('שגיאה', 'אנא מלא את כל השדות כולל תאריך או יום בשבוע')
       return
     }
 
@@ -227,7 +278,9 @@ export default function WeeklyLessonsScreen({ navigation }) {
                 <Text style={styles.locationName}>{lesson.location}</Text>
                 <View style={styles.timeRow}>
                   <Ionicons name="calendar-outline" size={14} color={PRIMARY_RED} />
-                  <Text style={styles.timeText}>{lesson.day} בשעה {lesson.time}</Text>
+                  <Text style={styles.timeText}>
+                    {lesson.date ? formatDate(lesson.date) : lesson.day} בשעה {lesson.time}
+                  </Text>
                 </View>
                 <Text style={styles.addressText}>{lesson.address}</Text>
               </View>
@@ -308,21 +361,25 @@ export default function WeeklyLessonsScreen({ navigation }) {
         animationType="slide"
         onRequestClose={() => setShowEditModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingLesson ? 'ערוך שיעור' : 'הוסף שיעור חדש'}
-              </Text>
-              <Pressable
-                style={styles.modalCloseBtn}
-                onPress={() => setShowEditModal(false)}
-              >
-                <Ionicons name="close" size={24} color={DEEP_BLUE} />
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {editingLesson ? 'ערוך שיעור' : 'הוסף שיעור חדש'}
+                </Text>
+                <Pressable
+                  style={styles.modalCloseBtn}
+                  onPress={() => setShowEditModal(false)}
+                >
+                  <Ionicons name="close" size={24} color={DEEP_BLUE} />
+                </Pressable>
+              </View>
 
-            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>עיר *</Text>
                 <TextInput
@@ -346,28 +403,30 @@ export default function WeeklyLessonsScreen({ navigation }) {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>יום בשבוע *</Text>
-                <View style={styles.daysRow}>
-                  {DAYS.map((day) => (
-                    <Pressable
-                      key={day}
-                      style={[
-                        styles.dayBtn,
-                        formData.day === day && styles.dayBtnActive,
-                      ]}
-                      onPress={() => setFormData({ ...formData, day })}
-                    >
-                      <Text
-                        style={[
-                          styles.dayBtnText,
-                          formData.day === day && styles.dayBtnTextActive,
-                        ]}
-                      >
-                        {day}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                <Text style={styles.formLabel}>תאריך השיעור *</Text>
+                <Pressable
+                  style={styles.datePickerButton}
+                  onPress={() => {
+                    if (formData.date) {
+                      const date = new Date(formData.date)
+                      setSelectedDay(date.getDate())
+                      setSelectedMonth(date.getMonth() + 1)
+                      setSelectedYear(date.getFullYear())
+                    }
+                    setShowDatePicker(true)
+                  }}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={PRIMARY_RED} />
+                  <Text style={styles.datePickerText}>
+                    {formData.date ? formatDate(formData.date) : 'בחר תאריך'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#6b7280" />
+                </Pressable>
+                {formData.date && (
+                  <Text style={styles.dateInfoText}>
+                    יום בשבוע: {formData.day}
+                  </Text>
+                )}
               </View>
 
               <View style={styles.formGroup}>
@@ -408,6 +467,141 @@ export default function WeeklyLessonsScreen({ navigation }) {
                   style={styles.saveBtnGradient}
                 >
                   <Text style={styles.saveBtnText}>שמור</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Custom Date Picker Modal */}
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.datePickerModalContainer}>
+          <View style={styles.datePickerModalContent}>
+            <View style={styles.datePickerModalHeader}>
+              <Text style={styles.datePickerModalTitle}>בחר תאריך</Text>
+              <Pressable
+                onPress={() => setShowDatePicker(false)}
+                style={styles.datePickerModalCloseBtn}
+              >
+                <Ionicons name="close" size={24} color={DEEP_BLUE} />
+              </Pressable>
+            </View>
+            
+            <View style={styles.datePickerBody}>
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerColumnLabel}>יום</Text>
+                <ScrollView 
+                  style={styles.datePickerScrollView}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {Array.from({ length: getDaysInMonth(selectedMonth, selectedYear) }, (_, i) => i + 1).map((day) => (
+                    <Pressable
+                      key={day}
+                      style={[
+                        styles.datePickerItem,
+                        selectedDay === day && styles.datePickerItemSelected
+                      ]}
+                      onPress={() => setSelectedDay(day)}
+                    >
+                      <Text style={[
+                        styles.datePickerItemText,
+                        selectedDay === day && styles.datePickerItemTextSelected
+                      ]}>
+                        {day}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerColumnLabel}>חודש</Text>
+                <ScrollView 
+                  style={styles.datePickerScrollView}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {MONTHS.map((month, index) => (
+                    <Pressable
+                      key={index}
+                      style={[
+                        styles.datePickerItem,
+                        selectedMonth === index + 1 && styles.datePickerItemSelected
+                      ]}
+                      onPress={() => {
+                        setSelectedMonth(index + 1)
+                        const daysInNewMonth = getDaysInMonth(index + 1, selectedYear)
+                        if (selectedDay > daysInNewMonth) {
+                          setSelectedDay(daysInNewMonth)
+                        }
+                      }}
+                    >
+                      <Text style={[
+                        styles.datePickerItemText,
+                        selectedMonth === index + 1 && styles.datePickerItemTextSelected
+                      ]}>
+                        {month}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.datePickerColumn}>
+                <Text style={styles.datePickerColumnLabel}>שנה</Text>
+                <ScrollView 
+                  style={styles.datePickerScrollView}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + i).map((year) => (
+                    <Pressable
+                      key={year}
+                      style={[
+                        styles.datePickerItem,
+                        selectedYear === year && styles.datePickerItemSelected
+                      ]}
+                      onPress={() => {
+                        setSelectedYear(year)
+                        const daysInNewYear = getDaysInMonth(selectedMonth, year)
+                        if (selectedDay > daysInNewYear) {
+                          setSelectedDay(daysInNewYear)
+                        }
+                      }}
+                    >
+                      <Text style={[
+                        styles.datePickerItemText,
+                        selectedYear === year && styles.datePickerItemTextSelected
+                      ]}>
+                        {year}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+
+            <View style={styles.datePickerFooter}>
+              <Pressable
+                style={styles.datePickerCancelBtn}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.datePickerCancelBtnText}>ביטול</Text>
+              </Pressable>
+              <Pressable
+                style={styles.datePickerConfirmBtn}
+                onPress={handleDateConfirm}
+              >
+                <LinearGradient
+                  colors={[PRIMARY_RED, '#ef4444']}
+                  style={styles.datePickerConfirmBtnGradient}
+                >
+                  <Text style={styles.datePickerConfirmBtnText}>אישור</Text>
                 </LinearGradient>
               </Pressable>
             </View>
@@ -758,6 +952,134 @@ const styles = StyleSheet.create({
     color: PRIMARY_RED,
   },
   dayBtnTextActive: {
+    color: '#fff',
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.3)',
+  },
+  datePickerText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'Heebo_500Medium',
+    color: DEEP_BLUE,
+    textAlign: 'right',
+  },
+  dateInfoText: {
+    marginTop: 8,
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6b7280',
+    textAlign: 'right',
+  },
+  datePickerModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  datePickerModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  datePickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  datePickerModalTitle: {
+    fontSize: 18,
+    fontFamily: 'Poppins_700Bold',
+    color: DEEP_BLUE,
+  },
+  datePickerModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(11,27,58,0.1)',
+  },
+  datePickerBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 20,
+    height: 200,
+  },
+  datePickerColumn: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  datePickerColumnLabel: {
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+    marginBottom: 8,
+  },
+  datePickerScrollView: {
+    flex: 1,
+    width: '100%',
+  },
+  datePickerItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  datePickerItemSelected: {
+    backgroundColor: PRIMARY_RED,
+  },
+  datePickerItemText: {
+    fontSize: 16,
+    fontFamily: 'Poppins_500Medium',
+    color: DEEP_BLUE,
+  },
+  datePickerItemTextSelected: {
+    color: '#fff',
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  datePickerFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  datePickerCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  datePickerCancelBtnText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: DEEP_BLUE,
+  },
+  datePickerConfirmBtn: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  datePickerConfirmBtnGradient: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  datePickerConfirmBtnText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
   },
   modalFooter: {

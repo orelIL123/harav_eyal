@@ -23,13 +23,27 @@ export async function pickImage(options = {}) {
   const hasPermission = await requestImagePermissions()
   if (!hasPermission) return null
 
-  const result = await ImagePicker.launchImageLibraryAsync({
+  // If aspect is explicitly set to null, don't crop the image
+  const shouldEdit = options.aspect !== null && options.aspect !== undefined
+  
+  const config = {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: options.aspect || [16, 9],
     quality: options.quality || 0.8,
-    ...options,
-  })
+  }
+  
+  // Only enable editing if aspect ratio is specified
+  if (shouldEdit) {
+    config.allowsEditing = true
+    config.aspect = options.aspect || [16, 9]
+  } else {
+    // Don't crop - allow full image with any aspect ratio (9:16, 16:9, 1:1, etc.)
+    config.allowsEditing = false
+  }
+  
+  // Merge any additional options passed in
+  Object.assign(config, options)
+
+  const result = await ImagePicker.launchImageLibraryAsync(config)
 
   if (result.canceled) return null
 
@@ -496,6 +510,35 @@ export async function clearAllAppData() {
     await AsyncStorage.removeItem(CREDENTIALS_KEY)
   } catch (error) {
     console.error('Error clearing app data:', error)
+  }
+}
+
+// ========== DAILY INSIGHT LAST VIEWED ==========
+
+const DAILY_INSIGHT_LAST_VIEWED_KEY = '@app:dailyInsightLastViewed'
+
+/**
+ * Save when user last viewed Daily Insight screen
+ */
+export async function saveDailyInsightLastViewed() {
+  try {
+    const now = new Date().toISOString()
+    await AsyncStorage.setItem(DAILY_INSIGHT_LAST_VIEWED_KEY, now)
+  } catch (error) {
+    console.error('Error saving daily insight last viewed:', error)
+  }
+}
+
+/**
+ * Get when user last viewed Daily Insight screen
+ */
+export async function getDailyInsightLastViewed() {
+  try {
+    const value = await AsyncStorage.getItem(DAILY_INSIGHT_LAST_VIEWED_KEY)
+    return value ? new Date(value) : null
+  } catch (error) {
+    console.error('Error getting daily insight last viewed:', error)
+    return null
   }
 }
 

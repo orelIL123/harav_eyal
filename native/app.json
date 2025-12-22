@@ -11,12 +11,12 @@
     "splash": {
       "image": "./assets/splashphoto.png",
       "resizeMode": "cover",
-      "backgroundColor": "#0A0A0A"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.raveialamrami.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -24,7 +24,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#0A0A0A"
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.raveialamrami.app",
@@ -55,6 +55,16 @@
     "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/429bf080-b8a2-42be-a2f6-ba6d3a70cff2"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "האפליקציה צריכה גישה לגלריה כדי להעלות סרטונים ותמונות."
+        }
+      ]
+    ]
   }
 }

@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, StyleSheet, Pressable, ScrollView, Share, TextInput, Modal, Alert, ActivityIndicator, Image, Animated, Dimensions } from 'react-native'
+import { View, Text, StyleSheet, Pressable, ScrollView, Share, TextInput, Modal, Alert, ActivityIndicator, Image, Animated, Dimensions, Linking, KeyboardAvoidingView, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -7,8 +7,10 @@ import { Audio, Video } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import { getDailyVideos } from '../services/dailyVideosService'
 import { useAuth } from '../utils/AuthContext'
-import { pickVideo, recordVideo, uploadVideoToStorage, generateDailyVideoPath } from '../utils/storage'
+import { pickVideo, recordVideo, uploadVideoToStorage, generateDailyVideoPath, saveDailyInsightLastViewed } from '../utils/storage'
 import { createDailyVideo } from '../services/dailyVideosService'
+import { getDailyInsightContent, saveDailyInsightContent } from '../services/cardsService'
+import { useTranslation } from 'react-i18next'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -202,7 +204,8 @@ const StoryCard3D = ({ story, index, onPress }) => {
 }
 
 // Animated Dedication with slide-in
-const DedicationItem3D = ({ dedication, index, isAdminMode, onRemove, DEDICATION_LABELS }) => {
+const DedicationItem3D = ({ dedication, index, isAdminMode, onRemove }) => {
+  const { t } = useTranslation()
   const slideAnim = React.useRef(new Animated.Value(100)).current
   const opacityAnim = React.useRef(new Animated.Value(0)).current
 
@@ -219,8 +222,8 @@ const DedicationItem3D = ({ dedication, index, isAdminMode, onRemove, DEDICATION
   return (
     <Animated.View style={[styles3D.dedicationItem, { transform: [{ translateX: slideAnim }], opacity: opacityAnim }]}>
       <View style={styles3D.dedicationGlowBar} />
-      <View style={styles3D.dedicationTypeBadge}>
-        <Text style={styles3D.dedicationTypeText}>{DEDICATION_LABELS[dedication.type]}</Text>
+      <View style={styles.dedicationTypeBadge}>
+        <Text style={styles.dedicationTypeText}>{t(`faithInsight.dedicationTypes.${dedication.type}`)}</Text>
       </View>
       <Text style={styles3D.dedicationName}>{dedication.name}</Text>
       {isAdminMode && (
@@ -264,6 +267,34 @@ const styles3D = StyleSheet.create({
   storyRing: { width: 72, height: 72, borderRadius: 36, padding: 3 },
   storyInner: { flex: 1, borderRadius: 33, overflow: 'hidden', backgroundColor: '#1a1a1a' },
   storyTitle: { fontSize: 11, fontFamily: 'Poppins_500Medium', color: 'rgba(255,255,255,0.8)', maxWidth: 72, textAlign: 'center' },
+  translateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  translateText: {
+    fontSize: 13,
+    fontFamily: 'Heebo_500Medium',
+    color: '#0b1b3a',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 16
+  },
   dedicationItem: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 12,
@@ -280,7 +311,7 @@ const styles3D = StyleSheet.create({
 const DEFAULT_CONTENT = {
   title: 'זריקת אמונה',
   category: 'זריקת אמונה',
-  author: 'רב אייל עמרמיה ',
+  author: 'הרב אייל עמרמי ',
   content: `בלייר עליון - כאייל תערוג.
 
 תובנות מעולם התורה והאמונה.
@@ -298,17 +329,13 @@ const DEFAULT_CONTENT = {
 }
 
 const DEDICATION_TYPES = [
-  { key: 'neshama', label: 'לעילוי נשמת', icon: 'flame' },
-  { key: 'refuah', label: 'לרפואת', icon: 'heart' },
-  { key: 'success', label: 'להצלחת', icon: 'star' },
+  { key: 'neshama', icon: 'flame' },
+  { key: 'refuah', icon: 'heart' },
+  { key: 'success', icon: 'star' },
 ]
 
-const DEDICATION_LABELS = DEDICATION_TYPES.reduce((acc, curr) => {
-  acc[curr.key] = curr.label
-  return acc
-}, {})
-
 export default function DailyInsightScreen({ navigation }) {
+  const { t, i18n } = useTranslation()
   const { isAdmin } = useAuth()
   const [isAdminMode, setIsAdminMode] = React.useState(false)
   const [activeType, setActiveType] = React.useState('text')
@@ -347,11 +374,28 @@ export default function DailyInsightScreen({ navigation }) {
   // Stories/Videos
   const [stories, setStories] = React.useState([])
   const [loadingStories, setLoadingStories] = React.useState(true)
-  
+
   React.useEffect(() => {
     loadDailyVideos()
+    loadDailyContent()
+    // Mark as viewed when screen opens
+    saveDailyInsightLastViewed()
   }, [])
-  
+
+  const loadDailyContent = async () => {
+    try {
+      const content = await getDailyInsightContent()
+      if (content) {
+        setContentTitle(content.title ?? DEFAULT_CONTENT.title)
+        setContentText(content.content ?? DEFAULT_CONTENT.content)
+        setDedications(content.dedications ?? DEFAULT_CONTENT.dedications)
+        setAudioFiles(content.audioFiles ?? DEFAULT_CONTENT.audioFiles)
+      }
+    } catch (error) {
+      console.error('Error loading daily content:', error)
+    }
+  }
+
   const loadDailyVideos = async () => {
     try {
       setLoadingStories(true)
@@ -372,14 +416,10 @@ export default function DailyInsightScreen({ navigation }) {
       setLoadingStories(false)
     }
   }
-  
-  const validStories = React.useMemo(() => {
-    const now = Date.now()
-    return stories.filter(s => {
-      const hoursSinceCreation = (now - s.createdAt) / (1000 * 60 * 60)
-      return hoursSinceCreation < 24
-    })
-  }, [stories])
+
+  // Stories are already filtered by 24 hours in dailyVideosService
+  // No need for additional filtering here
+  const validStories = stories
 
   const [currentStoryIndex, setCurrentStoryIndex] = React.useState(0)
   const [isStoryModalVisible, setIsStoryModalVisible] = React.useState(false)
@@ -404,8 +444,11 @@ export default function DailyInsightScreen({ navigation }) {
     }
   }, [currentStoryIndex, validStories.length])
 
-  // Format date
-  const todayDate = new Date().toLocaleDateString('he-IL', {
+  // Editable date state
+  const [customDate, setCustomDate] = React.useState('')
+  
+  // Format date for display
+  const todayDate = customDate || new Date().toLocaleDateString('he-IL', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -413,7 +456,7 @@ export default function DailyInsightScreen({ navigation }) {
   })
 
   const handleShare = React.useCallback(() => {
-    Share.share({ message: `${contentTitle}\n\n${contentText}` }).catch(() => {})
+    Share.share({ message: `${contentTitle}\n\n${contentText}` }).catch(() => { })
   }, [contentTitle, contentText])
 
   // Mark changes
@@ -436,7 +479,7 @@ export default function DailyInsightScreen({ navigation }) {
   const handleAddDedication = React.useCallback(() => {
     const trimmed = dedicationName.trim()
     if (!trimmed) {
-      Alert.alert('שגיאה', 'הזן שם להקדשה')
+      Alert.alert(t('faithInsight.alerts.error'), t('faithInsight.alerts.enterName'))
       return
     }
     setDedications((prev) => [
@@ -471,11 +514,12 @@ export default function DailyInsightScreen({ navigation }) {
       }
 
       setAudioFiles(prev => [...prev, newAudio])
+      setAudioFiles(prev => [...prev, newAudio])
       markChanged()
-      Alert.alert('הצלחה', 'הקובץ נוסף בהצלחה')
+      Alert.alert(t('faithInsight.alerts.success'), t('faithInsight.alerts.fileAdded'))
     } catch (error) {
       console.error('Error picking audio:', error)
-      Alert.alert('שגיאה', 'לא ניתן לבחור קובץ שמע')
+      Alert.alert(t('faithInsight.alerts.error'), t('faithInsight.alerts.errorPick'))
     }
   }, [markChanged])
 
@@ -508,7 +552,7 @@ export default function DailyInsightScreen({ navigation }) {
       setCurrentPlayingAudioId(audioId)
     } catch (error) {
       console.error('Error playing audio:', error)
-      Alert.alert('שגיאה', 'לא ניתן לנגן את הקובץ')
+      Alert.alert(t('faithInsight.alerts.error'), t('faithInsight.alerts.errorPlay'))
     }
   }, [currentPlayingAudioId])
 
@@ -517,27 +561,28 @@ export default function DailyInsightScreen({ navigation }) {
     try {
       setUploadingVideo(true)
       setUploadProgress(0)
-      
+
       const videoId = 'daily-video-' + Date.now()
       const dateStr = new Date().toISOString().split('T')[0]
-      
+
       const videoPath = generateDailyVideoPath(dateStr, `${videoId}.mp4`)
       const videoUrl = await uploadVideoToStorage(videoUri, videoPath, (progress) => {
         setUploadProgress(progress)
       })
-      
+
       await createDailyVideo({
         title: 'זריקת אמונה יומית',
         description: '',
         videoUrl: videoUrl,
         thumbnailUrl: null,
       })
-      
-      Alert.alert('הצלחה', 'הוידאו הועלה בהצלחה!')
+
+
+      Alert.alert(t('faithInsight.alerts.success'), t('faithInsight.alerts.videoUploaded'))
       await loadDailyVideos()
     } catch (error) {
       console.error('Error uploading video:', error)
-      Alert.alert('שגיאה', 'לא ניתן להעלות את הוידאו')
+      Alert.alert(t('faithInsight.alerts.error'), t('faithInsight.alerts.errorVideo'))
     } finally {
       setUploadingVideo(false)
       setUploadProgress(0)
@@ -548,27 +593,30 @@ export default function DailyInsightScreen({ navigation }) {
   const handleSaveAll = React.useCallback(async () => {
     try {
       setSaving(true)
-      // TODO: Save to Firestore
-      // await saveDailyInsight({ title: contentTitle, content: contentText, dedications, audioFiles })
 
-      // Simulate save
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await saveDailyInsightContent({
+        title: contentTitle,
+        content: contentText,
+        dedications,
+        audioFiles
+      })
 
       setHasChanges(false)
-      Alert.alert('הצלחה', 'השינויים נשמרו בהצלחה!')
+      setHasChanges(false)
+      Alert.alert(t('faithInsight.alerts.success'), t('faithInsight.alerts.saved'))
     } catch (error) {
       console.error('Error saving:', error)
-      Alert.alert('שגיאה', 'לא ניתן לשמור את השינויים')
+      Alert.alert(t('faithInsight.alerts.error'), t('faithInsight.alerts.errorSave'))
     } finally {
       setSaving(false)
-        }
-  }, [contentTitle, contentText, dedications, audioFiles])
+    }
+  }, [contentTitle, contentText, dedications, audioFiles, t])
 
   // Cleanup audio on unmount
   React.useEffect(() => {
     return () => {
       if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {})
+        soundRef.current.unloadAsync().catch(() => { })
       }
     }
   }, [])
@@ -598,477 +646,528 @@ export default function DailyInsightScreen({ navigation }) {
         </View>
       </View>
 
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <Animated.View style={[styles.header, {
-          opacity: headerAnim,
-          transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }]
-        }]}>
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => navigation.goBack()}
-          accessibilityRole="button"
-          >
-            <LinearGradient
-              colors={[PRIMARY_RED, '#ef4444']}
-              style={styles.backBtnGradient}
-        >
-              <Ionicons name="arrow-back" size={22} color="#fff" />
-            </LinearGradient>
-        </Pressable>
-
-          <View style={styles.headerCenter}>
-            <View style={styles.headerIconWrapper}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          {/* Header */}
+          <Animated.View style={[styles.header, {
+            opacity: headerAnim,
+            transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }]
+          }]}>
+            <Pressable
+              style={styles.backBtn}
+              onPress={() => {
+                if (navigation && navigation.goBack) {
+                  navigation.goBack()
+                }
+              }}
+              accessibilityRole="button"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <LinearGradient
                 colors={[PRIMARY_RED, '#ef4444']}
-                style={styles.headerIconGradient}
+                style={styles.backBtnGradient}
               >
-                <Ionicons name="flame" size={20} color="#fff" />
+                <Ionicons name="arrow-back" size={22} color="#fff" />
               </LinearGradient>
-            </View>
-          <Text style={styles.headerTitle}>זריקת אמונה</Text>
-        </View>
-
-          {isAdmin ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setIsAdminMode(!isAdminMode)}
-              style={[styles.adminToggle, isAdminMode && styles.adminToggleActive]}
-            >
-              <Ionicons name={isAdminMode ? 'create' : 'create-outline'} size={18} color="#fff" />
             </Pressable>
-          ) : (
-            <View style={{ width: 40 }} />
-          )}
-        </Animated.View>
 
-        {/* Admin Edit Mode Banner */}
-        {isAdminMode && (
-          <View style={styles.adminBanner}>
-            <View style={styles.adminBannerContent}>
-              <Ionicons name="pencil" size={16} color="#fff" />
-              <Text style={styles.adminBannerText}>מצב עריכה פעיל</Text>
-          </View>
-            {hasChanges && (
+            <Text style={styles.headerTitle}>{t('faithInsight.title')}</Text>
+
+            {isAdmin ? (
               <Pressable
-                style={styles.saveAllBtn}
-                onPress={handleSaveAll}
-                disabled={saving}
+                accessibilityRole="button"
+                onPress={() => setIsAdminMode(!isAdminMode)}
+                style={[styles.adminToggle, isAdminMode && styles.adminToggleActive]}
               >
-                {saving ? (
-                  <ActivityIndicator size="small" color={PRIMARY_RED} />
-                ) : (
-                  <>
-                    <Ionicons name="save" size={16} color={PRIMARY_RED} />
-                    <Text style={styles.saveAllText}>שמור הכל</Text>
-                  </>
-                )}
+                <Ionicons name={isAdminMode ? 'create' : 'create-outline'} size={18} color="#fff" />
               </Pressable>
-            )}
-      </View>
-        )}
-
-      <ScrollView
-          contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-          {/* Hero Section with Stories */}
-          <Card3D delay={100} index={0} style={styles.heroSection}>
-            <LinearGradient
-              colors={[DEEP_BLUE, '#1e3a5f']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroGradient}
-            >
-              <View style={styles.heroPattern}>
-                {[...Array(6)].map((_, i) => (
-                  <View key={i} style={[styles.patternDot, { left: `${15 + i * 15}%`, top: `${10 + (i % 2) * 20}%` }]} />
-                ))}
-              </View>
-
-              <View style={styles.heroContent}>
-                <View style={styles.heroHeader}>
-                  <Text style={styles.heroTitle}>סרטונים יומיים</Text>
-                  <View style={styles.liveIndicator}>
-                    <View style={styles.liveDot} />
-                    <Text style={styles.liveText}>חי</Text>
-                  </View>
-                </View>
-                <Text style={styles.heroSubtitle}>נמחקים אוטומטית לאחר 24 שעות</Text>
-
-                {loadingStories ? (
-                  <View style={styles.storiesLoading}>
-                    <ActivityIndicator color="#fff" size="small" />
-                    <Text style={styles.storiesLoadingText}>טוען...</Text>
-                  </View>
-                ) : (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.storiesRow}
-                  >
-                    {/* Admin: Add Video Button */}
-                    {isAdminMode && (
-                      <View style={styles.adminVideoActions}>
-                        <Pressable
-                          style={styles.addStoryBtn}
-                          onPress={async () => {
-                            try {
-                              const video = await pickVideo({ videoMaxDuration: 60 })
-                              if (video) await handleUploadVideo(video.uri)
-                            } catch (error) {
-                              Alert.alert('שגיאה', 'לא ניתן לבחור וידאו')
-                            }
-                          }}
-                          disabled={uploadingVideo}
-                        >
-                          <LinearGradient
-                            colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
-                            style={styles.addStoryGradient}
-                          >
-                            {uploadingVideo ? (
-                              <View style={styles.uploadProgressContainer}>
-                                <ActivityIndicator size="small" color="#fff" />
-                                <Text style={styles.uploadProgressText}>{Math.round(uploadProgress)}%</Text>
-                              </View>
-                            ) : (
-                              <Ionicons name="cloud-upload" size={24} color="#fff" />
-                            )}
-                          </LinearGradient>
-                          <Text style={styles.addStoryText}>העלה</Text>
-            </Pressable>
-
-                        <Pressable
-                          style={styles.addStoryBtn}
-                          onPress={async () => {
-                            try {
-                              const video = await recordVideo({ videoMaxDuration: 60 })
-                              if (video) await handleUploadVideo(video.uri)
-                            } catch (error) {
-                              Alert.alert('שגיאה', 'לא ניתן לצלם')
-                            }
-                          }}
-                          disabled={uploadingVideo}
-                        >
-                          <LinearGradient
-                            colors={[PRIMARY_RED, '#ef4444']}
-                            style={styles.addStoryGradientRed}
-                          >
-                            <Ionicons name="camera" size={24} color="#fff" />
-                          </LinearGradient>
-                          <Text style={styles.addStoryText}>צלם</Text>
-            </Pressable>
-          </View>
-                    )}
-
-                    {validStories.map((s, idx) => (
-                      <StoryCard3D
-                        key={s.id}
-                        story={s}
-                        index={idx}
-                        onPress={() => openStory(idx)}
-                      />
-                    ))}
-
-                    {validStories.length === 0 && !isAdminMode && (
-                      <View style={styles.noStoriesContainer}>
-                        <Ionicons name="videocam-off-outline" size={32} color="rgba(255,255,255,0.5)" />
-                        <Text style={styles.noStoriesText}>אין סרטונים כרגע</Text>
-          </View>
-                    )}
-                  </ScrollView>
-                )}
-              </View>
-            </LinearGradient>
-          </Card3D>
-
-          {/* Main Content Card */}
-          <Card3D delay={300} index={1} style={styles.mainCard}>
-            {/* Category & Date */}
-            <View style={styles.badgeRow}>
-              <View style={styles.categoryBadge}>
-                <Ionicons name="flame" size={14} color={PRIMARY_RED} />
-                <Text style={styles.categoryText}>{DEFAULT_CONTENT.category}</Text>
-              </View>
-              <View style={styles.dateBadge}>
-                <Ionicons name="calendar-outline" size={14} color="#6b7280" />
-                <Text style={styles.dateText}>{todayDate}</Text>
-              </View>
-            </View>
-
-            {/* Editable Title */}
-            {isAdminMode ? (
-              <View style={styles.editableField}>
-                <View style={styles.editableLabel}>
-                  <Ionicons name="text" size={14} color={PRIMARY_RED} />
-                  <Text style={styles.editableLabelText}>כותרת</Text>
-            </View>
-                <TextInput
-                  style={styles.titleInput}
-                  value={contentTitle}
-                  onChangeText={handleTitleChange}
-                  placeholder="כותרת..."
-                  placeholderTextColor="#9ca3af"
-                />
-            </View>
             ) : (
-              <Text style={styles.title}>{contentTitle}</Text>
+              <View style={{ width: 40 }} />
             )}
+          </Animated.View>
 
-            {/* Reading time */}
-            <View style={styles.readTimeRow}>
-              <View style={styles.readTimeIndicator}>
-                <View style={styles.readTimeFill} />
+          {/* Admin Edit Mode Banner */}
+          {isAdminMode && (
+            <View style={styles.adminBanner}>
+              <View style={styles.adminBannerContent}>
+                <Ionicons name="pencil" size={16} color="#fff" />
+                <Text style={styles.adminBannerText}>{t('faithInsight.editMode')}</Text>
               </View>
-              <Text style={styles.readTimeText}>2 דקות קריאה</Text>
-          </View>
+              {hasChanges && (
+                <Pressable
+                  style={styles.saveAllBtn}
+                  onPress={handleSaveAll}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={PRIMARY_RED} />
+                  ) : (
+                    <>
+                      <Ionicons name="save" size={16} color={PRIMARY_RED} />
+                      <Text style={styles.saveAllText}>{t('faithInsight.saveAll')}</Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
+            </View>
+          )}
 
-            {/* Type Selector */}
-            <View style={styles.typeSelectorRow}>
-              <Pressable
-                style={[styles.typeSelector, activeType === 'text' && styles.typeSelectorActive]}
-                onPress={() => setActiveType('text')}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Hero Section with Stories */}
+            <Card3D delay={100} index={0} style={styles.heroSection}>
+              <LinearGradient
+                colors={[DEEP_BLUE, '#1e3a5f']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroGradient}
               >
-                <Ionicons name="document-text" size={18} color={activeType === 'text' ? '#fff' : PRIMARY_RED} />
-                <Text style={[styles.typeSelectorText, activeType === 'text' && styles.typeSelectorTextActive]}>קריאה</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.typeSelector, activeType === 'audio' && styles.typeSelectorActive]}
-                onPress={() => setActiveType('audio')}
-              >
-                <Ionicons name="headset" size={18} color={activeType === 'audio' ? '#fff' : PRIMARY_RED} />
-                <Text style={[styles.typeSelectorText, activeType === 'audio' && styles.typeSelectorTextActive]}>האזנה</Text>
-              </Pressable>
-              </View>
-
-            {/* ============ DEDICATIONS SECTION ============ */}
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <Ionicons name="flame" size={18} color={PRIMARY_GOLD} />
-                  <Text style={styles.sectionTitle}>הקדשות</Text>
+                <View style={styles.heroPattern}>
+                  {[...Array(6)].map((_, i) => (
+                    <View key={i} style={[styles.patternDot, { left: `${15 + i * 15}%`, top: `${10 + (i % 2) * 20}%` }]} />
+                  ))}
                 </View>
-                {isAdminMode && (
-                  <View style={styles.adminBadge}>
-                    <Ionicons name="pencil" size={12} color="#fff" />
+
+                <View style={styles.heroContent}>
+                  <View style={styles.heroHeader}>
+                    <Text style={styles.heroTitle}>{t('faithInsight.dailyVideos')}</Text>
+                    <View style={styles.liveIndicator}>
+                      <View style={styles.liveDot} />
+                      <Text style={styles.liveText}>{t('faithInsight.live')}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.heroSubtitle}>{t('faithInsight.dailyVideosSubtitle')}</Text>
+
+                  {loadingStories ? (
+                    <View style={styles.storiesLoading}>
+                      <ActivityIndicator color="#fff" size="small" />
+                      <Text style={styles.storiesLoadingText}>{t('common.loading', 'Loading...')}</Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.storiesRow}
+                    >
+                      {/* Admin: Add Video Button */}
+                      {isAdminMode && (
+                        <View style={styles.adminVideoActions}>
+                          <Pressable
+                            style={styles.addStoryBtn}
+                            onPress={async () => {
+                              try {
+                                const video = await pickVideo({ videoMaxDuration: 60 })
+                                if (video) await handleUploadVideo(video.uri)
+                              } catch (error) {
+                                Alert.alert(t('faithInsight.alerts.error'), t('faithInsight.alerts.errorPick'))
+                              }
+                            }}
+                            disabled={uploadingVideo}
+                          >
+                            <LinearGradient
+                              colors={['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']}
+                              style={styles.addStoryGradient}
+                            >
+                              {uploadingVideo ? (
+                                <View style={styles.uploadProgressContainer}>
+                                  <ActivityIndicator size="small" color="#fff" />
+                                  <Text style={styles.uploadProgressText}>{Math.round(uploadProgress)}%</Text>
+                                </View>
+                              ) : (
+                                <Ionicons name="cloud-upload" size={24} color="#fff" />
+                              )}
+                            </LinearGradient>
+                            <Text style={styles.addStoryText}>{t('faithInsight.upload')}</Text>
+                          </Pressable>
+
+                          <Pressable
+                            style={styles.addStoryBtn}
+                            onPress={async () => {
+                              try {
+                                const video = await recordVideo({ videoMaxDuration: 60 })
+                                if (video) await handleUploadVideo(video.uri)
+                              } catch (error) {
+                                Alert.alert('שגיאה', 'לא ניתן לצלם')
+                              }
+                            }}
+                            disabled={uploadingVideo}
+                          >
+                            <LinearGradient
+                              colors={[PRIMARY_RED, '#ef4444']}
+                              style={styles.addStoryGradientRed}
+                            >
+                              <Ionicons name="camera" size={24} color="#fff" />
+                            </LinearGradient>
+                            <Text style={styles.addStoryText}>{t('faithInsight.record')}</Text>
+                          </Pressable>
+                        </View>
+                      )}
+
+                      {validStories.map((s, idx) => (
+                        <StoryCard3D
+                          key={s.id}
+                          story={s}
+                          index={idx}
+                          onPress={() => openStory(idx)}
+                        />
+                      ))}
+
+                      {validStories.length === 0 && !isAdminMode && (
+                        <View style={styles.noStoriesContainer}>
+                          <Ionicons name="videocam-off-outline" size={32} color="rgba(255,255,255,0.5)" />
+                          <Text style={styles.noStoriesText}>{t('faithInsight.noStories')}</Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  )}
+                </View>
+              </LinearGradient>
+            </Card3D>
+
+            {/* Main Content Card */}
+            <Card3D delay={300} index={1} style={styles.mainCard}>
+              {/* Category & Date */}
+              <View style={styles.badgeRow}>
+                <View style={styles.categoryBadge}>
+                  <Ionicons name="flame" size={14} color={PRIMARY_RED} />
+                  <Text style={styles.categoryText}>{DEFAULT_CONTENT.category}</Text>
+                </View>
+                {isAdminMode ? (
+                  <View style={styles.dateInputContainer}>
+                    <TextInput
+                      style={styles.dateInput}
+                      value={customDate}
+                      onChangeText={setCustomDate}
+                      placeholder="1/4"
+                      placeholderTextColor="#9ca3af"
+                    />
+                    <Ionicons name="calendar-outline" size={14} color="#6b7280" />
+                  </View>
+                ) : (
+                  <View style={styles.dateBadge}>
+                    <Ionicons name="calendar-outline" size={14} color="#6b7280" />
+                    <Text style={styles.dateText}>{todayDate}</Text>
                   </View>
                 )}
               </View>
 
-              {dedications.length > 0 && (
-                <View style={styles.dedicationsCard}>
-                  <LinearGradient
-                    colors={[DEEP_BLUE, '#1e3a5f']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.dedicationsGradient}
-                  >
-                    <View style={styles.dedicationsList}>
-                {dedications.map((dedication) => (
-                        <View key={dedication.id} style={styles.dedicationItem}>
-                          <View style={styles.dedicationTypeBadge}>
-                      <Text style={styles.dedicationTypeText}>{DEDICATION_LABELS[dedication.type]}</Text>
-                    </View>
-                    <Text style={styles.dedicationName}>{dedication.name}</Text>
-                    {isAdminMode && (
-                      <Pressable
-                              style={styles.dedicationRemove}
-                        onPress={() => handleRemoveDedication(dedication.id)}
-                      >
-                              <Ionicons name="close-circle" size={22} color="rgba(255,255,255,0.7)" />
-                      </Pressable>
-                    )}
+              {/* Editable Title */}
+              {isAdminMode ? (
+                <View style={styles.editableField}>
+                  <TextInput
+                    value={contentTitle}
+                    onChangeText={handleTitleChange}
+                    style={styles.titleInput}
+                    multiline
+                  />
+                  <Ionicons name="pencil" size={14} color={PRIMARY_RED} style={styles.editIcon} />
+                </View>
+              ) : (
+                <Text style={styles.cardTitle}>
+                  {contentTitle}
+                </Text>
+              )}
+
+              <View style={styles.separator} />
+
+              {/* Editable Content */}
+              {isAdminMode ? (
+                <TextInput
+                  value={contentText}
+                  onChangeText={handleContentChange}
+                  style={styles.contentInput}
+                  multiline
+                  scrollEnabled={false}
+                />
+              ) : (
+                <Text style={styles.cardContent}>{contentTitle}</Text>
+              )}
+              {isAdminMode && (
+                <View style={styles.editableFieldLabel}>
+                  <View style={styles.editableLabel}>
+                    <Ionicons name="text" size={14} color={PRIMARY_RED} />
+                    <Text style={styles.editableLabelText}>כותרת</Text>
                   </View>
-                ))}
-              </View>
-                  </LinearGradient>
-            </View>
-          )}
+                </View>
+              )}
 
-              {/* Admin: Add Dedication */}
-          {isAdminMode && (
-                <View style={styles.addDedicationSection}>
-                  <View style={styles.dedicationTypesRow}>
-                {DEDICATION_TYPES.map(type => (
-                  <Pressable
-                    key={type.key}
-                    style={[styles.dedicationTypeBtn, dedicationType === type.key && styles.dedicationTypeBtnActive]}
-                    onPress={() => setDedicationType(type.key)}
-                  >
-                        <Ionicons name={type.icon} size={14} color={dedicationType === type.key ? '#fff' : PRIMARY_RED} />
-                    <Text style={[styles.dedicationTypeBtnText, dedicationType === type.key && styles.dedicationTypeBtnTextActive]}>
-                      {type.label}
-                    </Text>
-                  </Pressable>
-                ))}
+              {/* Reading time */}
+              <View style={styles.readTimeRow}>
+                <View style={styles.readTimeIndicator}>
+                  <View style={styles.readTimeFill} />
+                </View>
+                <Text style={styles.readTimeText}>2 דקות קריאה</Text>
               </View>
 
-                  <View style={styles.dedicationInputRow}>
-              <TextInput
-                style={styles.dedicationInput}
-                placeholder="שם להקדשה (לדוגמה: יעקב בן שרה)"
-                placeholderTextColor="#9ca3af"
-                value={dedicationName}
-                onChangeText={setDedicationName}
-              />
-                    <Pressable style={styles.addDedicationBtn} onPress={handleAddDedication}>
-                      <LinearGradient colors={[PRIMARY_RED, '#ef4444']} style={styles.addBtnGradient}>
-                        <Ionicons name="add" size={22} color="#fff" />
-                      </LinearGradient>
-              </Pressable>
-                  </View>
-            </View>
-          )}
+              {/* Type Selector */}
+              <View style={styles.typeSelectorRow}>
+                <Pressable
+                  style={[styles.typeSelector, activeType === 'text' && styles.typeSelectorActive]}
+                  onPress={() => setActiveType('text')}
+                >
+                  <Ionicons name="document-text" size={18} color={activeType === 'text' ? '#fff' : PRIMARY_RED} />
+                  <Text style={[styles.typeSelectorText, activeType === 'text' && styles.typeSelectorTextActive]}>קריאה</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.typeSelector, activeType === 'audio' && styles.typeSelectorActive]}
+                  onPress={() => setActiveType('audio')}
+                >
+                  <Ionicons name="headset" size={18} color={activeType === 'audio' ? '#fff' : PRIMARY_RED} />
+                  <Text style={[styles.typeSelectorText, activeType === 'audio' && styles.typeSelectorTextActive]}>האזנה</Text>
+                </Pressable>
+              </View>
 
-              {dedications.length === 0 && !isAdminMode && (
-                <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>אין הקדשות להיום</Text>
-            </View>
-          )}
-            </View>
-
-            {/* ============ CONTENT SECTION ============ */}
-            {activeType === 'text' && (
+              {/* ============ DEDICATIONS SECTION ============ */}
               <View style={styles.sectionContainer}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionTitleRow}>
-                    <Ionicons name="book" size={18} color={PRIMARY_RED} />
-                    <Text style={styles.sectionTitle}>תוכן יומי</Text>
-              </View>
+                    <Ionicons name="flame" size={18} color={PRIMARY_GOLD} />
+                    <Text style={styles.sectionTitle}>הקדשות</Text>
+                  </View>
                   {isAdminMode && (
                     <View style={styles.adminBadge}>
                       <Ionicons name="pencil" size={12} color="#fff" />
-            </View>
-          )}
-                </View>
-
-                {isAdminMode ? (
-                  <View style={styles.editorContainer}>
-                    <TextInput
-                      style={styles.contentEditor}
-                      multiline
-                      placeholder="כתוב את התוכן היומי..."
-                      placeholderTextColor="#9ca3af"
-                      value={contentText}
-                      onChangeText={handleContentChange}
-                      textAlignVertical="top"
-                    />
-              </View>
-                ) : (
-                  <View style={styles.contentBody}>
-                    {contentText.split('\n\n').map((para, idx) => (
-                      <Text key={idx} style={styles.paragraph}>{para}</Text>
-              ))}
-            </View>
-          )}
-          </View>
-            )}
-
-            {/* ============ AUDIO SECTION ============ */}
-            {activeType === 'audio' && (
-              <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionTitleRow}>
-                    <Ionicons name="musical-notes" size={18} color={PRIMARY_RED} />
-                    <Text style={styles.sectionTitle}>הקלטות</Text>
-            </View>
-              {isAdminMode && (
-                    <Pressable style={styles.addAudioBtn} onPress={handlePickAudio} disabled={uploadingAudio}>
-                      <LinearGradient colors={[PRIMARY_RED, '#ef4444']} style={styles.addAudioBtnGradient}>
-                        {uploadingAudio ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                          <>
-                            <Ionicons name="add" size={16} color="#fff" />
-                            <Text style={styles.addAudioBtnText}>הוסף הקלטה</Text>
-                          </>
-                    )}
-                      </LinearGradient>
-                  </Pressable>
+                    </View>
                   )}
                 </View>
 
-                {audioFiles.length > 0 ? (
-                  <View style={styles.audioList}>
-                    {audioFiles.map((audio) => (
-                      <View key={audio.id} style={styles.audioItem}>
-                  <Pressable 
-                          style={styles.audioPlayBtn}
-                          onPress={() => playAudio(audio.uri, audio.id)}
+                {dedications.length > 0 && (
+                  <View style={styles.dedicationsCard}>
+                    <LinearGradient
+                      colors={[DEEP_BLUE, '#1e3a5f']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.dedicationsGradient}
+                    >
+                      <View style={styles.dedicationsList}>
+                        {dedications.map((dedication) => (
+                          <View key={dedication.id} style={styles.dedicationItem}>
+                            <View style={styles.dedicationTypeBadge}>
+                              <Text style={styles.dedicationTypeText}>{t(`faithInsight.dedicationTypes.${dedication.type}`)}</Text>
+                            </View>
+                            <Text style={styles.dedicationName}>{dedication.name}</Text>
+                            {isAdminMode && (
+                              <Pressable
+                                style={styles.dedicationRemove}
+                                onPress={() => handleRemoveDedication(dedication.id)}
+                              >
+                                <Ionicons name="close-circle" size={22} color="rgba(255,255,255,0.7)" />
+                              </Pressable>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+                    </LinearGradient>
+                  </View>
+                )}
+
+                {/* Admin: Add Dedication */}
+                {isAdminMode && (
+                  <View style={styles.addDedicationSection}>
+                    <View style={styles.dedicationTypesRow}>
+                      {DEDICATION_TYPES.map(type => (
+                        <Pressable
+                          key={type.key}
+                          style={[styles.dedicationTypeBtn, dedicationType === type.key && styles.dedicationTypeBtnActive]}
+                          onPress={() => setDedicationType(type.key)}
                         >
-                          <LinearGradient
-                            colors={currentPlayingAudioId === audio.id ? [DEEP_BLUE, '#1e3a5f'] : [PRIMARY_RED, '#ef4444']}
-                            style={styles.audioPlayGradient}
-                  >
-                            <Ionicons
-                              name={currentPlayingAudioId === audio.id && audioStatus?.isPlaying ? 'pause' : 'play'}
-                              size={20}
-                              color="#fff"
-                            />
-                          </LinearGradient>
-                  </Pressable>
-                        <View style={styles.audioInfo}>
-                          <Text style={styles.audioTitle}>{audio.title}</Text>
-                          <Text style={styles.audioDuration}>{audio.duration}</Text>
-                </View>
-                        {isAdminMode && (
-                          <Pressable
-                            style={styles.audioRemoveBtn}
-                            onPress={() => handleRemoveAudio(audio.id)}
-                          >
-                            <Ionicons name="trash-outline" size={18} color={PRIMARY_RED} />
-                          </Pressable>
-              )}
-            </View>
-                    ))}
+                          <Ionicons name={type.icon} size={14} color={dedicationType === type.key ? '#fff' : PRIMARY_RED} />
+                          <Text style={[styles.dedicationTypeBtnText, dedicationType === type.key && styles.dedicationTypeBtnTextActive]}>
+                            {type.label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    <View style={styles.dedicationInputRow}>
+                      <TextInput
+                        style={styles.dedicationInput}
+                        placeholder="שם להקדשה (לדוגמה: יעקב בן שרה)"
+                        placeholderTextColor="#9ca3af"
+                        value={dedicationName}
+                        onChangeText={setDedicationName}
+                      />
+                      <Pressable style={styles.addDedicationBtn} onPress={handleAddDedication}>
+                        <LinearGradient colors={[PRIMARY_RED, '#ef4444']} style={styles.addBtnGradient}>
+                          <Ionicons name="add" size={22} color="#fff" />
+                        </LinearGradient>
+                      </Pressable>
+                    </View>
                   </View>
-                ) : (
-                  <View style={styles.emptyAudioState}>
-                    <Ionicons name="musical-notes-outline" size={48} color="#d1d5db" />
-                    <Text style={styles.emptyAudioText}>
-                      {isAdminMode ? 'לחץ על "הוסף הקלטה" להעלאת קובץ שמע' : 'אין הקלטות להיום'}
-                    </Text>
+                )}
+
+                {dedications.length === 0 && !isAdminMode && (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateText}>אין הקדשות להיום</Text>
                   </View>
+                )}
+              </View>
+
+              {/* ============ CONTENT SECTION ============ */}
+              {activeType === 'text' && (
+                <View style={styles.sectionContainer}>
+                  <View style={styles.sectionHeader}>
+                    <View style={styles.sectionTitleRow}>
+                      <Ionicons name="book" size={18} color={PRIMARY_RED} />
+                      <Text style={styles.sectionTitle}>תוכן יומי</Text>
+                    </View>
+                    {isAdminMode && (
+                      <View style={styles.adminBadge}>
+                        <Ionicons name="pencil" size={12} color="#fff" />
+                      </View>
                     )}
                   </View>
-            )}
 
-            {/* Author Section */}
-            <View style={styles.authorSection}>
-              <View style={styles.authorAvatar}>
-                <LinearGradient
-                  colors={[PRIMARY_RED, '#ef4444']}
-                  style={styles.authorAvatarGradient}
-                >
-                  <Text style={styles.authorInitials}>הר״ע</Text>
+                  {isAdminMode ? (
+                    <View style={styles.editorContainer}>
+                      <TextInput
+                        style={styles.contentEditor}
+                        multiline
+                        placeholder="כתוב את התוכן היומי..."
+                        placeholderTextColor="#9ca3af"
+                        value={contentText}
+                        onChangeText={handleContentChange}
+                        textAlignVertical="top"
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.contentBody}>
+                      {contentText.split('\n\n').map((para, idx) => (
+                        <Text key={idx} style={styles.paragraph}>{para}</Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* ============ AUDIO SECTION ============ */}
+              {activeType === 'audio' && (
+                <View style={styles.sectionContainer}>
+                  <View style={styles.sectionHeader}>
+                    <View style={styles.sectionTitleRow}>
+                      <Ionicons name="musical-notes" size={18} color={PRIMARY_RED} />
+                      <Text style={styles.sectionTitle}>הקלטות</Text>
+                    </View>
+                    {isAdminMode && (
+                      <Pressable style={styles.addAudioBtn} onPress={handlePickAudio} disabled={uploadingAudio}>
+                        <LinearGradient colors={[PRIMARY_RED, '#ef4444']} style={styles.addAudioBtnGradient}>
+                          {uploadingAudio ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <>
+                              <Ionicons name="add" size={16} color="#fff" />
+                              <Text style={styles.addAudioBtnText}>הוסף הקלטה</Text>
+                            </>
+                          )}
+                        </LinearGradient>
+                      </Pressable>
+                    )}
+                  </View>
+
+                  {audioFiles.length > 0 ? (
+                    <View style={styles.audioList}>
+                      {audioFiles.map((audio) => (
+                        <View key={audio.id} style={styles.audioItem}>
+                          <Pressable
+                            style={styles.audioPlayBtn}
+                            onPress={() => playAudio(audio.uri, audio.id)}
+                          >
+                            <LinearGradient
+                              colors={currentPlayingAudioId === audio.id ? [DEEP_BLUE, '#1e3a5f'] : [PRIMARY_RED, '#ef4444']}
+                              style={styles.audioPlayGradient}
+                            >
+                              <Ionicons
+                                name={currentPlayingAudioId === audio.id && audioStatus?.isPlaying ? 'pause' : 'play'}
+                                size={20}
+                                color="#fff"
+                              />
+                            </LinearGradient>
+                          </Pressable>
+                          <View style={styles.audioInfo}>
+                            <Text style={styles.audioTitle}>{audio.title}</Text>
+                            <Text style={styles.audioDuration}>{audio.duration}</Text>
+                          </View>
+                          {isAdminMode && (
+                            <Pressable
+                              style={styles.audioRemoveBtn}
+                              onPress={() => handleRemoveAudio(audio.id)}
+                            >
+                              <Ionicons name="trash-outline" size={18} color={PRIMARY_RED} />
+                            </Pressable>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.emptyAudioState}>
+                      <Ionicons name="musical-notes-outline" size={48} color="#d1d5db" />
+                      <Text style={styles.emptyAudioText}>
+                        {isAdminMode ? 'לחץ על "הוסף הקלטה" להעלאת קובץ שמע' : 'אין הקלטות להיום'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Dedication Button */}
+              <Pressable
+                style={styles.dedicationButton}
+                onPress={() => {
+                  const phoneNumber = '972545557248' // 0545557248
+                  Linking.openURL(`https://wa.me/${phoneNumber}`).catch(() => {
+                    Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
+                  })
+                }}
+              >
+                <LinearGradient colors={[PRIMARY_GOLD, '#ffed4e']} style={styles.dedicationButtonGradient}>
+                  <Ionicons name="heart" size={18} color="#fff" />
+                  <Text style={styles.dedicationButtonText}>להקדשה יומית ליקירכים</Text>
+                  <Ionicons name="logo-whatsapp" size={18} color="#fff" />
                 </LinearGradient>
-              </View>
-              <View style={styles.authorInfo}>
-                <Text style={styles.authorName}>{DEFAULT_CONTENT.author}</Text>
-                <Text style={styles.authorRole}>מרצה ומחבר ספרים</Text>
-              </View>
-              <Pressable style={styles.shareButton} onPress={handleShare}>
-                <LinearGradient
-                  colors={[PRIMARY_RED, '#ef4444']}
-                  style={styles.shareButtonGradient}
-                >
-                  <Ionicons name="share-social" size={18} color="#fff" />
-                  <Text style={styles.shareButtonText}>שתף</Text>
-                </LinearGradient>
+              </Pressable>
+
+              {/* Author Section */}
+              <View style={styles.authorSection}>
+                <View style={styles.authorAvatar}>
+                  <LinearGradient
+                    colors={[PRIMARY_RED, '#ef4444']}
+                    style={styles.authorAvatarGradient}
+                  >
+                    <Text style={styles.authorInitials}>הר״ע</Text>
+                  </LinearGradient>
+                </View>
+                <View style={styles.authorInfo}>
+                  <Text style={styles.authorName}>{DEFAULT_CONTENT.author}</Text>
+                  <Text style={styles.authorRole}>מרצה ומחבר ספרים</Text>
+                </View>
+                <Pressable style={styles.shareButton} onPress={handleShare}>
+                  <LinearGradient
+                    colors={[PRIMARY_RED, '#ef4444']}
+                    style={styles.shareButtonGradient}
+                  >
+                    <Ionicons name="share-social" size={18} color="#fff" />
+                    <Text style={styles.shareButtonText}>שתף</Text>
+                  </LinearGradient>
                 </Pressable>
-          </View>
-          </Card3D>
-        </ScrollView>
-      </SafeAreaView>
+              </View>
+            </Card3D>
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
 
       {/* Story Modal */}
-        <Modal visible={isStoryModalVisible} transparent animationType="fade" onRequestClose={closeStory}>
+      <Modal visible={isStoryModalVisible} transparent animationType="fade" onRequestClose={closeStory}>
         <View style={styles.storyModal}>
           <Pressable style={styles.storyCloseBtn} onPress={closeStory}>
             <View style={styles.storyCloseBtnInner}>
               <Ionicons name="close" size={24} color="#fff" />
             </View>
-              </Pressable>
+          </Pressable>
 
           <View style={styles.storyProgressRow}>
             {validStories.map((_, idx) => (
@@ -1076,20 +1175,20 @@ export default function DailyInsightScreen({ navigation }) {
             ))}
           </View>
 
-              {validStories[currentStoryIndex] && (
-                <Video
-                  key={validStories[currentStoryIndex].id}
-                  style={styles.storyVideo}
-                  source={{ uri: validStories[currentStoryIndex].uri }}
-                  resizeMode="contain"
-                  shouldPlay
-                  isLooping={false}
-                  onPlaybackStatusUpdate={handleStoryStatus}
-                  useNativeControls
-                />
-              )}
-          </View>
-        </Modal>
+          {validStories[currentStoryIndex] && (
+            <Video
+              key={validStories[currentStoryIndex].id}
+              style={styles.storyVideo}
+              source={{ uri: validStories[currentStoryIndex].uri }}
+              resizeMode="contain"
+              shouldPlay
+              isLooping={false}
+              onPlaybackStatusUpdate={handleStoryStatus}
+              useNativeControls
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -1420,6 +1519,24 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: '#6b7280',
   },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(220,38,38,0.06)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.2)',
+  },
+  dateInput: {
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+    color: DEEP_BLUE,
+    minWidth: 60,
+    textAlign: 'right',
+  },
   title: {
     fontSize: 28,
     fontFamily: 'Poppins_700Bold',
@@ -1504,6 +1621,32 @@ const styles = StyleSheet.create({
     color: PRIMARY_RED,
   },
   typeSelectorTextActive: {
+    color: '#fff',
+  },
+
+  // Dedication Button
+  dedicationButton: {
+    marginTop: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: PRIMARY_GOLD,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  dedicationButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  dedicationButtonText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
     color: '#fff',
   },
 
@@ -1678,6 +1821,66 @@ const styles = StyleSheet.create({
     color: '#374151',
     textAlign: 'right',
     lineHeight: 28,
+  },
+
+  // Language Selector
+  languageSelectorContainer: {
+    marginBottom: 20,
+    backgroundColor: '#f9fafb',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  languageSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  languageSelectorTitle: {
+    fontSize: 15,
+    fontFamily: 'Heebo_600SemiBold',
+    color: DEEP_BLUE,
+  },
+  languageButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  languageBtn: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  languageBtnActive: {
+    shadowColor: PRIMARY_RED,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  languageBtnGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 70,
+  },
+  languageFlag: {
+    fontSize: 24,
+  },
+  languageLabel: {
+    fontSize: 13,
+    fontFamily: 'Heebo_600SemiBold',
+    color: '#6b7280',
+  },
+  languageLabelActive: {
+    color: '#fff',
   },
 
   // Audio Section

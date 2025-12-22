@@ -55,6 +55,38 @@ export function AuthProvider({ children }) {
           } else {
             console.log('❌ User is NOT admin - role:', data?.role)
           }
+
+          // Register for push notifications and save token
+          try {
+            const { registerForPushNotificationsAsync } = await import('../utils/notifications')
+            const token = await registerForPushNotificationsAsync()
+            if (token) {
+              console.log('📱 Push notification token received:', token)
+              // Save token to Firestore
+              try {
+                const { updateUserData } = await import('../services/firestore')
+                const currentTokens = data?.expoPushTokens || []
+                if (!currentTokens.includes(token)) {
+                  await updateUserData(firebaseUser.uid, {
+                    expoPushTokens: [...currentTokens, token],
+                    lastPushTokenUpdate: new Date()
+                  })
+                  console.log('✅ Push token saved to Firestore')
+                } else {
+                  console.log('ℹ️ Push token already exists in Firestore')
+                }
+              } catch (saveError) {
+                console.warn('⚠️ Could not save push token to Firestore:', saveError)
+                // Don't fail if token save fails
+              }
+            } else {
+              console.log('ℹ️ No push token received (permissions may not be granted)')
+              // This is normal - user might have denied permissions or it's a simulator
+            }
+          } catch (pushError) {
+            console.warn('⚠️ Could not register for push notifications:', pushError)
+            // Don't fail auth if push notifications fail - this is non-critical
+          }
         } catch (error) {
           console.error('❌ Error loading user data:', error)
           setUserData(null)
@@ -94,6 +126,19 @@ export function AuthProvider({ children }) {
     return await registerFunc(email, password, displayName)
   }
 
+  const refreshUserData = async () => {
+    if (user) {
+      try {
+        const { userData: data } = await getUserData(user.uid);
+        setUserData(data);
+        const admin = await isUserAdmin(user.uid);
+        setIsAdmin(admin);
+      } catch (error) {
+        console.error('Error refreshing user data:', error);
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -103,6 +148,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
       register,
+      refreshUserData,
     }}>
       {children}
     </AuthContext.Provider>

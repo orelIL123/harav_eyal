@@ -1,0 +1,153 @@
+[debug] [2025-11-27T16:51:34.017Z] ----------------------------------------------------------------------
+[debug] [2025-11-27T16:51:34.022Z] Command:       /opt/homebrew/Cellar/node/24.4.1/bin/node /opt/homebrew/bin/firebase deploy --only firestore:rules
+[debug] [2025-11-27T16:51:34.022Z] CLI Version:   14.25.1
+[debug] [2025-11-27T16:51:34.022Z] Platform:      darwin
+[debug] [2025-11-27T16:51:34.022Z] Node Version:  v24.4.1
+[debug] [2025-11-27T16:51:34.022Z] Time:          Thu Nov 27 2025 18:51:34 GMT+0200 (Israel Standard Time)
+[debug] [2025-11-27T16:51:34.022Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-11-27T16:51:34.121Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-11-27T16:51:34.122Z] > authorizing via signed-in user (orel895@gmail.com)
+[debug] [2025-11-27T16:51:34.122Z] [iam] checking project eyalamrami-1d69e for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-11-27T16:51:34.123Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:34.123Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:34.123Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions [none]
+[debug] [2025-11-27T16:51:34.123Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions x-goog-quota-user=projects/eyalamrami-1d69e
+[debug] [2025-11-27T16:51:34.123Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-11-27T16:51:35.157Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions 200
+[debug] [2025-11-27T16:51:35.158Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'eyalamrami-1d69e'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2025-11-27T16:51:35.160Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:35.160Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:35.160Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) [none]
+[debug] [2025-11-27T16:51:35.727Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) 200
+[debug] [2025-11-27T16:51:35.727Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) {"name":"projects/eyalamrami-1d69e/databases/(default)","uid":"28c72577-e069-422d-b53f-9211ba17d04d","createTime":"2025-11-16T21:56:31.041581Z","updateTime":"2025-11-16T21:56:31.041581Z","locationId":"europe-west2","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-11-27T15:51:35.817825Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"g","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"INWXu5vlkpEDMMXn/oLW95AD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2025-11-27T16:51:35.730Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:35.730Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:35.730Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test [none]
+[debug] [2025-11-27T16:51:35.730Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test [omitted]
+[debug] [2025-11-27T16:51:36.601Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test 200
+[debug] [2025-11-27T16:51:36.601Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2025-11-27T16:51:36.603Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:36.603Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:36.603Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases pageSize=10&pageToken=
+[debug] [2025-11-27T16:51:37.274Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases 200
+[debug] [2025-11-27T16:51:37.274Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases {"releases":[{"name":"projects/eyalamrami-1d69e/releases/cloud.firestore","rulesetName":"projects/eyalamrami-1d69e/rulesets/9afec978-f70f-4ca1-92be-434836a4f001","createTime":"2025-11-16T21:56:37.010939Z","updateTime":"2025-11-27T12:17:15.940738Z"},{"name":"projects/eyalamrami-1d69e/releases/firebase.storage/eyalamrami-1d69e.firebasestorage.app","rulesetName":"projects/eyalamrami-1d69e/rulesets/c1233528-4ec5-4321-9e10-6dd88935fb68","createTime":"2025-11-16T21:57:38.715272Z","updateTime":"2025-11-21T10:08:05.471990Z"}]}
+[debug] [2025-11-27T16:51:37.290Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:37.291Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:37.291Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/rulesets/9afec978-f70f-4ca1-92be-434836a4f001 [none]
+[debug] [2025-11-27T16:51:37.971Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/rulesets/9afec978-f70f-4ca1-92be-434836a4f001 200
+[debug] [2025-11-27T16:51:37.971Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/rulesets/9afec978-f70f-4ca1-92be-434836a4f001 [omitted]
+[info] i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[debug] [2025-11-27T16:51:37.972Z] [rules] releasing cloud.firestore/(default) with ruleset projects/eyalamrami-1d69e/rulesets/9afec978-f70f-4ca1-92be-434836a4f001
+[debug] [2025-11-27T16:51:37.972Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:37.972Z] Checked if tokens are valid: true, expires at: 1764264051940
+[debug] [2025-11-27T16:51:37.972Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases/cloud.firestore/(default) [none]
+[debug] [2025-11-27T16:51:37.972Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases/cloud.firestore/(default) {"release":{"name":"projects/eyalamrami-1d69e/releases/cloud.firestore/(default)","rulesetName":"projects/eyalamrami-1d69e/rulesets/9afec978-f70f-4ca1-92be-434836a4f001"}}
+[debug] [2025-11-27T16:51:38.875Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases/cloud.firestore/(default) 200
+[debug] [2025-11-27T16:51:38.876Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases/cloud.firestore/(default) {"name":"projects/eyalamrami-1d69e/releases/cloud.firestore","rulesetName":"projects/eyalamrami-1d69e/rulesets/9afec978-f70f-4ca1-92be-434836a4f001","createTime":"2025-11-16T21:56:37.010939Z","updateTime":"2025-11-27T16:51:38.900428Z"}
+[debug] [2025-11-27T16:51:38.876Z] [rules] updated release projects/eyalamrami-1d69e/releases/cloud.firestore
+[info] ✔  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] ✔  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/eyalamrami-1d69e/overview
+[debug] [2025-12-16T16:37:40.587Z] ----------------------------------------------------------------------
+[debug] [2025-12-16T16:37:40.590Z] Command:       /opt/homebrew/Cellar/node/24.4.1/bin/node /opt/homebrew/bin/firebase deploy --only firestore:indexes
+[debug] [2025-12-16T16:37:40.590Z] CLI Version:   14.25.1
+[debug] [2025-12-16T16:37:40.590Z] Platform:      darwin
+[debug] [2025-12-16T16:37:40.590Z] Node Version:  v24.4.1
+[debug] [2025-12-16T16:37:40.590Z] Time:          Tue Dec 16 2025 18:37:40 GMT+0200 (Israel Standard Time)
+[debug] [2025-12-16T16:37:40.590Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-16T16:37:40.696Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-16T16:37:40.697Z] > authorizing via signed-in user (orel895@gmail.com)
+[debug] [2025-12-16T16:37:40.698Z] [iam] checking project eyalamrami-1d69e for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-12-16T16:37:40.698Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:40.698Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:40.699Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions [none]
+[debug] [2025-12-16T16:37:40.699Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions x-goog-quota-user=projects/eyalamrami-1d69e
+[debug] [2025-12-16T16:37:40.699Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-12-16T16:37:41.667Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions 200
+[debug] [2025-12-16T16:37:41.667Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'eyalamrami-1d69e'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2025-12-16T16:37:41.669Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:41.669Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:41.669Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) [none]
+[debug] [2025-12-16T16:37:42.242Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) 200
+[debug] [2025-12-16T16:37:42.243Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) {"name":"projects/eyalamrami-1d69e/databases/(default)","uid":"28c72577-e069-422d-b53f-9211ba17d04d","createTime":"2025-11-16T21:56:31.041581Z","updateTime":"2025-11-16T21:56:31.041581Z","locationId":"europe-west2","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-12-16T15:37:42.280720Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"g","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"ILrN8MXFwpEDMMXn/oLW95AD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2025-12-16T16:37:42.248Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.248Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.248Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test [none]
+[debug] [2025-12-16T16:37:42.248Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test [omitted]
+[debug] [2025-12-16T16:37:42.579Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test 200
+[debug] [2025-12-16T16:37:42.579Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[info] i  firestore: deploying indexes... 
+[debug] [2025-12-16T16:37:42.581Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.581Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.581Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/-/indexes [none]
+[debug] [2025-12-16T16:37:42.708Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/-/indexes 200
+[debug] [2025-12-16T16:37:42.708Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/-/indexes {"indexes":[{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/news/indexes/CICAgNiav4AK","queryScope":"COLLECTION","fields":[{"fieldPath":"isPublished","order":"ASCENDING"},{"fieldPath":"publishedAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/feeds/indexes/CICAgJim14AK","queryScope":"COLLECTION","fields":[{"fieldPath":"published","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/dailyInsights/indexes/CICAgOjXh4EK","queryScope":"COLLECTION","fields":[{"fieldPath":"published","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/flyers/indexes/CICAgNiroIEK","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/lessons/indexes/CICAgJj7z4EK","queryScope":"COLLECTION","fields":[{"fieldPath":"category","order":"ASCENDING"},{"fieldPath":"order","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/podcasts/indexes/CICAgNjpgYIK","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"order","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/alerts/indexes/CICAgJjF9oIK","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/faith_stories/indexes/CICAgLiIkYMK","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/notifications/indexes/CICAgJiUpoMK","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/lessons/indexes/CICAgNi47oMK","queryScope":"COLLECTION","fields":[{"fieldPath":"category","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/dailyVideos/indexes/CICAgJjmnIgK","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/homeCards/indexes/CICAgNi4o4sK","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"order","order":"ASCENDING"},{"fieldPath":"__name__","order":"ASCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/faithLessons/indexes/CICAgOi3kJAK","queryScope":"COLLECTION","fields":[{"fieldPath":"category","order":"ASCENDING"},{"fieldPath":"priority","order":"ASCENDING"},{"fieldPath":"__name__","order":"ASCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/news/indexes/CICAgJjmiJEK","queryScope":"COLLECTION","fields":[{"fieldPath":"category","order":"ASCENDING"},{"fieldPath":"publishedAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/podcasts/indexes/CICAgNi4-ZIK","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"},{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/books/indexes/CICAgJjm-pkK","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}],"state":"READY","density":"SPARSE_ALL"}]}
+[debug] [2025-12-16T16:37:42.709Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.709Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.709Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* [none]
+[debug] [2025-12-16T16:37:42.822Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* 200
+[debug] [2025-12-16T16:37:42.822Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/-/fields?filter=indexConfig.usesAncestorConfig=false OR ttlConfig:* {"fields":[{"name":"projects/eyalamrami-1d69e/databases/(default)/collectionGroups/__default__/fields/*","indexConfig":{"indexes":[{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"ASCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","order":"DESCENDING"}],"state":"READY"},{"queryScope":"COLLECTION","fields":[{"fieldPath":"*","arrayConfig":"CONTAINS"}],"state":"READY"}]}}]}
+[debug] [2025-12-16T16:37:42.822Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.822Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.822Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) [none]
+[debug] [2025-12-16T16:37:42.915Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) 200
+[debug] [2025-12-16T16:37:42.915Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) {"name":"projects/eyalamrami-1d69e/databases/(default)","uid":"28c72577-e069-422d-b53f-9211ba17d04d","createTime":"2025-11-16T21:56:31.041581Z","updateTime":"2025-11-16T21:56:31.041581Z","locationId":"europe-west2","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-12-16T15:37:42.952250Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"g","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IL3KmcbFwpEDMMXn/oLW95AD"}
+[debug] [2025-12-16T16:37:42.915Z] Skipping existing index: {"collectionGroup":"dailyInsights","queryScope":"COLLECTION","fields":[{"fieldPath":"published","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"notifications","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"faithLessons","queryScope":"COLLECTION","fields":[{"fieldPath":"category","order":"ASCENDING"},{"fieldPath":"priority","order":"ASCENDING"},{"fieldPath":"__name__","order":"ASCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"feeds","queryScope":"COLLECTION","fields":[{"fieldPath":"published","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"alerts","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"lessons","queryScope":"COLLECTION","fields":[{"fieldPath":"category","order":"ASCENDING"},{"fieldPath":"order","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"lessons","queryScope":"COLLECTION","fields":[{"fieldPath":"category","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"news","queryScope":"COLLECTION","fields":[{"fieldPath":"isPublished","order":"ASCENDING"},{"fieldPath":"publishedAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"news","queryScope":"COLLECTION","fields":[{"fieldPath":"category","order":"ASCENDING"},{"fieldPath":"publishedAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"podcasts","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"order","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"podcasts","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"dailyVideos","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"homeCards","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"order","order":"ASCENDING"},{"fieldPath":"__name__","order":"ASCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"flyers","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"date","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"books","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Skipping existing index: {"collectionGroup":"faith_stories","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"},{"fieldPath":"__name__","order":"DESCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Creating new index: {"collectionGroup":"faith_topics","queryScope":"COLLECTION","fields":[{"fieldPath":"order","order":"ASCENDING"}]}
+[debug] [2025-12-16T16:37:42.916Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.916Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T16:37:42.916Z] >>> [apiv2][query] POST https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/faith_topics/indexes [none]
+[debug] [2025-12-16T16:37:42.917Z] >>> [apiv2][body] POST https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/faith_topics/indexes {"fields":[{"fieldPath":"order","order":"ASCENDING"}],"queryScope":"COLLECTION"}
+[debug] [2025-12-16T16:37:43.029Z] <<< [apiv2][status] POST https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/faith_topics/indexes 400
+[debug] [2025-12-16T16:37:43.029Z] <<< [apiv2][body] POST https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/faith_topics/indexes {"error":{"code":400,"message":"this index is not necessary, configure using single field index controls","status":"INVALID_ARGUMENT"}}
+[error] 
+[error] Error: Request to https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default)/collectionGroups/faith_topics/indexes had HTTP Error: 400, this index is not necessary, configure using single field index controls
+[debug] [2025-12-16T16:37:43.198Z] Error Context: {
+  "body": {
+    "error": {
+      "code": 400,
+      "message": "this index is not necessary, configure using single field index controls",
+      "status": "INVALID_ARGUMENT"
+    }
+  },
+  "response": {
+    "statusCode": 400
+  }
+}

@@ -1,89 +1,121 @@
 rules_version = '2';
+
 service cloud.firestore {
+
   match /databases/{database}/documents {
-    
+
     // ========== HELPER FUNCTIONS ==========
-    
+
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isAdmin() {
       return isSignedIn() &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-    
-    function isDashboard() {
-      return isSignedIn() &&
-             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dashboard');
-    }
-    
-    // ========== USERS COLLECTION ==========
-    match /users/{uid} {
-      // Users can read/write their own document
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null && request.auth.uid == uid;
 
-      // Dashboard users can read all users (for statistics)
-      allow read: if isDashboard();
-      
-      // Admins can write role field
-      allow update: if isAdmin() && 
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']);
+    function isVIP() {
+      return isSignedIn() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'vip';
     }
-    
-    // ========== DAILY INSIGHTS COLLECTION ==========
-    match /dailyInsights/{dateId} {
-      // Everyone can read published insights
-      allow read: if true;
-      
-      // Only admins can write
-      allow write: if isAdmin();
+
+    function isPremium() {
+      return isSignedIn() &&
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'premium' ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'vip');
     }
-    
-    // ========== DAILY STORIES COLLECTION ==========
-    match /dailyStories/{dateId}/clips/{clipId} {
-      // Everyone can read stories
-      allow read: if true;
-      
-      // Only admins can write
-      allow write: if isAdmin();
+
+    // ========== USERS COLLECTION ==========
+
+    match /users/{userId} {
+      // Users can read and write their own data
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+      // Admins can read all users
+      allow read: if isAdmin();
     }
-    
-    // ========== NOTIFICATIONS COLLECTION ==========
-    match /notifications/{notificationId} {
-      // Only admins can read/write
-      allow read, write: if isAdmin();
+
+    // ========== ALERTS COLLECTION ==========
+
+    match /alerts/{alertId} {
+      // Everyone can read active alerts (public)
+      allow read: if resource.data.isActive == true;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
+      // Only admins can create, update, delete
+      allow create, update, delete: if isAdmin();
     }
-    
-    // ========== FEEDS COLLECTION ==========
-    match /feeds/{feedId} {
-      // Everyone can read published feeds, admins can read all
-      allow read: if resource.data.published == true || isAdmin();
-      
-      // Only admins can write
-      allow write: if isAdmin();
+
+    // ========== COURSES COLLECTION ==========
+
+    match /courses/{courseId} {
+      // Free users can only see free courses
+      // Premium/VIP users can see all courses
+      allow read: if isSignedIn() &&
+        (!resource.data.isPremium || isPremium());
+      // Only admins can modify courses
+      allow create, update, delete: if isAdmin();
     }
-    
-    // ========== FAITH LESSONS COLLECTION ==========
-    match /faithLessons/{lessonId} {
-      // Public read for published lessons
-      allow read: if resource.data.published == true || isAdmin();
-      
-      // Only admins can write
-      allow write: if isAdmin();
-    }
-    
-    // ========== LESSONS COLLECTION ==========
-    match /lessons/{lessonId} {
-      // Public read for all (lessons should be accessible to everyone)
+
+    // ========== HOME CARDS COLLECTION ==========
+
+    match /homeCards/{cardId} {
+      // Public read for all
       allow read: if true;
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }
 
+    // ========== APP CONFIG COLLECTION ==========
+
+    match /appConfig/config {
+      // Public read
+      allow read: if true;
+      // Only admins can modify
+      allow write: if isAdmin();
+    }
+
+    // ========== RECOMMENDATIONS COLLECTION ==========
+
+    match /recommendations/{recoId} {
+      // All signed-in users can read
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== NEWS COLLECTION ==========
+
+    match /news/{newsId} {
+      // Published news can be read by everyone (public)
+      allow read: if resource.data.isPublished == true;
+      // Admins can read all (including drafts)
+      allow read: if isAdmin();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== MARKET DATA COLLECTION ==========
+
+    match /marketData/snapshot {
+      // Public read for market data
+      allow read: if true;
+      // Only server/admin can write
+      allow write: if isAdmin();
+    }
+
+    // ========== LESSONS COLLECTION ==========
+
+    match /lessons/{lessonId} {
+      // All signed-in users can read lessons
+      allow read: if isSignedIn();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
     // ========== PODCASTS COLLECTION ==========
+
     match /podcasts/{podcastId} {
       // Everyone can read active podcasts (public)
       allow read: if resource.data.isActive == true;
@@ -94,6 +126,7 @@ service cloud.firestore {
     }
 
     // ========== DAILY VIDEOS COLLECTION ==========
+
     match /dailyVideos/{videoId} {
       // Everyone can read active videos (public)
       // Default to true if isActive field is missing (backward compatibility)
@@ -104,43 +137,8 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // ========== NEWS COLLECTION ==========
-    match /news/{newsId} {
-      // Published news can be read by everyone (public)
-      allow read: if resource.data.isPublished == true;
-      // Admins can read all (including drafts)
-      allow read: if isAdmin();
-      // Only admins can modify
-      allow create, update, delete: if isAdmin();
-    }
-
-    // ========== ALERTS COLLECTION ==========
-    match /alerts/{alertId} {
-      // Everyone can read active alerts (public)
-      allow read: if resource.data.isActive == true;
-      // Admins can read all (including inactive)
-      allow read: if isAdmin();
-      // Only admins can create, update, delete
-      allow create, update, delete: if isAdmin();
-    }
-
-    // ========== HOME CARDS COLLECTION ==========
-    match /homeCards/{cardId} {
-      // Public read for all
-      allow read: if true;
-      // Only admins can modify
-      allow create, update, delete: if isAdmin();
-    }
-
-    // ========== APP CONFIG COLLECTION ==========
-    match /appConfig/{configId} {
-      // Public read
-      allow read: if true;
-      // Only admins can modify
-      allow write: if isAdmin();
-    }
-
     // ========== INSTITUTIONS COLLECTION ==========
+
     match /institutions/{institutionId} {
       // Public read for all
       allow read: if true;
@@ -148,15 +146,30 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // ========== INSTITUTIONS CONTENT COLLECTION ==========
-    match /institutionsContent/{activityId} {
-      // All signed-in users can read institution content
-      allow read: if isSignedIn();
+    // ========== LEADS COLLECTION ==========
+
+    match /leads/{leadId} {
+      // Anyone can create a lead (for contact forms)
+      allow create: if true;
+      // Only admins can read leads
+      allow read: if isAdmin();
+      // Only admins can update/delete leads
+      allow update, delete: if isAdmin();
+    }
+
+    // ========== COMMUNITY POSTS COLLECTION ==========
+
+    match /communityPosts/{postId} {
+      // Everyone can read active community posts (public)
+      allow read: if resource.data.isActive == true;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }
 
     // ========== BOOKS COLLECTION ==========
+
     match /books/{bookId} {
       // Public read for all books (like lessons)
       allow read: if true;
@@ -165,6 +178,7 @@ service cloud.firestore {
     }
 
     // ========== FLYERS COLLECTION ==========
+
     match /flyers/{flyerId} {
       // Everyone can read active flyers (public)
       // Default to true if isActive field is missing (backward compatibility)
@@ -175,30 +189,23 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // ========== COMMUNITY POSTS COLLECTION ==========
-    match /communityPosts/{postId} {
-      // Everyone can read active community posts (public)
-      allow read: if resource.data.isActive == true;
-      // Admins can read all (including inactive)
-      allow read: if isAdmin();
+    // ========== INSTITUTIONS CONTENT COLLECTION ==========
+
+    match /institutionsContent/{activityId} {
+      // All signed-in users can read institution content
+      allow read: if isSignedIn();
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }
 
-    // ========== LEADS COLLECTION ==========
-    match /leads/{leadId} {
-      // Anyone can create a lead (for contact forms)
-      allow create: if true;
-      // Only admins can read leads
-      allow read, update, delete: if isAdmin();
-    }
-
     // ========== FAITH STORIES COLLECTION ==========
+
     match /faith_stories/{storyId} {
       // Admins can read all stories
       allow read: if isAdmin();
-      // Signed-in users can read active stories
-      allow read: if isSignedIn() && resource.data.isActive == true;
+      // Signed-in users can read the collection (for queries)
+      // Filtering by isActive will be done in the query
+      allow read: if isSignedIn();
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }
@@ -211,9 +218,44 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // ========== DAILY INSIGHT COLLECTION ==========
+    match /dailyInsight/{docId} {
+      // Public read for all daily insight content
+      allow read: if true;
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ========== FAITH TOPICS COLLECTION ==========
+    match /faith_topics/{topicId} {
+      // Public read for all faith topics
+      allow read: if true;
+      // Allow initial creation if collection is empty (for seeding)
+      // Then only admins can modify
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // ========== WHATSAPP GROUPS COLLECTION ==========
+    match /whatsappGroups/{groupId} {
+      // Everyone can read active WhatsApp groups (public)
+      // Default to true if isActive field is missing (backward compatibility)
+      allow read: if resource.data.isActive != false;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+    
     // ========== DEFAULT DENY ==========
+    
+    // Deny all other requests
     match /{document=**} {
       allow read, write: if false;
     }
+
   }
+
 }
+
+

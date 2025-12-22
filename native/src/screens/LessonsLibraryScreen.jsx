@@ -127,9 +127,12 @@ export default function LessonsLibraryScreen({ navigation, route }) {
   const currentCategory = LESSON_CATEGORIES.find(cat => cat.key === activeCategory) || LESSON_CATEGORIES[0]
   const displayVideos = lessons.length > 0 ? lessons : (currentCategory.videos || [])
 
-  const openYouTubeVideo = (url) => {
-    Linking.openURL(url).catch(() => {
-      Alert.alert(t('error'), t('lessons.openVideoError'))
+  const openVideo = (video) => {
+    // Navigate to video player screen instead of opening YouTube externally
+    navigation.navigate('VideoPlayer', {
+      videoId: video.videoId,
+      title: video.title,
+      url: video.url,
     })
   }
 
@@ -271,7 +274,7 @@ export default function LessonsLibraryScreen({ navigation, route }) {
                   idx === 0 && styles.videoCardFirst,
                   isSelected && styles.videoCardSelected
                 ]}
-                onPress={() => openYouTubeVideo(video.url)}
+                onPress={() => openVideo(video)}
                 accessibilityRole="button"
                 accessibilityLabel={t('lessons.lessonLabel', { title: video.title })}
               >
@@ -306,8 +309,8 @@ export default function LessonsLibraryScreen({ navigation, route }) {
                     </View>
                   )}
                   <View style={styles.videoMetaRow}>
-                    <Ionicons name="logo-youtube" size={16} color="#FF0000" />
-                    <Text style={styles.videoMeta}>{t('lessons.watchOnYouTube')}</Text>
+                    <Ionicons name="play-circle" size={16} color={PRIMARY_RED} />
+                    <Text style={styles.videoMeta}>{t('lessons.watchVideo')}</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />

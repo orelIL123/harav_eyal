@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, Image, Alert, ScrollView } from 'react-native'
+import { Video } from 'expo-av'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
 import { pickImage, pickVideo, uploadImageToStorage, uploadVideoToStorage, generateStoragePath } from '../../utils/storage'
@@ -212,15 +213,20 @@ export default function FaithStoriesForm() {
           </Text>
         </Pressable>
 
-        {form.mediaUri && (
+        {(form.mediaUri || form.mediaUrl) && (
           <View style={styles.previewContainer}>
             {form.type === 'video' ? (
               <View style={styles.videoPreview}>
-                <Ionicons name="play-circle" size={40} color="#fff" />
-                <Text style={{color: '#fff'}}>וידאו נבחר</Text>
+                <Video
+                  source={{ uri: form.mediaUrl || form.mediaUri }}
+                  style={styles.previewVideo}
+                  useNativeControls
+                  resizeMode="contain"
+                  shouldPlay={false}
+                />
               </View>
             ) : (
-              <Image source={{ uri: form.mediaUri }} style={styles.imagePreview} resizeMode="cover" />
+              <Image source={{ uri: form.mediaUrl || form.mediaUri }} style={styles.imagePreview} resizeMode="cover" />
             )}
           </View>
         )}
@@ -342,21 +348,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   previewContainer: {
-    height: 200,
-    backgroundColor: '#000',
-    borderRadius: 12,
-    overflow: 'hidden',
+    marginTop: 10,
     marginBottom: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   imagePreview: {
     width: '100%',
-    height: '100%',
+    height: 200,
+    borderRadius: 12,
   },
   videoPreview: {
-    alignItems: 'center',
-    gap: 8,
+    width: '100%',
+    height: 250,
+    backgroundColor: '#000',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  previewVideo: {
+    width: '100%',
+    height: '100%',
   },
   submitButton: {
     backgroundColor: PRIMARY_RED,

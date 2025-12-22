@@ -1,0 +1,62 @@
+[debug] [2025-12-16T17:02:25.317Z] ----------------------------------------------------------------------
+[debug] [2025-12-16T17:02:25.320Z] Command:       /opt/homebrew/Cellar/node/24.4.1/bin/node /opt/homebrew/bin/firebase deploy --only firestore:rules
+[debug] [2025-12-16T17:02:25.320Z] CLI Version:   14.25.1
+[debug] [2025-12-16T17:02:25.320Z] Platform:      darwin
+[debug] [2025-12-16T17:02:25.320Z] Node Version:  v24.4.1
+[debug] [2025-12-16T17:02:25.320Z] Time:          Tue Dec 16 2025 19:02:25 GMT+0200 (Israel Standard Time)
+[debug] [2025-12-16T17:02:25.320Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-16T17:02:25.451Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-16T17:02:25.452Z] > authorizing via signed-in user (orel895@gmail.com)
+[debug] [2025-12-16T17:02:25.452Z] [iam] checking project eyalamrami-1d69e for permissions ["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-12-16T17:02:25.452Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:25.452Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:25.453Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions [none]
+[debug] [2025-12-16T17:02:25.453Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions x-goog-quota-user=projects/eyalamrami-1d69e
+[debug] [2025-12-16T17:02:25.453Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-12-16T17:02:26.491Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions 200
+[debug] [2025-12-16T17:02:26.491Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/eyalamrami-1d69e:testIamPermissions {"permissions":["datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[info] 
+[info] === Deploying to 'eyalamrami-1d69e'...
+[info] 
+[info] i  deploying firestore 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2025-12-16T17:02:26.493Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:26.493Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:26.493Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) [none]
+[debug] [2025-12-16T17:02:27.050Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) 200
+[debug] [2025-12-16T17:02:27.050Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/eyalamrami-1d69e/databases/(default) {"name":"projects/eyalamrami-1d69e/databases/(default)","uid":"28c72577-e069-422d-b53f-9211ba17d04d","createTime":"2025-11-16T21:56:31.041581Z","updateTime":"2025-11-16T21:56:31.041581Z","locationId":"europe-west2","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2025-12-16T16:02:27.093290Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"g","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","etag":"IKGx8onLwpEDMMXn/oLW95AD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2025-12-16T17:02:27.052Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:27.052Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:27.052Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test [none]
+[debug] [2025-12-16T17:02:27.052Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test [omitted]
+[debug] [2025-12-16T17:02:27.908Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test 200
+[debug] [2025-12-16T17:02:27.908Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e:test {}
+[info] ✔  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2025-12-16T17:02:27.909Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:27.909Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:27.909Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases pageSize=10&pageToken=
+[debug] [2025-12-16T17:02:28.236Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases 200
+[debug] [2025-12-16T17:02:28.236Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases {"releases":[{"name":"projects/eyalamrami-1d69e/releases/cloud.firestore","rulesetName":"projects/eyalamrami-1d69e/rulesets/62a94808-dcc1-4467-b002-3eba16c55437","createTime":"2025-11-16T21:56:37.010939Z","updateTime":"2025-12-16T16:36:04.289832Z"},{"name":"projects/eyalamrami-1d69e/releases/firebase.storage/eyalamrami-1d69e.firebasestorage.app","rulesetName":"projects/eyalamrami-1d69e/rulesets/c1233528-4ec5-4321-9e10-6dd88935fb68","createTime":"2025-11-16T21:57:38.715272Z","updateTime":"2025-11-21T10:08:05.471990Z"}]}
+[debug] [2025-12-16T17:02:28.254Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:28.254Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:28.254Z] >>> [apiv2][query] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/rulesets/62a94808-dcc1-4467-b002-3eba16c55437 [none]
+[debug] [2025-12-16T17:02:28.944Z] <<< [apiv2][status] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/rulesets/62a94808-dcc1-4467-b002-3eba16c55437 200
+[debug] [2025-12-16T17:02:28.944Z] <<< [apiv2][body] GET https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/rulesets/62a94808-dcc1-4467-b002-3eba16c55437 [omitted]
+[info] i  firestore: latest version of firestore.rules already up to date, skipping upload... 
+[debug] [2025-12-16T17:02:28.944Z] [rules] releasing cloud.firestore/(default) with ruleset projects/eyalamrami-1d69e/rulesets/62a94808-dcc1-4467-b002-3eba16c55437
+[debug] [2025-12-16T17:02:28.944Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:28.945Z] Checked if tokens are valid: true, expires at: 1765906559413
+[debug] [2025-12-16T17:02:28.945Z] >>> [apiv2][query] PATCH https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases/cloud.firestore/(default) [none]
+[debug] [2025-12-16T17:02:28.945Z] >>> [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases/cloud.firestore/(default) {"release":{"name":"projects/eyalamrami-1d69e/releases/cloud.firestore/(default)","rulesetName":"projects/eyalamrami-1d69e/rulesets/62a94808-dcc1-4467-b002-3eba16c55437"}}
+[debug] [2025-12-16T17:02:29.881Z] <<< [apiv2][status] PATCH https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases/cloud.firestore/(default) 200
+[debug] [2025-12-16T17:02:29.881Z] <<< [apiv2][body] PATCH https://firebaserules.googleapis.com/v1/projects/eyalamrami-1d69e/releases/cloud.firestore/(default) {"name":"projects/eyalamrami-1d69e/releases/cloud.firestore","rulesetName":"projects/eyalamrami-1d69e/rulesets/62a94808-dcc1-4467-b002-3eba16c55437","createTime":"2025-11-16T21:56:37.010939Z","updateTime":"2025-12-16T17:02:29.817075Z"}
+[debug] [2025-12-16T17:02:29.881Z] [rules] updated release projects/eyalamrami-1d69e/releases/cloud.firestore
+[info] ✔  firestore: released rules firestore.rules to cloud.firestore 
+[info] 
+[info] ✔  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/eyalamrami-1d69e/overview

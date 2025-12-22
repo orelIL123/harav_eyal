@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, ImageBackground, Share, Linking, Dimensions } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Share, Linking, Dimensions, Modal, Image } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
@@ -9,11 +9,49 @@ const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
-const { width } = Dimensions.get('window')
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+
+// Dynamic Image Component that adapts to image aspect ratio
+const DynamicImage = React.memo(({ source, style, onPress }) => {
+  const [imageHeight, setImageHeight] = useState(250) // Default height
+  const [imageWidth, setImageWidth] = useState(SCREEN_WIDTH - 32) // Screen width minus padding
+
+  React.useEffect(() => {
+    if (source?.uri) {
+      Image.getSize(
+        source.uri,
+        (width, height) => {
+          // Calculate height based on image aspect ratio and screen width
+          const aspectRatio = height / width
+          const calculatedHeight = imageWidth * aspectRatio
+          // Limit maximum height to 70% of screen
+          const maxHeight = SCREEN_HEIGHT * 0.7
+          setImageHeight(Math.min(calculatedHeight, maxHeight))
+        },
+        (error) => {
+          console.error('Error getting image size:', error)
+          // Keep default height on error
+        }
+      )
+    }
+  }, [source?.uri, imageWidth])
+
+  return (
+    <Pressable onPress={onPress}>
+      <Image
+        source={source}
+        style={[style, { height: imageHeight }]}
+        resizeMode="contain"
+      />
+    </Pressable>
+  )
+})
 
 export default function NewsDetailScreen({ navigation, route }) {
   const { t } = useTranslation()
   const article = route?.params?.article
+  const [selectedImage, setSelectedImage] = useState(null)
 
   // Track news view in Analytics
   useEffect(() => {
@@ -99,17 +137,11 @@ export default function NewsDetailScreen({ navigation, route }) {
 
         {/* Image */}
         {article.imageUrl && (
-          <ImageBackground
+          <DynamicImage
             source={{ uri: article.imageUrl }}
             style={styles.articleImage}
-            imageStyle={styles.articleImageRadius}
-            resizeMode="cover"
-          >
-            <LinearGradient
-              colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.0)']}
-              style={StyleSheet.absoluteFill}
-            />
-          </ImageBackground>
+            onPress={() => setSelectedImage(article.imageUrl)}
+          />
         )}
 
         {/* Content */}
@@ -127,6 +159,34 @@ export default function NewsDetailScreen({ navigation, route }) {
           <Text style={styles.shareButtonText}>{t('news.shareArticle')}</Text>
         </Pressable>
       </ScrollView>
+
+      {/* Image Lightbox Modal */}
+      <Modal
+        visible={!!selectedImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <Pressable 
+          style={styles.lightboxContainer}
+          onPress={() => setSelectedImage(null)}
+          activeOpacity={1}
+        >
+          <Pressable style={styles.lightboxImageContainer} onPress={(e) => e.stopPropagation()}>
+            <Image 
+              source={{ uri: selectedImage }} 
+              style={styles.lightboxImage}
+              resizeMode="contain"
+            />
+            <Pressable
+              style={styles.lightboxCloseButton}
+              onPress={() => setSelectedImage(null)}
+            >
+              <Ionicons name="close-circle" size={32} color="#fff" />
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -202,13 +262,10 @@ const styles = StyleSheet.create({
   },
   articleImage: {
     width: '100%',
-    height: 250,
+    minHeight: 250,
     borderRadius: 16,
     marginBottom: 24,
-    overflow: 'hidden',
-  },
-  articleImageRadius: {
-    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
   },
   contentContainer: {
     backgroundColor: '#fff',
@@ -249,6 +306,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_700Bold',
     color: '#fff',
+  },
+  lightboxContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lightboxImageContainer: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  lightboxImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  lightboxCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
   },
 })
 

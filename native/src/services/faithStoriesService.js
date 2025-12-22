@@ -16,8 +16,13 @@ import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firesto
  */
 export async function getFaithStories() {
   try {
-    // Order by createdAt desc
-    const result = await getDocuments('faith_stories', [], 'createdAt', 'desc')
+    // Filter by isActive == true and order by createdAt desc
+    const result = await getDocuments(
+      'faith_stories', 
+      [{ field: 'isActive', operator: '==', value: true }], 
+      'createdAt', 
+      'desc'
+    )
     return result?.data || []
   } catch (error) {
     console.error('Error getting faith stories:', error)

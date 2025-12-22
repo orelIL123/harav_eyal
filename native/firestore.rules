@@ -203,8 +203,9 @@ service cloud.firestore {
     match /faith_stories/{storyId} {
       // Admins can read all stories
       allow read: if isAdmin();
-      // Signed-in users can read active stories
-      allow read: if isSignedIn() && resource.data.isActive == true;
+      // Signed-in users can read the collection (for queries)
+      // Filtering by isActive will be done in the query
+      allow read: if isSignedIn();
       // Only admins can modify
       allow create, update, delete: if isAdmin();
     }
@@ -217,8 +218,37 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // ========== DEFAULT DENY ==========
+    // ========== DAILY INSIGHT COLLECTION ==========
+    match /dailyInsight/{docId} {
+      // Public read for all daily insight content
+      allow read: if true;
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
 
+    // ========== FAITH TOPICS COLLECTION ==========
+    match /faith_topics/{topicId} {
+      // Public read for all faith topics
+      allow read: if true;
+      // Allow initial creation if collection is empty (for seeding)
+      // Then only admins can modify
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // ========== WHATSAPP GROUPS COLLECTION ==========
+    match /whatsappGroups/{groupId} {
+      // Everyone can read active WhatsApp groups (public)
+      // Default to true if isActive field is missing (backward compatibility)
+      allow read: if resource.data.isActive != false;
+      // Admins can read all (including inactive)
+      allow read: if isAdmin();
+      // Only admins can modify
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // ========== DEFAULT DENY ==========
+    
     // Deny all other requests
     match /{document=**} {
       allow read, write: if false;

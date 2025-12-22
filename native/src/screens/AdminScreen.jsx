@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, Image, ActivityIndicator } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Platform, Image, ActivityIndicator, KeyboardAvoidingView } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { Video } from 'expo-av'
 import { useTranslation } from 'react-i18next'
 import { sendLocalNotification, scheduleNotification } from '../utils/notifications'
 import { pickImage, pickVideo, pickPDF, pickAudio, uploadImageToStorage, uploadVideoToStorage, uploadPDFToStorage, uploadAudioToStorage, generateStoragePath, generateCardImagePath, generateNewsImagePath, generateDailyVideoPath, generateDailyVideoThumbnailPath } from '../utils/storage'
@@ -15,6 +16,7 @@ import { createDailyVideo, getDailyVideos, deleteDailyVideo, cleanupExpiredVideo
 import { createBook, getBooks, getAllBooksForAdmin, updateBook, deleteBook } from '../services/booksService'
 import { createFlyer, getFlyers, getAllFlyersForAdmin, updateFlyer, deleteFlyer } from '../services/flyersService'
 import { createCommunityPost, getCommunityPosts, updateCommunityPost, deleteCommunityPost } from '../services/communityPostsService'
+import { getWhatsAppGroups, getAllWhatsAppGroups, createWhatsAppGroup, updateWhatsAppGroup, deleteWhatsAppGroup } from '../services/whatsappGroupsService'
 import { clearConsent, clearAllAppData } from '../utils/storage'
 import { validateText, validateURL, sanitizeText } from '../utils/validation'
 import { STATIC_BOOKS } from '../data/staticBooks'
@@ -38,6 +40,7 @@ export default function AdminScreen({ navigation, route }) {
     { id: 'books', label: t('admin.books'), icon: 'book-outline' },
     { id: 'flyers', label: 'עלונים', icon: 'document-text-outline' },
     { id: 'faithStories', label: 'סיפורי אמונה', icon: 'videocam-outline' },
+    { id: 'whatsappGroups', label: 'קבוצות וואטסאפ', icon: 'logo-whatsapp' },
   ]
 
   // Update tab if route params change
@@ -95,15 +98,22 @@ export default function AdminScreen({ navigation, route }) {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === 'lessons' && <LessonsForm navigation={navigation} />}
-        {activeTab === 'alerts' && <AlertsForm />}
-        {activeTab === 'news' && <NewsForm />}
-        {activeTab === 'podcasts' && <PodcastsForm />}
-        {activeTab === 'books' && <BooksForm />}
-        {activeTab === 'flyers' && <FlyersForm />}
-        {activeTab === 'faithStories' && <FaithStoriesForm />}
-      </ScrollView>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {activeTab === 'lessons' && <LessonsForm navigation={navigation} />}
+          {activeTab === 'alerts' && <AlertsForm />}
+          {activeTab === 'news' && <NewsForm />}
+          {activeTab === 'podcasts' && <PodcastsForm />}
+          {activeTab === 'books' && <BooksForm />}
+          {activeTab === 'flyers' && <FlyersForm />}
+          {activeTab === 'faithStories' && <FaithStoriesForm />}
+          {activeTab === 'whatsappGroups' && <WhatsAppGroupsForm />}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   )
 }
@@ -413,11 +423,55 @@ function LessonsForm({ navigation }) {
 
   const extractVideoId = (url) => {
     // Extract YouTube video ID from URL
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
-    if (match && match[1]) {
-      setForm({...form, videoId: match[1], url})
+    if (!url || !url.trim()) {
+      setForm({...form, url: url || '', videoId: ''})
+      return
+    }
+    
+    const cleanUrl = url.trim()
+    
+    // Try multiple patterns to catch all YouTube URL formats
+    const patterns = [
+      // Live stream URLs: youtube.com/live/VIDEO_ID or youtube.com/live/VIDEO_ID?si=...
+      /youtube\.com\/live\/([a-zA-Z0-9_-]{11})/,
+      // Shorts URLs: youtube.com/shorts/VIDEO_ID
+      /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+      // Standard watch URLs: youtube.com/watch?v=VIDEO_ID
+      /(?:youtube\.com\/watch\?v=|youtube\.com\/watch\?.*&v=)([a-zA-Z0-9_-]{11})/,
+      // Short URLs: youtu.be/VIDEO_ID
+      /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+      // Embed URLs: youtube.com/embed/VIDEO_ID
+      /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+      // Mobile URLs: m.youtube.com/watch?v=VIDEO_ID
+      /m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+      // Short URLs with parameters: youtu.be/VIDEO_ID?t=...
+      /youtu\.be\/([a-zA-Z0-9_-]{11})(?:\?|&|$)/,
+      // Alternative format: youtube.com/v/VIDEO_ID
+      /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
+    ]
+    
+    let videoId = null
+    for (const pattern of patterns) {
+      const match = cleanUrl.match(pattern)
+      if (match && match[1]) {
+        videoId = match[1]
+        break
+      }
+    }
+    
+    // Fallback: try to extract any 11-character alphanumeric string after common YouTube patterns
+    if (!videoId) {
+      const fallbackPattern = /(?:youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+      const fallbackMatch = cleanUrl.match(fallbackPattern)
+      if (fallbackMatch && fallbackMatch[1]) {
+        videoId = fallbackMatch[1]
+      }
+    }
+    
+    if (videoId) {
+      setForm({...form, videoId, url: cleanUrl})
     } else {
-      setForm({...form, url})
+      setForm({...form, url: cleanUrl, videoId: ''})
     }
   }
 
@@ -496,6 +550,20 @@ function LessonsForm({ navigation }) {
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('admin.lessonsForm.thumbnailOptional')}</Text>
+        {/* Show YouTube thumbnail preview if videoId exists and no custom thumbnail */}
+        {form.videoId && !form.thumbnailUrl && !form.thumbnailUri && (
+          <View style={styles.imagePreview}>
+            <Image 
+              source={{ uri: `https://img.youtube.com/vi/${form.videoId}/hqdefault.jpg` }} 
+              style={styles.previewImage}
+              defaultSource={require('../../assets/icon.png')}
+            />
+            <View style={styles.youtubeBadge}>
+              <Ionicons name="logo-youtube" size={16} color="#FF0000" />
+              <Text style={styles.youtubeBadgeText}>תצוגה מקדימה מ-YouTube</Text>
+            </View>
+          </View>
+        )}
         {form.thumbnailUrl && (
           <View style={styles.imagePreview}>
             <Image source={{ uri: form.thumbnailUrl }} style={styles.previewImage} />
@@ -655,12 +723,14 @@ function AlertsForm() {
     targetAudience: ['all'],
     audioUri: null,
     audioUrl: null,
-    // Image removed as requested
+    imageUri: null,
+    imageUrl: null,
   })
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [alerts, setAlerts] = useState([])
+  const [editingAlert, setEditingAlert] = useState(null)
 
   useEffect(() => {
     loadAlerts()
@@ -819,36 +889,49 @@ function AlertsForm() {
         sentAt: form.sendType === 'immediate' ? new Date().toISOString() : null
       }
 
-      const alertId = await createAlert(alertData)
-
-      // Send push notification
-      const notification = {
-        title: form.title,
-        body: form.message,
-        data: {
-          type: form.type,
-          priority: form.priority,
-          alertId: alertId,
-          screen: form.type === 'reminder' ? 'DailyInsight' : 'Home'
-        }
-      }
-
-      if (form.sendType === 'immediate') {
-        await sendLocalNotification(notification)
+      let alertId
+      if (editingAlert) {
+        // Update existing alert
+        await updateAlert(editingAlert.id, alertData)
+        alertId = editingAlert.id
         Alert.alert(
           t('admin.lessonsForm.success'),
-          t('admin.alertsForm.alertSent')
+          'התראה עודכנה בהצלחה'
         )
+        setEditingAlert(null)
       } else {
-        const triggerDate = new Date(form.scheduledTime)
-        await scheduleNotification({
-          ...notification,
-          triggerDate
-        })
-        Alert.alert(
-          t('admin.lessonsForm.success'),
-          t('admin.alertsForm.alertScheduled', { triggerDate: triggerDate.toLocaleString('he-IL') })
-        )
+        // Create new alert
+        alertId = await createAlert(alertData)
+
+        // Send push notification only for new alerts
+        const notification = {
+          title: form.title,
+          body: form.message,
+          data: {
+            type: form.type,
+            priority: form.priority,
+            alertId: alertId,
+            screen: form.type === 'reminder' ? 'DailyInsight' : 'Home'
+          }
+        }
+
+        if (form.sendType === 'immediate') {
+          await sendLocalNotification(notification)
+          Alert.alert(
+            t('admin.lessonsForm.success'),
+            t('admin.alertsForm.alertSent')
+          )
+        } else {
+          const triggerDate = new Date(form.scheduledTime)
+          await scheduleNotification({
+            ...notification,
+            triggerDate
+          })
+          Alert.alert(
+            t('admin.lessonsForm.success'),
+            t('admin.alertsForm.alertScheduled', { triggerDate: triggerDate.toLocaleString('he-IL') })
+          )
+        }
       }
 
       // Reset form
@@ -862,6 +945,8 @@ function AlertsForm() {
         targetAudience: ['all'],
         audioUri: null,
         audioUrl: null,
+        imageUri: null,
+        imageUrl: null,
       })
       setUploading(false)
 
@@ -872,6 +957,44 @@ function AlertsForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleEdit = (alert) => {
+    setEditingAlert(alert)
+    setForm({
+      title: alert.title || '',
+      type: alert.type || 'reminder',
+      message: alert.message || '',
+      priority: alert.priority || 'medium',
+      sendType: alert.sendType || 'immediate',
+      scheduledTime: alert.scheduledTime ? new Date(alert.scheduledTime).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+      targetAudience: Array.isArray(alert.targetAudience) ? alert.targetAudience : [alert.targetAudience || 'all'],
+      audioUri: null,
+      audioUrl: alert.audioUrl || null,
+      imageUri: null,
+      imageUrl: alert.imageUrl || null,
+    })
+    // Scroll to top of form
+    setTimeout(() => {
+      // This will be handled by the ScrollView ref if needed
+    }, 100)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingAlert(null)
+    setForm({
+      title: '',
+      type: 'reminder',
+      message: '',
+      priority: 'medium',
+      sendType: 'immediate',
+      scheduledTime: new Date().toISOString().slice(0, 16),
+      targetAudience: ['all'],
+      audioUri: null,
+      audioUrl: null,
+      imageUri: null,
+      imageUrl: null,
+    })
   }
 
   const handleDelete = (alert) => {
@@ -903,7 +1026,20 @@ function AlertsForm() {
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>{t('admin.alertsForm.title')}</Text>
+      <View style={styles.formHeader}>
+        <Text style={styles.formTitle}>
+          {editingAlert ? 'עריכת התראה' : t('admin.alertsForm.title')}
+        </Text>
+        {editingAlert && (
+          <Pressable
+            style={styles.cancelEditButton}
+            onPress={handleCancelEdit}
+          >
+            <Ionicons name="close-circle-outline" size={20} color={PRIMARY_RED} />
+            <Text style={styles.cancelEditText}>ביטול עריכה</Text>
+          </Pressable>
+        )}
+      </View>
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>{t('admin.alertsForm.reminderTitle')}</Text>
@@ -1130,7 +1266,9 @@ function AlertsForm() {
           <>
             <LinearGradient colors={[PRIMARY_RED, PRIMARY_GOLD]} style={StyleSheet.absoluteFill} />
             <Ionicons name="send" size={20} color="#fff" style={{ zIndex: 1 }} />
-            <Text style={[styles.submitButtonText, { zIndex: 1 }]}>{t('admin.alertsForm.sendAlert')}</Text>
+            <Text style={[styles.submitButtonText, { zIndex: 1 }]}>
+              {editingAlert ? 'עדכן התראה' : t('admin.alertsForm.sendAlert')}
+            </Text>
           </>
         )}
       </Pressable>
@@ -1151,14 +1289,17 @@ function AlertsForm() {
         ) : (
           <ScrollView style={styles.alertsList}>
             {alerts.map((alert) => {
-              const expiresAt = alert.expiresAt ? new Date(alert.expiresAt) : null
+              const expiresAt = alert.expiresAt ? (alert.expiresAt.toDate ? alert.expiresAt.toDate() : new Date(alert.expiresAt)) : null
+              const sentAt = alert.sentAt ? (alert.sentAt.toDate ? alert.sentAt.toDate() : new Date(alert.sentAt)) : (alert.createdAt ? (alert.createdAt.toDate ? alert.createdAt.toDate() : new Date(alert.createdAt)) : null)
               const hoursLeft = expiresAt ? Math.round((expiresAt - new Date()) / (1000 * 60 * 60)) : null
               
               return (
                 <View key={alert.id} style={styles.alertItem}>
                   <View style={styles.alertItemContent}>
                     <Text style={styles.alertItemTitle}>{alert.title}</Text>
-                    <Text style={styles.alertItemMessage}>{alert.message}</Text>
+                    {alert.message && (
+                      <Text style={styles.alertItemMessage}>{alert.message}</Text>
+                    )}
                     <View style={styles.alertItemMeta}>
                       <Text style={styles.alertItemType}>
                         {alert.type === 'reminder' ? t('admin.alertsForm.reminder') : alert.type === 'push' ? t('admin.alertsForm.push') : t('admin.alertsForm.announcement')}
@@ -1169,13 +1310,34 @@ function AlertsForm() {
                         </Text>
                       )}
                     </View>
+                    {sentAt && (
+                      <Text style={styles.alertItemDate}>
+                        נשלח: {sentAt.toLocaleString('he-IL', { 
+                          day: '2-digit', 
+                          month: '2-digit', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </Text>
+                    )}
                   </View>
-                  <Pressable
-                    style={styles.deleteButton}
-                    onPress={() => handleDelete(alert)}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#dc2626" />
-                  </Pressable>
+                  <View style={styles.alertItemActions}>
+                    <Pressable
+                      style={styles.editButton}
+                      onPress={() => handleEdit(alert)}
+                    >
+                      <Ionicons name="create-outline" size={18} color="#fff" />
+                      <Text style={styles.editButtonText}>ערוך</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.deleteButton}
+                      onPress={() => handleDelete(alert)}
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#fff" />
+                      <Text style={styles.deleteButtonText}>מחק</Text>
+                    </Pressable>
+                  </View>
                 </View>
               )
             })}
@@ -1347,21 +1509,21 @@ function CardsForm() {
       if (card) {
         setForm(prev => ({
           ...prev,
-          title: card.title || prev.title,
-          desc: card.desc || prev.desc,
-          icon: card.icon || prev.icon,
-          locked: card.locked || false,
-          imageUrl: card.imageUrl || null,
+          title: card.title ?? prev.title,
+          desc: card.desc ?? prev.desc,
+          icon: card.icon ?? prev.icon,
+          locked: card.locked ?? false,
+          imageUrl: card.imageUrl ?? null,
         }))
       }
-      
+
       // Load header config
       const config = await getAppConfig()
       if (config) {
         setForm(prev => ({
           ...prev,
-          headerTitle: config.title || prev.headerTitle,
-          headerSubtitle: config.subtitle || prev.headerSubtitle,
+          headerTitle: config.title ?? prev.headerTitle,
+          headerSubtitle: config.subtitle ?? prev.headerSubtitle,
         }))
       }
     } catch (error) {
@@ -1666,7 +1828,8 @@ function NewsForm() {
   const [uploading, setUploading] = useState(false)
 
   const handlePickImage = async () => {
-    const image = await pickImage({ aspect: [16, 9] })
+    // Don't crop images for news - allow full image
+    const image = await pickImage({ aspect: null })
     if (image) {
       setForm({ ...form, imageUri: image.uri })
     }
@@ -2802,7 +2965,8 @@ function CommunityPostsForm() {
   }
 
   const handlePickImage = async () => {
-    const image = await pickImage({ aspect: [16, 9] })
+    // Don't crop images for news - allow full image
+    const image = await pickImage({ aspect: null })
     if (image) {
       setForm({ ...form, imageUri: image.uri })
     }
@@ -3183,6 +3347,8 @@ function PodcastsForm() {
     category: '',
     audioUri: null,
     audioUrl: null,
+    youtubeUrl: '',
+    youtubeVideoId: '',
     thumbnailUri: null,
     thumbnailUrl: null,
     duration: 0,
@@ -3236,6 +3402,50 @@ function PodcastsForm() {
     const image = await pickImage({ aspect: [1, 1] })
     if (image) {
       setForm({ ...form, thumbnailUri: image.uri })
+    }
+  }
+
+  // Extract YouTube video ID from URL
+  const extractYouTubeId = (url) => {
+    if (!url || !url.trim()) {
+      setForm({...form, youtubeUrl: url || '', youtubeVideoId: ''})
+      return
+    }
+    
+    const cleanUrl = url.trim()
+    
+    const patterns = [
+      /youtube\.com\/live\/([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+      /(?:youtube\.com\/watch\?v=|youtube\.com\/watch\?.*&v=)([a-zA-Z0-9_-]{11})/,
+      /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+      /m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+      /youtu\.be\/([a-zA-Z0-9_-]{11})(?:\?|&|$)/,
+      /youtube\.com\/v\/([a-zA-Z0-9_-]{11})/,
+    ]
+    
+    let videoId = null
+    for (const pattern of patterns) {
+      const match = cleanUrl.match(pattern)
+      if (match && match[1]) {
+        videoId = match[1]
+        break
+      }
+    }
+    
+    if (!videoId) {
+      const fallbackPattern = /(?:youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+      const fallbackMatch = cleanUrl.match(fallbackPattern)
+      if (fallbackMatch && fallbackMatch[1]) {
+        videoId = fallbackMatch[1]
+      }
+    }
+    
+    if (videoId) {
+      setForm({...form, youtubeVideoId: videoId, youtubeUrl: cleanUrl})
+    } else {
+      setForm({...form, youtubeUrl: cleanUrl, youtubeVideoId: ''})
     }
   }
 
@@ -3319,8 +3529,18 @@ function PodcastsForm() {
       }
     }
 
-    if (!form.audioUrl) {
-      Alert.alert(t('admin.lessonsForm.error'), t('admin.podcastsForm.errorFillTitleAndAudio'))
+    // Validate YouTube URL if provided
+    if (form.youtubeUrl) {
+      const youtubeUrlValidation = validateURL(form.youtubeUrl, { required: false })
+      if (!youtubeUrlValidation.valid) {
+        Alert.alert(t('admin.lessonsForm.error'), youtubeUrlValidation.error)
+        return
+      }
+    }
+
+    // Require either audioUrl or youtubeUrl
+    if (!form.audioUrl && !form.youtubeUrl) {
+      Alert.alert(t('admin.lessonsForm.error'), 'יש להעלות קובץ אודיו או להוסיף קישור YouTube')
       return
     }
 
@@ -3333,6 +3553,8 @@ function PodcastsForm() {
         title: titleValidation.sanitized,
         description: descriptionValidation.sanitized,
         category: form.category ? sanitizeText(form.category) : '',
+        youtubeUrl: form.youtubeUrl ? sanitizeText(form.youtubeUrl) : '',
+        youtubeVideoId: form.youtubeVideoId || '',
       }
       
       if (editingPodcast) {
@@ -3350,6 +3572,8 @@ function PodcastsForm() {
         category: '',
         audioUri: null,
         audioUrl: null,
+        youtubeUrl: '',
+        youtubeVideoId: '',
         thumbnailUri: null,
         thumbnailUrl: null,
         duration: 0,
@@ -3372,6 +3596,8 @@ function PodcastsForm() {
       category: podcast.category || '',
       audioUri: null,
       audioUrl: podcast.audioUrl || null,
+      youtubeUrl: podcast.youtubeUrl || '',
+      youtubeVideoId: podcast.youtubeVideoId || '',
       thumbnailUri: null,
       thumbnailUrl: podcast.thumbnailUrl || null,
       duration: podcast.duration || 0,
@@ -3414,6 +3640,8 @@ function PodcastsForm() {
       category: '',
       audioUri: null,
       audioUrl: null,
+      youtubeUrl: '',
+      youtubeVideoId: '',
       thumbnailUri: null,
       thumbnailUrl: null,
       duration: 0,
@@ -3461,7 +3689,39 @@ function PodcastsForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>{t('admin.podcastsForm.audioFile')}</Text>
+        <Text style={styles.label}>קישור YouTube (אופציונלי - במקום קובץ אודיו)</Text>
+        <TextInput
+          style={styles.input}
+          value={form.youtubeUrl}
+          onChangeText={extractYouTubeId}
+          placeholder="https://www.youtube.com/watch?v=..."
+          placeholderTextColor="#9ca3af"
+          autoCapitalize="none"
+          keyboardType="url"
+        />
+        {form.youtubeVideoId && (
+          <View style={styles.successBadge}>
+            <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
+            <Text style={styles.successText}>תצוגה מקדימה: {form.youtubeVideoId}</Text>
+          </View>
+        )}
+        {form.youtubeVideoId && (
+          <View style={styles.imagePreview}>
+            <Image 
+              source={{ uri: `https://img.youtube.com/vi/${form.youtubeVideoId}/hqdefault.jpg` }} 
+              style={styles.previewImage}
+              defaultSource={require('../../assets/icon.png')}
+            />
+            <View style={styles.youtubeBadge}>
+              <Ionicons name="logo-youtube" size={16} color="#FF0000" />
+              <Text style={styles.youtubeBadgeText}>תצוגה מקדימה מ-YouTube</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>{t('admin.podcastsForm.audioFile')} (אופציונלי - אם יש קישור YouTube)</Text>
         {form.audioUrl && (
           <View style={styles.uploadedBadge}>
             <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
@@ -3628,6 +3888,252 @@ function PodcastsForm() {
   )
 }
 
+// ========== WHATSAPP GROUPS FORM ==========
+function WhatsAppGroupsForm() {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    name: '',
+    url: '',
+    order: 0,
+    isActive: true,
+  })
+  const [groups, setGroups] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [editingGroup, setEditingGroup] = useState(null)
+
+  useEffect(() => {
+    loadGroups()
+  }, [])
+
+  const loadGroups = async () => {
+    try {
+      setLoading(true)
+      const allGroups = await getAllWhatsAppGroups()
+      setGroups(Array.isArray(allGroups) ? allGroups : [])
+    } catch (error) {
+      console.error('Error loading WhatsApp groups:', error)
+      setGroups([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    const nameValidation = validateText(form.name, { minLength: 1, maxLength: 200, required: true })
+    if (!nameValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), nameValidation.error)
+      return
+    }
+
+    const urlValidation = validateURL(form.url, { required: true })
+    if (!urlValidation.valid) {
+      Alert.alert(t('admin.lessonsForm.error'), urlValidation.error)
+      return
+    }
+
+    try {
+      setLoading(true)
+      
+      const sanitizedForm = {
+        name: nameValidation.sanitized,
+        url: sanitizeText(form.url),
+        order: form.order || 0,
+        isActive: form.isActive !== undefined ? form.isActive : true,
+      }
+      
+      if (editingGroup) {
+        await updateWhatsAppGroup(editingGroup.id, sanitizedForm)
+        Alert.alert(t('admin.lessonsForm.success'), 'קבוצת וואטסאפ עודכנה בהצלחה')
+        setEditingGroup(null)
+      } else {
+        await createWhatsAppGroup(sanitizedForm)
+        Alert.alert(t('admin.lessonsForm.success'), 'קבוצת וואטסאפ נוספה בהצלחה')
+      }
+      
+      setForm({
+        name: '',
+        url: '',
+        order: 0,
+        isActive: true,
+      })
+      await loadGroups()
+    } catch (error) {
+      console.error('Error saving WhatsApp group:', error)
+      Alert.alert(t('admin.lessonsForm.error'), 'שגיאה בשמירת קבוצת וואטסאפ')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEdit = (group) => {
+    setEditingGroup(group)
+    setForm({
+      name: group.name || '',
+      url: group.url || '',
+      order: group.order || 0,
+      isActive: group.isActive !== undefined ? group.isActive : true,
+    })
+  }
+
+  const handleDelete = (group) => {
+    Alert.alert(
+      'מחיקת קבוצת וואטסאפ',
+      `האם אתה בטוח שברצונך למחוק את "${group.name}"?`,
+      [
+        { text: t('admin.lessonsForm.cancel'), style: 'cancel' },
+        {
+          text: t('admin.lessonsForm.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true)
+              await deleteWhatsAppGroup(group.id)
+              Alert.alert(t('admin.lessonsForm.success'), 'קבוצת וואטסאפ נמחקה בהצלחה')
+              await loadGroups()
+            } catch (error) {
+              console.error('Error deleting WhatsApp group:', error)
+              Alert.alert(t('admin.lessonsForm.error'), 'שגיאה במחיקת קבוצת וואטסאפ')
+            } finally {
+              setLoading(false)
+            }
+          }
+        }
+      ]
+    )
+  }
+
+  const handleCancelEdit = () => {
+    setEditingGroup(null)
+    setForm({
+      name: '',
+      url: '',
+      order: 0,
+      isActive: true,
+    })
+  }
+
+  return (
+    <View style={styles.formContainer}>
+      <Text style={styles.formTitle}>ניהול קבוצות וואטסאפ</Text>
+      <Text style={styles.formDesc}>
+        הוסף וניהול קישורים לקבוצות וואטסאפ שיוצגו למשתמשים
+      </Text>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>שם הקבוצה</Text>
+        <TextInput
+          style={styles.input}
+          value={form.name}
+          onChangeText={text => setForm({...form, name: text})}
+          placeholder="לדוגמה: קבוצת קהילה ראשית"
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>קישור קבוצת וואטסאפ</Text>
+        <TextInput
+          style={styles.input}
+          value={form.url}
+          onChangeText={text => setForm({...form, url: text})}
+          placeholder="https://chat.whatsapp.com/..."
+          autoCapitalize="none"
+          keyboardType="url"
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>סדר הצגה</Text>
+        <TextInput
+          style={styles.input}
+          value={form.order.toString()}
+          onChangeText={text => setForm({...form, order: parseInt(text) || 0})}
+          placeholder="0"
+          keyboardType="numeric"
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Pressable
+          style={styles.checkbox}
+          onPress={() => setForm({...form, isActive: !form.isActive})}
+        >
+          <View style={[styles.checkboxBox, form.isActive && styles.checkboxBoxChecked]}>
+            {form.isActive && <Ionicons name="checkmark" size={16} color="#fff" />}
+          </View>
+          <Text style={styles.checkboxLabel}>פעיל</Text>
+        </Pressable>
+      </View>
+
+      <Pressable 
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Ionicons name={editingGroup ? "checkmark-circle" : "add-circle-outline"} size={22} color="#fff" />
+        )}
+        <Text style={styles.submitButtonText}>
+          {editingGroup ? 'עדכן קבוצה' : 'הוסף קבוצה'}
+        </Text>
+      </Pressable>
+
+      {editingGroup && (
+        <Pressable style={styles.cancelButton} onPress={handleCancelEdit}>
+          <Text style={styles.cancelButtonText}>{t('admin.lessonsForm.cancelEdit')}</Text>
+        </Pressable>
+      )}
+
+      {/* Existing Groups List */}
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>קבוצות קיימות ({groups.length})</Text>
+        {loading && groups.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color={PRIMARY_RED} size="large" />
+            <Text style={styles.loadingText}>טוען קבוצות...</Text>
+          </View>
+        ) : groups.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="logo-whatsapp" size={48} color="#d1d5db" />
+            <Text style={styles.emptyText}>אין קבוצות וואטסאפ</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.lessonsList}>
+            {groups.map((group) => (
+              <View key={group.id} style={styles.lessonItem}>
+                <View style={styles.lessonItemContent}>
+                  <Text style={styles.lessonItemTitle}>{group.name}</Text>
+                  <Text style={styles.lessonItemCategory} numberOfLines={1}>
+                    {group.url}
+                  </Text>
+                  <Text style={styles.lessonItemDate}>
+                    {group.isActive ? 'פעיל' : 'לא פעיל'} • סדר: {group.order || 0}
+                  </Text>
+                </View>
+                <View style={styles.lessonItemActions}>
+                  <Pressable
+                    style={styles.editButton}
+                    onPress={() => handleEdit(group)}
+                  >
+                    <Ionicons name="create-outline" size={20} color={PRIMARY_RED} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.deleteButton}
+                    onPress={() => handleDelete(group)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#dc2626" />
+                  </Pressable>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    </View>
+  )
+}
+
 // ========== DAILY VIDEOS FORM ========== 
 function DailyVideosForm() {
   const { t } = useTranslation();
@@ -3734,6 +4240,11 @@ function DailyVideosForm() {
         ...form,
         createdAt: new Date(),
       })
+      
+      // Update daily insight last updated timestamp
+      const { updateDailyInsightLastUpdated } = await import('../services/cardsService')
+      await updateDailyInsightLastUpdated()
+      
       Alert.alert(t('admin.lessonsForm.success'), t('admin.dailyVideosForm.videoAdded'))
       
       setForm({
@@ -3766,6 +4277,11 @@ function DailyVideosForm() {
             try {
               setLoading(true)
               await deleteDailyVideo(video.id)
+              
+              // Update daily insight last updated timestamp
+              const { updateDailyInsightLastUpdated } = await import('../services/cardsService')
+              await updateDailyInsightLastUpdated()
+              
               Alert.alert(t('admin.lessonsForm.success'), t('admin.dailyVideosForm.videoDeleted'))
               await loadVideos()
             } catch (error) {
@@ -3815,6 +4331,18 @@ function DailyVideosForm() {
           <View style={styles.uploadedBadge}>
             <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
             <Text style={styles.uploadedText}>{t('admin.dailyVideosForm.videoFileUploaded')}</Text>
+          </View>
+        )}
+        {/* Video Preview */}
+        {(form.videoUri || form.videoUrl) && (
+          <View style={styles.videoPreview}>
+            <Video
+              source={{ uri: form.videoUrl || form.videoUri }}
+              style={styles.previewVideo}
+              useNativeControls
+              resizeMode="contain"
+              shouldPlay={false}
+            />
           </View>
         )}
         <View style={styles.uploadSection}>
@@ -4101,6 +4629,10 @@ function InstitutionsForm() {
         description: currentInstitution.description,
         imageUrl: currentInstitution.imageUrl,
       });
+      
+      // Reload the content to ensure we have the latest data
+      await loadInstitutionContent();
+      
       Alert.alert(t('admin.lessonsForm.success'), t('admin.institutionsForm.contentUpdated'));
     } catch (error) {
       console.error('Error saving institution content:', error);
@@ -4620,11 +5152,60 @@ const styles = StyleSheet.create({
   actionButton: {
     padding: 5,
   },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  cancelEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  cancelEditText: {
+    color: PRIMARY_RED,
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+  },
   editButton: {
-    padding: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 6,
+    minWidth: 70,
+    marginBottom: 8,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
   },
   deleteButton: {
-    padding: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#dc2626',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 6,
+    minWidth: 70,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  alertItemActions: {
+    marginLeft: 10,
+    alignItems: 'flex-end',
   },
   viewLibraryButton: {
     flexDirection: 'row',
@@ -4746,6 +5327,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: '#9ca3af',
   },
+  alertItemDate: {
+    fontSize: 11,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6b7280',
+    marginTop: 4,
+    textAlign: 'right',
+  },
   note: {
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
@@ -4804,11 +5392,46 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     position: 'relative',
   },
+  videoPreview: {
+    marginTop: 10,
+    width: '100%',
+    height: 250,
+    backgroundColor: '#000',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  previewVideo: {
+    width: '100%',
+    height: '100%',
+  },
   previewImage: {
     width: '100%',
     height: 150,
     borderRadius: 8,
-    resizeMode: 'cover',
+    resizeMode: 'contain',
+    backgroundColor: '#f3f4f6',
+  },
+  youtubeBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  youtubeBadgeText: {
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+    color: '#1f2937',
   },
   uploadedBadge: {
     position: 'absolute',

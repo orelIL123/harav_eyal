@@ -3,7 +3,7 @@ import { SafeAreaView, View, Text, StyleSheet, TextInput, Pressable, Alert, Acti
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../utils/AuthContext'
-import { validateEmail, validatePassword, validateName } from '../utils/validation'
+import { validateEmail, validatePassword, validateName, validatePhone } from '../utils/validation'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'

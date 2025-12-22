@@ -1,9 +1,10 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next';
 import { FAITH_TOPICS } from '../data/faithTopics'
+import { getWhatsAppGroups } from '../services/whatsappGroupsService'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -24,13 +25,6 @@ const MENU_ITEMS = [
     icon: 'heart',
     color: PRIMARY_RED,
     screen: 'Donation',
-  },
-  {
-    id: 'whatsapp',
-    title: 'sideMenu.whatsapp',
-    icon: 'logo-whatsapp',
-    color: '#25D366',
-    url: 'https://chat.whatsapp.com/H4t7m6NfuBD9GgEuw80EeP',
   },
   {
     id: 'flyers',
@@ -78,6 +72,21 @@ const MENU_ITEMS = [
 
 export default function SideMenuScreen({ navigation }) {
   const { t } = useTranslation();
+  const [whatsappGroups, setWhatsappGroups] = useState([])
+
+  useEffect(() => {
+    loadWhatsAppGroups()
+  }, [])
+
+  const loadWhatsAppGroups = async () => {
+    try {
+      const groups = await getWhatsAppGroups()
+      setWhatsappGroups(Array.isArray(groups) ? groups : [])
+    } catch (error) {
+      console.error('Error loading WhatsApp groups:', error)
+      setWhatsappGroups([])
+    }
+  }
 
   const handleMenuItemPress = (item) => {
     if (item.url) {
@@ -89,6 +98,12 @@ export default function SideMenuScreen({ navigation }) {
     } else {
       Alert.alert(t('comingSoon'), t('comingSoonMessage', { title: t(item.title) }))
     }
+  }
+
+  const handleWhatsAppGroupPress = (url) => {
+    Linking.openURL(url).catch(() => {
+      Alert.alert(t('error'), t('linkError'))
+    })
   }
 
 
@@ -141,6 +156,22 @@ export default function SideMenuScreen({ navigation }) {
             </View>
             <View style={styles.menuTextBlock}>
               <Text style={styles.menuTitle}>{t(item.title)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
+          </Pressable>
+        ))}
+        {whatsappGroups.length > 0 && whatsappGroups.map((group, idx) => (
+          <Pressable
+            key={group.id}
+            style={[styles.menuItem, idx === 0 && whatsappGroups.length > 0 && styles.menuItemFirst]}
+            onPress={() => handleWhatsAppGroupPress(group.url)}
+            accessibilityRole="button"
+          >
+            <View style={[styles.menuIcon, { backgroundColor: '#25D36615' }]}>
+              <Ionicons name="logo-whatsapp" size={28} color="#25D366" />
+            </View>
+            <View style={styles.menuTextBlock}>
+              <Text style={styles.menuTitle}>{group.name}</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color={PRIMARY_RED} />
           </Pressable>
