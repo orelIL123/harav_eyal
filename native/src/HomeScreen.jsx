@@ -763,7 +763,14 @@ export default function HomeScreen({ navigation }) {
               </Pressable>
               <Pressable
                 style={styles.socialIconBtn}
-                onPress={() => openSocialLink(primaryWhatsAppGroup?.url || 'https://chat.whatsapp.com/H4t7m6NfuBD9GgEuw80EeP')}
+                onPress={() => {
+                  const whatsappMessage = encodeURIComponent('היי תצרפו אותי לקבוצה של הרב!')
+                  let whatsappUrl = primaryWhatsAppGroup?.url || 'https://chat.whatsapp.com/LDY1KQlNKz4CULkirL3e7c?mode=hqrc'
+                  // Add text parameter - use & if URL already has parameters, otherwise use ?
+                  const separator = whatsappUrl.includes('?') ? '&' : '?'
+                  whatsappUrl = `${whatsappUrl}${separator}text=${whatsappMessage}`
+                  openSocialLink(whatsappUrl)
+                }}
                 accessibilityRole="button"
                 accessibilityLabel={t('home.whatsapp')}
               >
@@ -928,19 +935,15 @@ export default function HomeScreen({ navigation }) {
                 <Pressable
                   style={styles.partnershipButton}
                   onPress={() => {
-                    // Use primary WhatsApp group or fallback to phone number
-                    const whatsappUrl = primaryWhatsAppGroup?.url
-                    if (whatsappUrl) {
-                      Linking.openURL(whatsappUrl).catch(() => {
-                        Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
-                      })
-                    } else {
-                      // Fallback to phone number if no group available
-                      const phoneNumber = '972506785912' // 0506785912
-                      Linking.openURL(`https://wa.me/${phoneNumber}`).catch(() => {
-                        Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
-                      })
-                    }
+                    // Use primary WhatsApp group or fallback to new group link
+                    const whatsappMessage = encodeURIComponent('היי תצרפו אותי לקבוצה של הרב!')
+                    let whatsappUrl = primaryWhatsAppGroup?.url || 'https://chat.whatsapp.com/LDY1KQlNKz4CULkirL3e7c?mode=hqrc'
+                    // Add text parameter - use & if URL already has parameters, otherwise use ?
+                    const separator = whatsappUrl.includes('?') ? '&' : '?'
+                    whatsappUrl = `${whatsappUrl}${separator}text=${whatsappMessage}`
+                    Linking.openURL(whatsappUrl).catch(() => {
+                      Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
+                    })
                   }}
                 >
                   <LinearGradient colors={[PRIMARY_GOLD, '#ffed4e']} style={styles.partnershipButtonGradient}>
