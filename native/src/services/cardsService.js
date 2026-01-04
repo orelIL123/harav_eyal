@@ -135,15 +135,21 @@ export async function updateDailyInsightLastUpdated() {
 }
 
 /**
- * Get daily insight last updated timestamp
+ * Get daily insight last updated timestamp (CACHED - 5 minutes)
  */
 export async function getDailyInsightLastUpdated() {
   try {
-    const config = await getDocument('appConfig', 'config')
-    if (!config || !config.dailyInsightLastUpdated) return null
+    return await getOrFetch(
+      `${CACHE_KEYS.APP_CONFIG}_daily_insight_updated`,
+      async () => {
+        const config = await getDocument('appConfig', 'config')
+        if (!config || !config.dailyInsightLastUpdated) return null
 
-    const lastUpdated = config.dailyInsightLastUpdated
-    return lastUpdated.toDate ? lastUpdated.toDate() : new Date(lastUpdated)
+        const lastUpdated = config.dailyInsightLastUpdated
+        return lastUpdated.toDate ? lastUpdated.toDate() : new Date(lastUpdated)
+      },
+      CACHE_TTL.SHORT // 5 minutes is enough
+    )
   } catch (error) {
     console.error('Error getting daily insight last updated:', error)
     return null

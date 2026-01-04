@@ -17,7 +17,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../utils/AuthContext'
-import { subscribeToFaithTopics, updateFaithTopic, seedFaithTopics } from '../services/faithService'
+import { getFaithTopics, updateFaithTopic, seedFaithTopics } from '../services/faithService'
 import * as ImagePicker from 'expo-image-picker'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { Video, ResizeMode } from 'expo-av'
@@ -46,22 +46,28 @@ export default function FaithLearningScreen({ navigation, route }) {
   // Video Upload State
   const [uploadProgress, setUploadProgress] = useState(0)
 
-  // 1. Fetch Topics from Firestore
+  // 1. OPTIMIZED: Fetch Topics once with cache (was real-time listener)
   useEffect(() => {
-    const unsubscribe = subscribeToFaithTopics((fetchedTopics) => {
-      setLoading(false)
-      if (fetchedTopics.length > 0) {
-        setTopics(fetchedTopics)
-        // If we have no active category or the active one doesn't exist, set to first
-        if (!fetchedTopics.find(t => t.key === activeCategory) && !activeCategory) {
-          setActiveCategory(fetchedTopics[0].key)
+    const loadTopics = async () => {
+      try {
+        setLoading(true)
+        const fetchedTopics = await getFaithTopics() // One-time fetch with cache
+        setLoading(false)
+
+        if (fetchedTopics.length > 0) {
+          setTopics(fetchedTopics)
+          // If we have no active category or the active one doesn't exist, set to first
+          if (!fetchedTopics.find(t => t.key === activeCategory) && !activeCategory) {
+            setActiveCategory(fetchedTopics[0].key)
+          }
         }
-      } else {
-        // Seed if empty (auto-fix for first run)
-        seedFaithTopics()
+      } catch (error) {
+        console.error('Error loading faith topics:', error)
+        setLoading(false)
       }
-    })
-    return () => unsubscribe()
+    }
+
+    loadTopics()
   }, [])
 
   // 2. Compute Active Topic

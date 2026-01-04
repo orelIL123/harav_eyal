@@ -107,8 +107,9 @@ export const CACHE_KEYS = {
   // Institutions (cache for 30 minutes - rarely changes)
   INSTITUTION: (activityId) => `institution_${activityId}`,
 
-  // User data (cache for 5 minutes)
+  // User data (cache for 10 minutes)
   USER: (userId) => `user_${userId}`,
+  USER_DATA: 'user_data',
   USER_ADMIN: (userId) => `user_admin_${userId}`,
 }
 

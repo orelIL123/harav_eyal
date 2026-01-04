@@ -7,7 +7,7 @@ import { Audio, Video } from 'expo-av'
 import * as DocumentPicker from 'expo-document-picker'
 import { getDailyVideos } from '../services/dailyVideosService'
 import { useAuth } from '../utils/AuthContext'
-import { pickVideo, recordVideo, uploadVideoToStorage, generateDailyVideoPath, saveDailyInsightLastViewed } from '../utils/storage'
+import { pickVideo, recordVideo, uploadVideoToStorage, generateDailyVideoPath, saveDailyInsightLastViewed, pickImage, uploadImageToStorage } from '../utils/storage'
 import { createDailyVideo } from '../services/dailyVideosService'
 import { getDailyInsightContent, saveDailyInsightContent } from '../services/cardsService'
 import { useTranslation } from 'react-i18next'
@@ -354,6 +354,8 @@ export default function DailyInsightScreen({ navigation }) {
   // Upload states
   const [uploadingVideo, setUploadingVideo] = React.useState(false)
   const [uploadingAudio, setUploadingAudio] = React.useState(false)
+  const [uploadingImage, setUploadingImage] = React.useState(false)
+  const [imageUrl, setImageUrl] = React.useState(null)
   const [uploadProgress, setUploadProgress] = React.useState(0)
   const [saving, setSaving] = React.useState(false)
   const [hasChanges, setHasChanges] = React.useState(false)
@@ -390,6 +392,7 @@ export default function DailyInsightScreen({ navigation }) {
         setContentText(content.content ?? DEFAULT_CONTENT.content)
         setDedications(content.dedications ?? DEFAULT_CONTENT.dedications)
         setAudioFiles(content.audioFiles ?? DEFAULT_CONTENT.audioFiles)
+        setImageUrl(content.imageUrl ?? null)
       }
     } catch (error) {
       console.error('Error loading daily content:', error)
@@ -556,6 +559,32 @@ export default function DailyInsightScreen({ navigation }) {
     }
   }, [currentPlayingAudioId])
 
+  // Image upload
+  const handleUploadImage = React.useCallback(async (imageUri) => {
+    try {
+      setUploadingImage(true)
+      setUploadProgress(0)
+
+      const dateStr = new Date().toISOString().split('T')[0]
+      const imageId = 'daily-image-' + Date.now()
+      const imagePath = `dailyInsight/${dateStr}/${imageId}.jpg`
+      
+      const uploadedUrl = await uploadImageToStorage(imageUri, imagePath, (progress) => {
+        setUploadProgress(progress)
+      })
+
+      setImageUrl(uploadedUrl)
+      setHasChanges(true)
+      Alert.alert(t('faithInsight.alerts.success'), 'התמונה הועלתה בהצלחה')
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      Alert.alert(t('faithInsight.alerts.error'), 'לא ניתן להעלות את התמונה')
+    } finally {
+      setUploadingImage(false)
+      setUploadProgress(0)
+    }
+  }, [t])
+
   // Video upload
   const handleUploadVideo = React.useCallback(async (videoUri) => {
     try {
@@ -598,7 +627,8 @@ export default function DailyInsightScreen({ navigation }) {
         title: contentTitle,
         content: contentText,
         dedications,
-        audioFiles
+        audioFiles,
+        imageUrl
       })
 
       setHasChanges(false)
@@ -610,7 +640,7 @@ export default function DailyInsightScreen({ navigation }) {
     } finally {
       setSaving(false)
     }
-  }, [contentTitle, contentText, dedications, audioFiles, t])
+  }, [contentTitle, contentText, dedications, audioFiles, imageUrl, t])
 
   // Cleanup audio on unmount
   React.useEffect(() => {
@@ -805,6 +835,34 @@ export default function DailyInsightScreen({ navigation }) {
                             </LinearGradient>
                             <Text style={styles.addStoryText}>{t('faithInsight.record')}</Text>
                           </Pressable>
+
+                          <Pressable
+                            style={styles.addStoryBtn}
+                            onPress={async () => {
+                              try {
+                                const image = await pickImage()
+                                if (image) await handleUploadImage(image.uri)
+                              } catch (error) {
+                                Alert.alert(t('faithInsight.alerts.error'), 'לא ניתן לבחור תמונה')
+                              }
+                            }}
+                            disabled={uploadingImage}
+                          >
+                            <LinearGradient
+                              colors={[PRIMARY_GOLD, '#ffed4e']}
+                              style={styles.addStoryGradient}
+                            >
+                              {uploadingImage ? (
+                                <View style={styles.uploadProgressContainer}>
+                                  <ActivityIndicator size="small" color="#fff" />
+                                  <Text style={styles.uploadProgressText}>{Math.round(uploadProgress)}%</Text>
+                                </View>
+                              ) : (
+                                <Ionicons name="image" size={24} color="#fff" />
+                              )}
+                            </LinearGradient>
+                            <Text style={styles.addStoryText}>תמונה</Text>
+                          </Pressable>
                         </View>
                       )}
 
@@ -893,6 +951,28 @@ export default function DailyInsightScreen({ navigation }) {
                     <Ionicons name="text" size={14} color={PRIMARY_RED} />
                     <Text style={styles.editableLabelText}>כותרת</Text>
                   </View>
+                </View>
+              )}
+
+              {/* Image Display */}
+              {imageUrl && (
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={styles.dailyImage}
+                    resizeMode="cover"
+                  />
+                  {isAdminMode && (
+                    <Pressable
+                      style={styles.removeImageBtn}
+                      onPress={() => {
+                        setImageUrl(null)
+                        setHasChanges(true)
+                      }}
+                    >
+                      <Ionicons name="close-circle" size={24} color={PRIMARY_RED} />
+                    </Pressable>
+                  )}
                 </View>
               )}
 
@@ -1118,7 +1198,7 @@ export default function DailyInsightScreen({ navigation }) {
               <Pressable
                 style={styles.dedicationButton}
                 onPress={() => {
-                  const phoneNumber = '972545557248' // 0545557248
+                  const phoneNumber = '972523400207' // 052-340-0207
                   Linking.openURL(`https://wa.me/${phoneNumber}`).catch(() => {
                     Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
                   })
@@ -1593,6 +1673,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
     color: '#6b7280',
+  },
+  imageContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#f3f4f6',
+  },
+  dailyImage: {
+    width: '100%',
+    height: 250,
+    borderRadius: 16,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 20,
+    padding: 4,
   },
   typeSelectorRow: {
     flexDirection: 'row',

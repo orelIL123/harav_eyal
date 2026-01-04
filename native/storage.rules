@@ -70,6 +70,15 @@ service firebase.storage {
       allow write: if isAdmin();
     }
     
+    // ========== DAILY INSIGHT ==========
+    // חיזוק יומי - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /dailyInsight/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+                   request.resource.contentType.matches('image/.*') &&
+                   request.resource.size < 10 * 1024 * 1024; // Max 10MB
+    }
+    
     // ========== BOOKS ==========
     // ספרים - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
     match /books/{bookId}/{allPaths=**} {
@@ -84,7 +93,7 @@ service firebase.storage {
       allow write: if isAdmin() &&
                    (request.resource.contentType == 'application/pdf' ||
                     request.resource.contentType.matches('image/.*')) &&
-                   request.resource.size < 20 * 1024 * 1024; // Max 20MB
+                   request.resource.size < 50 * 1024 * 1024; // Max 50MB
     }
     
     // ========== FAITH VIDEOS ==========

@@ -10,8 +10,6 @@ const PRIMARY_GOLD = '#FFD700'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 
-const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
-const MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
 export default function WeeklyLessonsScreen({ navigation }) {
   const { isAdmin } = useAuth()
@@ -23,15 +21,11 @@ export default function WeeklyLessonsScreen({ navigation }) {
   const [isAdminMode, setIsAdminMode] = React.useState(false)
   const [editingLesson, setEditingLesson] = React.useState(null)
   const [showEditModal, setShowEditModal] = React.useState(false)
-  const [showDatePicker, setShowDatePicker] = React.useState(false)
-  const [selectedDay, setSelectedDay] = React.useState(1)
-  const [selectedMonth, setSelectedMonth] = React.useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = React.useState(new Date().getFullYear())
   const [formData, setFormData] = React.useState({
     city: '',
     location: '',
     day: 'ראשון',
-    date: null,
+    date: '',
     time: '',
     address: '',
   })
@@ -66,22 +60,11 @@ export default function WeeklyLessonsScreen({ navigation }) {
   const handleLessonPress = (lesson) => {
     if (isAdminMode) {
       setEditingLesson(lesson)
-      if (lesson.date) {
-        const lessonDate = new Date(lesson.date)
-        setSelectedDay(lessonDate.getDate())
-        setSelectedMonth(lessonDate.getMonth() + 1)
-        setSelectedYear(lessonDate.getFullYear())
-      } else {
-        const today = new Date()
-        setSelectedDay(today.getDate())
-        setSelectedMonth(today.getMonth() + 1)
-        setSelectedYear(today.getFullYear())
-      }
       setFormData({
         city: lesson.city || '',
         location: lesson.location || '',
         day: lesson.day || 'ראשון',
-        date: lesson.date || null,
+        date: lesson.date || '',
         time: lesson.time || '',
         address: lesson.address || '',
       })
@@ -101,48 +84,28 @@ export default function WeeklyLessonsScreen({ navigation }) {
 
   const handleAddLesson = () => {
     setEditingLesson(null)
-    const today = new Date()
-    setSelectedDay(today.getDate())
-    setSelectedMonth(today.getMonth() + 1)
-    setSelectedYear(today.getFullYear())
     setFormData({
       city: '',
       location: '',
       day: 'ראשון',
-      date: null,
+      date: '',
       time: '',
       address: '',
     })
     setShowEditModal(true)
   }
 
-  const getDaysInMonth = (month, year) => {
-    return new Date(year, month, 0).getDate()
-  }
-
-  const handleDateConfirm = () => {
-    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear)
-    const day = Math.min(selectedDay, daysInMonth)
-    const date = new Date(selectedYear, selectedMonth - 1, day)
-    const dayIndex = date.getDay()
-    const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
-    const dateString = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    
-    setFormData({ 
-      ...formData, 
-      date: dateString, 
-      day: dayNames[dayIndex] 
-    })
-    setShowDatePicker(false)
-  }
-
   const formatDate = (dateString) => {
     if (!dateString) return 'בחר תאריך'
-    const date = new Date(dateString)
-    const day = date.getDate()
-    const month = date.getMonth() + 1
-    const year = date.getFullYear()
-    return `${day}/${month}/${year}`
+    const parsed = new Date(dateString)
+    if (!isNaN(parsed)) {
+      const day = parsed.getDate()
+      const month = parsed.getMonth() + 1
+      const year = parsed.getFullYear()
+      return `${day}/${month}/${year}`
+    }
+    // Fallback: show the raw value the admin entered
+    return dateString
   }
 
   const handleSaveLesson = async () => {
@@ -404,29 +367,15 @@ export default function WeeklyLessonsScreen({ navigation }) {
 
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>תאריך השיעור *</Text>
-                <Pressable
-                  style={styles.datePickerButton}
-                  onPress={() => {
-                    if (formData.date) {
-                      const date = new Date(formData.date)
-                      setSelectedDay(date.getDate())
-                      setSelectedMonth(date.getMonth() + 1)
-                      setSelectedYear(date.getFullYear())
-                    }
-                    setShowDatePicker(true)
-                  }}
-                >
-                  <Ionicons name="calendar-outline" size={20} color={PRIMARY_RED} />
-                  <Text style={styles.datePickerText}>
-                    {formData.date ? formatDate(formData.date) : 'בחר תאריך'}
-                  </Text>
-                  <Ionicons name="chevron-down" size={20} color="#6b7280" />
-                </Pressable>
-                {formData.date && (
-                  <Text style={styles.dateInfoText}>
-                    יום בשבוע: {formData.day}
-                  </Text>
-                )}
+                <TextInput
+                  style={styles.formInput}
+                  value={formData.date}
+                  onChangeText={(text) => setFormData({ ...formData, date: text })}
+                  placeholder="לדוגמה: 16/9 או 16/09/2025"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="default"
+                />
+                <Text style={styles.dateInfoTextSmall}>הקלד ידנית תאריך כפי שיוצג למשתמשים</Text>
               </View>
 
               <View style={styles.formGroup}>
@@ -475,139 +424,6 @@ export default function WeeklyLessonsScreen({ navigation }) {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Custom Date Picker Modal */}
-      <Modal
-        visible={showDatePicker}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={styles.datePickerModalContainer}>
-          <View style={styles.datePickerModalContent}>
-            <View style={styles.datePickerModalHeader}>
-              <Text style={styles.datePickerModalTitle}>בחר תאריך</Text>
-              <Pressable
-                onPress={() => setShowDatePicker(false)}
-                style={styles.datePickerModalCloseBtn}
-              >
-                <Ionicons name="close" size={24} color={DEEP_BLUE} />
-              </Pressable>
-            </View>
-            
-            <View style={styles.datePickerBody}>
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerColumnLabel}>יום</Text>
-                <ScrollView 
-                  style={styles.datePickerScrollView}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {Array.from({ length: getDaysInMonth(selectedMonth, selectedYear) }, (_, i) => i + 1).map((day) => (
-                    <Pressable
-                      key={day}
-                      style={[
-                        styles.datePickerItem,
-                        selectedDay === day && styles.datePickerItemSelected
-                      ]}
-                      onPress={() => setSelectedDay(day)}
-                    >
-                      <Text style={[
-                        styles.datePickerItemText,
-                        selectedDay === day && styles.datePickerItemTextSelected
-                      ]}>
-                        {day}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerColumnLabel}>חודש</Text>
-                <ScrollView 
-                  style={styles.datePickerScrollView}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {MONTHS.map((month, index) => (
-                    <Pressable
-                      key={index}
-                      style={[
-                        styles.datePickerItem,
-                        selectedMonth === index + 1 && styles.datePickerItemSelected
-                      ]}
-                      onPress={() => {
-                        setSelectedMonth(index + 1)
-                        const daysInNewMonth = getDaysInMonth(index + 1, selectedYear)
-                        if (selectedDay > daysInNewMonth) {
-                          setSelectedDay(daysInNewMonth)
-                        }
-                      }}
-                    >
-                      <Text style={[
-                        styles.datePickerItemText,
-                        selectedMonth === index + 1 && styles.datePickerItemTextSelected
-                      ]}>
-                        {month}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-
-              <View style={styles.datePickerColumn}>
-                <Text style={styles.datePickerColumnLabel}>שנה</Text>
-                <ScrollView 
-                  style={styles.datePickerScrollView}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + i).map((year) => (
-                    <Pressable
-                      key={year}
-                      style={[
-                        styles.datePickerItem,
-                        selectedYear === year && styles.datePickerItemSelected
-                      ]}
-                      onPress={() => {
-                        setSelectedYear(year)
-                        const daysInNewYear = getDaysInMonth(selectedMonth, year)
-                        if (selectedDay > daysInNewYear) {
-                          setSelectedDay(daysInNewYear)
-                        }
-                      }}
-                    >
-                      <Text style={[
-                        styles.datePickerItemText,
-                        selectedYear === year && styles.datePickerItemTextSelected
-                      ]}>
-                        {year}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-
-            <View style={styles.datePickerFooter}>
-              <Pressable
-                style={styles.datePickerCancelBtn}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.datePickerCancelBtnText}>ביטול</Text>
-              </Pressable>
-              <Pressable
-                style={styles.datePickerConfirmBtn}
-                onPress={handleDateConfirm}
-              >
-                <LinearGradient
-                  colors={[PRIMARY_RED, '#ef4444']}
-                  style={styles.datePickerConfirmBtnGradient}
-                >
-                  <Text style={styles.datePickerConfirmBtnText}>אישור</Text>
-                </LinearGradient>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   )
 }

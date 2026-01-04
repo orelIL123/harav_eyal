@@ -16,27 +16,26 @@ export function AuthProvider({ children }) {
   const [userData, setUserData] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [lastUid, setLastUid] = useState(null)
 
   useEffect(() => {
     // Listen to auth state changes
     const unsubscribe = onAuthStateChange(async (firebaseUser) => {
       if (firebaseUser) {
-        setUser(firebaseUser)
         console.log('🔄 Auth state changed - user logged in:', firebaseUser.uid)
-        
-        // Clear cache first to ensure fresh data
-        try {
-          const { clearAllCache } = await import('../utils/cache')
-          await clearAllCache()
-          console.log('🧹 Cache cleared in AuthContext')
-        } catch (cacheError) {
-          console.warn('Warning: Could not clear cache:', cacheError)
-        }
-        
-        // Get user data from Firestore
-        try {
-          const { userData: data } = await getUserData(firebaseUser.uid)
-          setUserData(data)
+
+        // Only fetch if user changed or data missing
+        const userChanged = lastUid !== firebaseUser.uid
+
+        if (userChanged || !userData) {
+          setUser(firebaseUser)
+          setLastUid(firebaseUser.uid)
+          console.log('🔄 User changed or data missing - fetching fresh data')
+
+          // Get user data from Firestore (cached by authService)
+          try {
+            const { userData: data } = await getUserData(firebaseUser.uid)
+            setUserData(data)
           console.log('📋 User data loaded:', { 
             uid: firebaseUser.uid, 
             email: data?.email, 
@@ -62,19 +61,55 @@ export function AuthProvider({ children }) {
             const token = await registerForPushNotificationsAsync()
             if (token) {
               console.log('📱 Push notification token received:', token)
-              // Save token to Firestore
+
+              // Try to migrate tokens from anonymous user
+              let tokensToSave = data?.expoPushTokens || []
+
+              try {
+                const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default)
+                const { getDocument, deleteDocument } = await import('../services/firestore')
+
+                // Get anonymous user ID
+                const anonymousId = await AsyncStorage.getItem('@anonymous_user_id')
+                if (anonymousId && anonymousId !== firebaseUser.uid) {
+                  console.log('📱 Found anonymous user ID:', anonymousId)
+
+                  // Try to get tokens from anonymous user
+                  try {
+                    const anonData = await getDocument('users', anonymousId)
+                    if (anonData?.expoPushTokens) {
+                      console.log('📱 Migrating tokens from anonymous user:', anonData.expoPushTokens)
+                      // Merge tokens
+                      tokensToSave = [...new Set([...tokensToSave, ...anonData.expoPushTokens])]
+
+                      // Delete anonymous user document
+                      await deleteDocument('users', anonymousId)
+                      console.log('✅ Anonymous user document deleted')
+                    }
+                  } catch (anonError) {
+                    console.log('ℹ️ No anonymous user document found')
+                  }
+
+                  // Clear anonymous ID from storage
+                  await AsyncStorage.removeItem('@anonymous_user_id')
+                }
+              } catch (migrateError) {
+                console.warn('⚠️ Error migrating anonymous tokens:', migrateError)
+              }
+
+              // Add current token if not already in list
+              if (!tokensToSave.includes(token)) {
+                tokensToSave.push(token)
+              }
+
+              // Save all tokens to Firestore
               try {
                 const { updateUserData } = await import('../services/firestore')
-                const currentTokens = data?.expoPushTokens || []
-                if (!currentTokens.includes(token)) {
-                  await updateUserData(firebaseUser.uid, {
-                    expoPushTokens: [...currentTokens, token],
-                    lastPushTokenUpdate: new Date()
-                  })
-                  console.log('✅ Push token saved to Firestore')
-                } else {
-                  console.log('ℹ️ Push token already exists in Firestore')
-                }
+                await updateUserData(firebaseUser.uid, {
+                  expoPushTokens: tokensToSave,
+                  lastPushTokenUpdate: new Date()
+                })
+                console.log('✅ Push tokens saved to Firestore:', tokensToSave.length)
               } catch (saveError) {
                 console.warn('⚠️ Could not save push token to Firestore:', saveError)
                 // Don't fail if token save fails
@@ -87,23 +122,29 @@ export function AuthProvider({ children }) {
             console.warn('⚠️ Could not register for push notifications:', pushError)
             // Don't fail auth if push notifications fail - this is non-critical
           }
-        } catch (error) {
-          console.error('❌ Error loading user data:', error)
-          setUserData(null)
-          setIsAdmin(false)
+          } catch (error) {
+            console.error('❌ Error loading user data:', error)
+            setUserData(null)
+            setIsAdmin(false)
+          }
+        } else {
+          // User persisted from previous session - just update state without refetching
+          console.log('✅ User persisted - using existing data')
+          setUser(firebaseUser)
         }
       } else {
         console.log('🔄 Auth state changed - user logged out')
         setUser(null)
         setUserData(null)
         setIsAdmin(false)
+        setLastUid(null)
       }
-      
+
       setLoading(false)
     })
 
     return () => unsubscribe()
-  }, [])
+  }, [lastUid, userData])
 
   const login = async (email, password) => {
     const { login: loginFunc } = await import('../services/authService')

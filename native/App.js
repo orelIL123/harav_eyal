@@ -57,6 +57,7 @@ import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import { AuthProvider } from './src/utils/AuthContext'
 import { hasAcceptedConsent } from './src/utils/storage'
+import { trackAppInstall } from './src/services/appInstallsService'
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins'
 import { CinzelDecorative_400Regular, CinzelDecorative_700Bold } from '@expo-google-fonts/cinzel-decorative'
 import { Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, Heebo_700Bold, Heebo_900Black } from '@expo-google-fonts/heebo'
@@ -186,14 +187,63 @@ export default function App() {
       }
     })
 
+    // Track app installation/download (only once per device)
+    trackAppInstall().catch(() => {
+      // Silently fail - non-critical
+    })
+
     // Register for push notifications
     const registerPushNotifications = async () => {
       try {
         const token = await registerForPushNotificationsAsync()
         if (token && mounted) {
           console.log('📱 Push notification token:', token)
-          // TODO: Save token to Firestore user document
-          // This will be done when user logs in
+
+          // Save token for anonymous users too
+          try {
+            const AsyncStorage = await import('@react-native-async-storage/async-storage').then(m => m.default)
+            const { auth } = await import('./src/config/firebase')
+            const { setDocument, getDocument } = await import('./src/services/firestore')
+
+            // Get or create anonymous user ID
+            let anonymousId = await AsyncStorage.getItem('@anonymous_user_id')
+            if (!anonymousId) {
+              // Generate a unique anonymous ID
+              anonymousId = `anon_${Date.now()}_${Math.random().toString(36).substring(7)}`
+              await AsyncStorage.setItem('@anonymous_user_id', anonymousId)
+              console.log('📱 Created anonymous user ID:', anonymousId)
+            }
+
+            // Check if user is logged in
+            const currentUser = auth.currentUser
+            const userId = currentUser?.uid || anonymousId
+
+            // Get existing user data
+            let userData = null
+            try {
+              userData = await getDocument('users', userId)
+            } catch (e) {
+              // User doesn't exist yet
+            }
+
+            const currentTokens = userData?.expoPushTokens || []
+
+            // Only update if token is new
+            if (!currentTokens.includes(token)) {
+              await setDocument('users', userId, {
+                expoPushTokens: [...currentTokens, token],
+                lastPushTokenUpdate: new Date(),
+                isAnonymous: !currentUser,
+                ...(userData || {}) // Preserve existing data
+              })
+              console.log('✅ Push token saved to Firestore for user:', userId)
+            } else {
+              console.log('ℹ️ Push token already exists')
+            }
+          } catch (saveError) {
+            console.warn('⚠️ Could not save push token:', saveError)
+            // Don't crash if save fails
+          }
         }
       } catch (error) {
         console.error('Error registering for push notifications:', error)
@@ -245,7 +295,7 @@ export default function App() {
       try {
         // Calculate elapsed time since app start
         const elapsedTime = Date.now() - appStartTime.current
-        const minDisplayTime = 1000 // Minimum 1 second display time
+        const minDisplayTime = 5000 // Minimum 5 seconds display time
         const remainingTime = Math.max(0, minDisplayTime - elapsedTime)
 
         // Wait for minimum display time + small buffer for UI readiness

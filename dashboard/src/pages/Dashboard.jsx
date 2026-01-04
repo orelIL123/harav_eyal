@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import StatCard from '../components/StatCard'
-import { Users, FileText, TrendingUp, Award } from 'lucide-react'
-import { getUserStats, getContentStats, getEngagementStats } from '../services/statsService'
+import { Users, FileText, TrendingUp, Award, Download } from 'lucide-react'
+import { getUserStats, getContentStats, getEngagementStats, getInstallStats } from '../services/statsService'
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [userStats, setUserStats] = useState(null)
   const [contentStats, setContentStats] = useState(null)
   const [engagementStats, setEngagementStats] = useState(null)
+  const [installStats, setInstallStats] = useState(null)
 
   useEffect(() => {
     loadStats()
@@ -16,15 +17,20 @@ export default function Dashboard() {
   const loadStats = async () => {
     try {
       setLoading(true)
-      const [users, content, engagement] = await Promise.all([
+      const [users, content, engagement, installs] = await Promise.all([
         getUserStats(),
         getContentStats(),
-        getEngagementStats()
+        getEngagementStats(),
+        getInstallStats()
       ])
 
       setUserStats(users)
       setContentStats(content)
       setEngagementStats(engagement)
+      setInstallStats(installs)
+      
+      // Debug: log install stats
+      console.log('Install stats:', installs)
     } catch (error) {
       console.error('Error loading stats:', error)
     } finally {
@@ -55,6 +61,16 @@ export default function Dashboard() {
           change={userStats?.newUsersThisMonth || 0}
           icon={Users}
           iconColor="#4a90e2"
+          changeLabel="החודש"
+        />
+
+        <StatCard
+          title="סך כל ההורדות"
+          value={installStats?.totalInstalls || 0}
+          change={installStats?.installsThisMonth || 0}
+          icon={Download}
+          iconColor="#ef4444"
+          changeLabel="החודש"
         />
 
         <StatCard
@@ -135,6 +151,41 @@ export default function Dashboard() {
                     transition: 'width 0.3s'
                   }}
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="chart-container">
+          <div className="chart-header">
+            <h3>פילוח הורדות לפי פלטפורמה</h3>
+            <p>חלוקת ההורדות לפי מערכת הפעלה</p>
+          </div>
+          <div style={{ padding: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+              <div>
+                <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>iOS</div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a2e' }}>
+                  {installStats?.platformCounts?.ios || 0}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>Android</div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a2e' }}>
+                  {installStats?.platformCounts?.android || 0}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>Web</div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a2e' }}>
+                  {installStats?.platformCounts?.web || 0}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>אחר</div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a2e' }}>
+                  {installStats?.platformCounts?.unknown || 0}
+                </div>
               </div>
             </div>
           </div>

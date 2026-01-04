@@ -118,6 +118,17 @@ service firebase.storage {
                    request.resource.contentType.matches('image/.*');
     }
 
+    // ========== DAILY INSIGHT ==========
+    match /dailyInsight/{allPaths=**} {
+      // Public read for daily insight images
+      allow read: if true;
+
+      // Only admins can write images
+      allow write: if isAdminUser() &&
+                   request.resource.contentType.matches('image/.*') &&
+                   request.resource.size < 10 * 1024 * 1024; // Max 10MB
+    }
+
     // ========== NEWS ==========
     match /news/{newsId}/{fileName} {
       // Public read for news images
@@ -147,7 +158,7 @@ service firebase.storage {
 
       // Only admins can write PDFs
       allow write: if isAdminUser() &&
-                   request.resource.size < 20 * 1024 * 1024 && // Max 20MB
+                   request.resource.size < 50 * 1024 * 1024 && // Max 50MB
                    request.resource.contentType == 'application/pdf';
 
       // Only admins can write images

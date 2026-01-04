@@ -26,17 +26,25 @@ export function onAuthStateChange(callback) {
 }
 
 /**
- * Get user data from Firestore
+ * Get user data from Firestore (CACHED - 10 minutes TTL)
  * @param {string} userId - User ID
  * @returns {Promise<{userData: object | null, error: string | null}>}
  */
 export async function getUserData(userId) {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId))
-    if (userDoc.exists()) {
-      return { userData: userDoc.data(), error: null }
-    }
-    return { userData: null, error: 'User data not found' }
+    const { getOrFetch, CACHE_KEYS, CACHE_TTL } = await import('../utils/cache')
+
+    return await getOrFetch(
+      `${CACHE_KEYS.USER_DATA}_${userId}`,
+      async () => {
+        const userDoc = await getDoc(doc(db, 'users', userId))
+        if (userDoc.exists()) {
+          return { userData: userDoc.data(), error: null }
+        }
+        return { userData: null, error: 'User data not found' }
+      },
+      CACHE_TTL.MEDIUM // 10 minutes
+    )
   } catch (error) {
     console.error('Error getting user data:', error)
     return { userData: null, error: error.message }
@@ -44,15 +52,15 @@ export async function getUserData(userId) {
 }
 
 /**
- * Check if user is admin
+ * Check if user is admin (OPTIMIZED - uses cached getUserData)
  * @param {string} userId - User ID
  * @returns {Promise<boolean>}
  */
 export async function isUserAdmin(userId) {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId))
-    if (userDoc.exists()) {
-      const userData = userDoc.data()
+    // Use cached getUserData instead of reading document again
+    const { userData } = await getUserData(userId)
+    if (userData) {
       return userData.role === 'admin'
     }
     return false

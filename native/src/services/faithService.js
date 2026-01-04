@@ -15,35 +15,65 @@ import { FAITH_TOPICS } from '../data/faithTopics'
 const COLLECTION_NAME = 'faith_topics'
 
 /**
- * Subscribe to faith topics updates
- * @param {function} onUpdate - callback with array of topics
- * @returns {function} unsubscribe function
+ * OPTIMIZED: Get faith topics once with cache (was real-time listener)
+ * Saves ~15M reads/month by replacing onSnapshot with getDocs
+ * @returns {Promise<Array>} array of topics
+ */
+export const getFaithTopics = async () => {
+    try {
+        // Import cache utilities
+        const { getOrFetch, CACHE_TTL } = await import('../utils/cache')
+
+        return await getOrFetch(
+            'faith_topics_all',
+            async () => {
+                const q = query(collection(db, COLLECTION_NAME), orderBy('order', 'asc'))
+                const snapshot = await getDocs(q) // One-time read instead of listener
+
+                const topics = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+
+                if (topics.length === 0) {
+                    // Seed if empty
+                    console.log('No faith topics found, seeding...')
+                    await seedFaithTopics()
+                    // Re-fetch after seeding
+                    const newSnapshot = await getDocs(q)
+                    return newSnapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }))
+                }
+
+                return topics
+            },
+            CACHE_TTL.VERY_LONG // 30 minutes - static data
+        )
+    } catch (error) {
+        console.error('Error getting faith topics:', error)
+        return []
+    }
+}
+
+/**
+ * DEPRECATED: Use getFaithTopics() instead
+ * Kept for backward compatibility
  */
 export const subscribeToFaithTopics = (onUpdate) => {
-    const q = query(collection(db, COLLECTION_NAME), orderBy('order', 'asc'))
+    console.warn('subscribeToFaithTopics is deprecated. Use getFaithTopics() instead.')
 
-    return onSnapshot(q, (snapshot) => {
-        const topics = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }))
-
-        if (topics.length === 0) {
-            // If collection is empty, trigger seeding automatically
-            console.log('No faith topics found in Firestore, seeding now...')
-            seedFaithTopics().then(() => {
-                console.log('Seeding completed')
-            }).catch(err => {
-                console.error('Seeding failed:', err)
-            })
-        }
-
+    // Convert to one-time fetch
+    getFaithTopics().then(topics => {
         onUpdate(topics)
-    }, (error) => {
-        console.error('Error listening to faith topics:', error)
-        // Return empty array on error to prevent app crash
+    }).catch(error => {
+        console.error('Error in subscribeToFaithTopics:', error)
         onUpdate([])
     })
+
+    // Return empty unsubscribe function
+    return () => {}
 }
 
 /**

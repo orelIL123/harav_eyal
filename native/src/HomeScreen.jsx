@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { View, Text, StyleSheet, Pressable, Animated, Platform, Dimensions, Image, ImageBackground, ScrollView, Share, Alert, Linking, ActivityIndicator } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 // Conditional import for native-only module (not available on web)
 let Grayscale = null
 if (Platform.OS !== 'web') {
@@ -214,6 +215,7 @@ const CenterFabButton = ({ onPress, screenWidth }) => {
 export default function HomeScreen({ navigation }) {
   const { t } = useTranslation();
   const { width } = Dimensions.get('window')
+  const insets = useSafeAreaInsets()
 
   const [activeTab, setActiveTab] = React.useState('home')
   const quote = t('עיקר העבודה היא האמונה')
@@ -293,13 +295,22 @@ export default function HomeScreen({ navigation }) {
     }
 
     loadAlerts()
-    // Refresh every 5 minutes
-    const interval = setInterval(loadAlerts, 5 * 60 * 1000)
+
+    // OPTIMIZED: Only refresh on app focus (when user returns to app)
+    const subscription = Platform.OS !== 'web'
+      ? require('react-native').AppState.addEventListener('change', (nextAppState) => {
+          if (nextAppState === 'active' && isMounted) {
+            loadAlerts()
+          }
+        })
+      : null
 
     // Cleanup function
     return () => {
       isMounted = false
-      clearInterval(interval)
+      if (subscription) {
+        subscription.remove()
+      }
     }
   }, [])
 
@@ -310,13 +321,12 @@ export default function HomeScreen({ navigation }) {
     const loadPodcasts = async () => {
       try {
         setLoadingPodcasts(true)
-        const allPodcasts = await getPodcasts()
+        // OPTIMIZED: Request only 5 podcasts instead of 100 (save 19M reads/month!)
+        const allPodcasts = await getPodcasts(null, 5)
 
         if (!isMounted) return
 
-        // Show only first 5 podcasts on home screen
-        const limitedPodcasts = Array.isArray(allPodcasts) ? allPodcasts.slice(0, 5) : []
-        setPodcasts(limitedPodcasts)
+        setPodcasts(Array.isArray(allPodcasts) ? allPodcasts : [])
       } catch (error) {
         console.error('Error loading podcasts:', error)
         if (isMounted) {
@@ -363,8 +373,8 @@ export default function HomeScreen({ navigation }) {
     }
 
     checkForNewDailyInsight()
-    // Check every 30 seconds
-    const interval = setInterval(checkForNewDailyInsight, 30000)
+    // OPTIMIZED: Check every 10 minutes (was 30 seconds - save 25M reads/month!)
+    const interval = setInterval(checkForNewDailyInsight, 10 * 60 * 1000)
 
     return () => {
       isMounted = false
@@ -935,12 +945,9 @@ export default function HomeScreen({ navigation }) {
                 <Pressable
                   style={styles.partnershipButton}
                   onPress={() => {
-                    // Use primary WhatsApp group or fallback to new group link
-                    const whatsappMessage = encodeURIComponent('היי תצרפו אותי לקבוצה של הרב!')
-                    let whatsappUrl = primaryWhatsAppGroup?.url || 'https://chat.whatsapp.com/LDY1KQlNKz4CULkirL3e7c?mode=hqrc'
-                    // Add text parameter - use & if URL already has parameters, otherwise use ?
-                    const separator = whatsappUrl.includes('?') ? '&' : '?'
-                    whatsappUrl = `${whatsappUrl}${separator}text=${whatsappMessage}`
+                    const whatsappMessage = encodeURIComponent('שלום אני רוצה לקחת חלק בעזרה לרב אייל עמרמי')
+                    const phoneNumber = '972506785912'
+                    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`
                     Linking.openURL(whatsappUrl).catch(() => {
                       Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
                     })
@@ -986,7 +993,7 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Bottom Nav */}
-      <View style={styles.bottomNavWrapper}>
+      <View style={[styles.bottomNavWrapper, Platform.OS === 'android' && { paddingBottom: insets.bottom }]}>
         {/* Background */}
         <View style={styles.bottomNavBackground} />
 
@@ -1756,7 +1763,7 @@ const styles = StyleSheet.create({
   },
   memorialText: {
     color: '#6b7280',
-    fontSize: 12,
+    fontSize: 16,
     fontFamily: 'Poppins_500Medium',
   },
 
@@ -1785,7 +1792,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 100,
-    height: TAB_HEIGHT,
+    minHeight: TAB_HEIGHT, // Changed from height to minHeight for Android safe area
   },
   bottomNavBackground: {
     position: 'absolute',

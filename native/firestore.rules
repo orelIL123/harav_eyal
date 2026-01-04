@@ -235,7 +235,7 @@ service cloud.firestore {
       allow create: if true;
       allow update, delete: if isAdmin();
     }
-
+    
     // ========== WHATSAPP GROUPS COLLECTION ==========
     match /whatsappGroups/{groupId} {
       // Everyone can read active WhatsApp groups (public)
@@ -245,6 +245,16 @@ service cloud.firestore {
       allow read: if isAdmin();
       // Only admins can modify
       allow create, update, delete: if isAdmin();
+    }
+
+    // ========== APP INSTALLS COLLECTION ==========
+    match /appInstalls/{installId} {
+      // Everyone can read (for dashboard statistics)
+      allow read: if true;
+      // Anyone can create (to track installs even without login)
+      allow create: if true;
+      // Only admins can modify or delete
+      allow update, delete: if isAdmin();
     }
     
     // ========== DEFAULT DENY ==========

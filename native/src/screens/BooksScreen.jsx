@@ -42,8 +42,11 @@ export default function BooksScreen({ navigation }) {
     }
   }
   const handlePurchase = React.useCallback((book) => {
-    Linking.openURL(book.purchaseLink).catch(() => {
-      Alert.alert('שגיאה', 'לא ניתן לפתוח את קישור הרכישה')
+    const phoneNumber = '972542944949' // 054-2944949
+    const message = encodeURIComponent(`שלום, אני מעוניין לרכוש את הספר: ${book.title}`)
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`
+    Linking.openURL(whatsappUrl).catch(() => {
+      Alert.alert('שגיאה', 'לא ניתן לפתוח את וואטסאפ')
     })
   }, [])
 

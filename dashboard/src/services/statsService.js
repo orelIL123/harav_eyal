@@ -55,6 +55,55 @@ export async function getAllUsers() {
 }
 
 /**
+ * Get app install/download statistics
+ */
+export async function getInstallStats() {
+  try {
+    const installsRef = collection(db, 'appInstalls')
+    const snapshot = await getDocs(installsRef)
+    
+    const totalInstalls = snapshot.size
+    
+    // Calculate installs this month
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const installsThisMonth = snapshot.docs.filter(doc => {
+      const data = doc.data()
+      const timestamp = data.createdAt || data.timestamp
+      if (!timestamp) return false
+      const createdAt = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+      return createdAt >= startOfMonth
+    }).length
+
+    // Count by platform
+    const platformCounts = {}
+    snapshot.docs.forEach(doc => {
+      const platform = doc.data().platform || 'unknown'
+      platformCounts[platform] = (platformCounts[platform] || 0) + 1
+    })
+
+    console.log('Install stats calculated:', {
+      totalInstalls,
+      installsThisMonth,
+      platformCounts
+    })
+
+    return {
+      totalInstalls,
+      installsThisMonth,
+      platformCounts
+    }
+  } catch (error) {
+    console.error('Error getting install stats:', error)
+    return {
+      totalInstalls: 0,
+      installsThisMonth: 0,
+      platformCounts: {}
+    }
+  }
+}
+
+/**
  * Get user statistics
  */
 export async function getUserStats() {

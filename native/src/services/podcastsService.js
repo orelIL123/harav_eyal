@@ -14,27 +14,28 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
 /**
  * Get all podcasts, optionally filtered by category
+ * OPTIMIZED: Default limit reduced from 100 to 20
  */
-export async function getPodcasts(category = null) {
+export async function getPodcasts(category = null, limitCount = 20) {
   try {
     const filters = []
     if (category) {
       filters.push({ field: 'category', operator: '==', value: category })
     }
-    
+
     // Only active podcasts (default to true if not set)
     filters.push({ field: 'isActive', operator: '==', value: true })
-    
-    console.log('Getting podcasts with filters:', filters)
-    
+
+    console.log('Getting podcasts with filters:', filters, 'limit:', limitCount)
+
     // Try to get podcasts ordered by 'order' field, fallback to 'createdAt' if order doesn't exist
     let result
     try {
-      result = await getDocuments('podcasts', filters, 'order', 'desc', 100)
+      result = await getDocuments('podcasts', filters, 'order', 'desc', limitCount)
     } catch (orderError) {
       // If order field doesn't exist, try with createdAt
       console.warn('Error ordering by "order", trying "createdAt":', orderError)
-      result = await getDocuments('podcasts', filters, 'createdAt', 'desc', 100)
+      result = await getDocuments('podcasts', filters, 'createdAt', 'desc', limitCount)
     }
     
     const podcasts = result?.data || []

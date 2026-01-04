@@ -7,7 +7,7 @@ const PRIMARY_RED = '#DC2626'
 const BG = '#FFFFFF'
 const DEEP_BLUE = '#0b1b3a'
 const PRIMARY_GOLD = '#FFD700'
-const WHATSAPP_PHONE = '972523677605'
+const WHATSAPP_PHONE = '972527202020'
 
 export default function ContactRabbiScreen({ navigation }) {
   const openWhatsApp = () => {
@@ -51,7 +51,7 @@ export default function ContactRabbiScreen({ navigation }) {
 
         <View style={styles.phoneContainer}>
           <Text style={styles.phoneLabel}>מספר וואטסאפ:</Text>
-          <Text style={styles.phoneNumber}>052-367-7605</Text>
+          <Text style={styles.phoneNumber}>052-720-2020</Text>
         </View>
 
         <Pressable

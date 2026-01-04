@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Video } from 'expo-av'
 import { useTranslation } from 'react-i18next'
 import { sendLocalNotification, scheduleNotification } from '../utils/notifications'
+import { sendPushNotificationsToUsers } from '../services/pushNotificationService'
 import { pickImage, pickVideo, pickPDF, pickAudio, uploadImageToStorage, uploadVideoToStorage, uploadPDFToStorage, uploadAudioToStorage, generateStoragePath, generateCardImagePath, generateNewsImagePath, generateDailyVideoPath, generateDailyVideoThumbnailPath } from '../utils/storage'
 import { addLesson, getLessons, updateLesson, deleteLesson } from '../services/lessonsService'
 import { createAlert, getAlerts, updateAlert, deleteAlert } from '../services/alertsService'
@@ -916,20 +917,52 @@ function AlertsForm() {
         }
 
         if (form.sendType === 'immediate') {
-          await sendLocalNotification(notification)
-          Alert.alert(
-            t('admin.lessonsForm.success'),
-            t('admin.alertsForm.alertSent')
-          )
+          // Send push notification to all users using Expo Push API
+          try {
+            const pushResult = await sendPushNotificationsToUsers(
+              form.title,
+              form.message,
+              notification.data,
+              form.targetAudience
+            )
+
+            console.log('✅ Push notifications sent:', pushResult)
+
+            // Also send local notification to admin
+            await sendLocalNotification(notification)
+
+            const targetText = form.targetAudience.includes('all') ? 'כל המשתמשים' : 'משתמשים רשומים'
+            const successMessage = pushResult.errorCount > 0
+              ? `התראה נשלחה ל-${pushResult.sentCount} מתוך ${pushResult.sentCount + pushResult.errorCount} (${targetText})\n${pushResult.errorCount} שגיאות`
+              : `התראה נשלחה בהצלחה!\n${pushResult.sentCount} משתמשים קיבלו (${targetText})`
+
+            Alert.alert(
+              t('admin.lessonsForm.success'),
+              successMessage
+            )
+          } catch (pushError) {
+            console.error('❌ Error sending push notifications:', pushError)
+            // Fallback to local notification only
+            await sendLocalNotification(notification)
+            Alert.alert(
+              t('admin.lessonsForm.success'),
+              'התראה נשלחה (שגיאה בשליחת Push Notifications)'
+            )
+          }
         } else {
+          // For scheduled notifications, we'll need a different approach
+          // For now, just save the alert and it will appear in the app
           const triggerDate = new Date(form.scheduledTime)
+
+          // Send local scheduled notification to admin
           await scheduleNotification({
             ...notification,
             triggerDate
           })
+
           Alert.alert(
             t('admin.lessonsForm.success'),
-            t('admin.alertsForm.alertScheduled', { triggerDate: triggerDate.toLocaleString('he-IL') })
+            `התראה תופיע באפליקציה ב-${triggerDate.toLocaleString('he-IL')}\n\nשים לב: Push notifications מתוזמנים דורשים Cloud Functions`
           )
         }
       }
@@ -2292,14 +2325,7 @@ function BooksForm() {
       return
     }
 
-    // Validate purchase link if provided
-    if (form.purchaseLink) {
-      const linkValidation = validateURL(form.purchaseLink, { required: false })
-      if (!linkValidation.valid) {
-        Alert.alert('שגיאה', linkValidation.error)
-        return
-      }
-    }
+    // Purchase link is no longer used - always opens WhatsApp to 054-2944949
 
     if (form.imageUri && !form.imageUrl) {
       Alert.alert('שים לב', 'אנא העלה את התמונה לפני שמירה')
@@ -2319,7 +2345,7 @@ function BooksForm() {
         await updateBook(editingBook.id, {
           title: titleValidation.sanitized,
           imageUrl: form.imageUrl,
-          purchaseLink: form.purchaseLink ? form.purchaseLink.trim() : '',
+          purchaseLink: '', // Not used anymore - always opens WhatsApp
           isActive: form.isActive,
         })
         Alert.alert('הצלחה', 'הספר עודכן בהצלחה')
@@ -2329,7 +2355,7 @@ function BooksForm() {
         await createBook({
           title: titleValidation.sanitized,
           imageUrl: form.imageUrl,
-          purchaseLink: form.purchaseLink ? form.purchaseLink.trim() : '',
+          purchaseLink: '', // Not used anymore - always opens WhatsApp
           isActive: form.isActive,
         })
         Alert.alert('הצלחה', 'הספר נוסף בהצלחה')
@@ -2421,15 +2447,12 @@ function BooksForm() {
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>קישור לרכישה</Text>
-        <TextInput
-          style={styles.input}
-          value={form.purchaseLink}
-          onChangeText={text => setForm({...form, purchaseLink: text})}
-          placeholder="הזן קישור לרכישה"
-          autoCapitalize="none"
-          keyboardType="url"
-        />
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle-outline" size={18} color={PRIMARY_RED} />
+          <Text style={styles.infoText}>
+            לחיצה על הספר תפתח וואטסאפ למספר 054-2944949 עם שם הספר
+          </Text>
+        </View>
       </View>
 
       <View style={styles.formGroup}>
@@ -2530,9 +2553,6 @@ function BooksForm() {
               <View key={book.id} style={styles.lessonItem}>
                 <View style={styles.lessonItemContent}>
                   <Text style={styles.lessonItemTitle}>{book.title}</Text>
-                  {book.purchaseLink && (
-                    <Text style={styles.lessonItemCategory}>יש קישור לרכישה</Text>
-                  )}
                   <Text style={[styles.lessonItemCategory, { color: book.isActive ? '#16a34a' : '#dc2626' }]}>
                     {book.isActive ? 'פעיל' : 'לא פעיל'}
                   </Text>
@@ -2600,6 +2620,17 @@ function FlyersForm() {
     const pdf = await pickPDF()
     if (!pdf) return
 
+    // Check file size (max 50MB)
+    const MAX_SIZE = 50 * 1024 * 1024 // 50MB
+    if (pdf.size && pdf.size > MAX_SIZE) {
+      const sizeInMB = (pdf.size / (1024 * 1024)).toFixed(2)
+      Alert.alert(
+        'קובץ גדול מדי',
+        `גודל הקובץ הוא ${sizeInMB}MB. המגבלה המקסימלית היא 50MB.\n\nאנא בחר קובץ קטן יותר או דחוס את הקובץ.`
+      )
+      return
+    }
+
     setUploading(true)
     try {
       const flyerId = editingFlyer?.id || 'flyer-' + Date.now()
@@ -2610,8 +2641,13 @@ function FlyersForm() {
       setForm({ ...form, pdfUrl: url, pdfUri: null, imageUri: null, imageUrl: null, fileType: 'pdf' })
       Alert.alert('הצלחה', 'קובץ ה-PDF הועלה בהצלחה')
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן להעלות את קובץ ה-PDF')
       console.error(error)
+      // Check if error is about file size
+      if (error.message && error.message.includes('size')) {
+        Alert.alert('שגיאה', 'הקובץ גדול מדי. המגבלה המקסימלית היא 50MB.')
+      } else {
+        Alert.alert('שגיאה', 'לא ניתן להעלות את קובץ ה-PDF')
+      }
     } finally {
       setUploading(false)
     }
@@ -4928,6 +4964,24 @@ const styles = StyleSheet.create({
   },
   formGroup: {
     marginBottom: 15,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(220,38,38,0.08)',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(220,38,38,0.2)',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    color: DEEP_BLUE,
+    textAlign: 'right',
+    lineHeight: 18,
   },
   label: {
     fontSize: 14,
