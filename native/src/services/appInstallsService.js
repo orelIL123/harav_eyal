@@ -1,6 +1,7 @@
 import { db } from '../config/firebase'
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Platform } from 'react-native'
 
 const INSTALL_TRACKED_KEY = '@app:install_tracked'
 
@@ -17,7 +18,6 @@ export async function trackAppInstall() {
     }
 
     // Get device info
-    const { Platform } = await import('react-native')
     const deviceId = await getDeviceId()
 
     // Check if this device was already tracked

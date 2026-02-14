@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../utils/AuthContext'
 import { getWeeklyLessons, createWeeklyLesson, updateWeeklyLesson, deleteWeeklyLesson } from '../services/weeklyLessonsService'
+import { getWeeklyLessonsImage, saveWeeklyLessonsImage } from '../services/cardsService'
+import { pickImage, uploadImageToStorage } from '../utils/storage'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -17,6 +19,8 @@ export default function WeeklyLessonsScreen({ navigation }) {
   const [showSmallImage, setShowSmallImage] = React.useState(false)
   const [showFullImage, setShowFullImage] = React.useState(false)
   const [lessons, setLessons] = React.useState([])
+  const [imageUrl, setImageUrl] = React.useState(null)
+  const [uploadingImage, setUploadingImage] = React.useState(false)
   const [loading, setLoading] = React.useState(true)
   const [isAdminMode, setIsAdminMode] = React.useState(false)
   const [editingLesson, setEditingLesson] = React.useState(null)
@@ -32,7 +36,37 @@ export default function WeeklyLessonsScreen({ navigation }) {
 
   React.useEffect(() => {
     loadLessons()
+    loadImage()
   }, [])
+
+  const loadImage = async () => {
+    try {
+      const url = await getWeeklyLessonsImage()
+      setImageUrl(url)
+    } catch (error) {
+      console.error('Error loading image:', error)
+    }
+  }
+
+  const handleUploadImage = async () => {
+    try {
+      const image = await pickImage()
+      if (!image) return
+
+      setUploadingImage(true)
+      const imagePath = `weeklyLessons/lesson-image-${Date.now()}.jpg`
+      const uploadedUrl = await uploadImageToStorage(image.uri, imagePath)
+      
+      await saveWeeklyLessonsImage(uploadedUrl)
+      setImageUrl(uploadedUrl)
+      setUploadingImage(false)
+      Alert.alert('הצלחה', 'התמונה הועלתה בהצלחה')
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      setUploadingImage(false)
+      Alert.alert('שגיאה', 'לא ניתן להעלות את התמונה')
+    }
+  }
 
   const loadLessons = async () => {
     try {
@@ -52,9 +86,17 @@ export default function WeeklyLessonsScreen({ navigation }) {
     const scrollViewHeight = event.nativeEvent.layoutMeasurement.height
     const contentHeight = event.nativeEvent.contentSize.height
     
-    // בדיקה אם הגענו לסוף הגלילה (עם טולרנס של 50px)
-    const isAtEnd = scrollY + scrollViewHeight >= contentHeight - 50
+    // בדיקה אם הגענו לסוף הגלילה (עם טולרנס של 100px)
+    const isAtEnd = scrollY + scrollViewHeight >= contentHeight - 100
     setShowSmallImage(isAtEnd)
+  }
+  
+  const handleContentSizeChange = (contentWidth, contentHeight) => {
+    // אם התוכן קטן מהמסך, הצג את התמונה מיד
+    const screenHeight = Dimensions.get('window').height
+    if (contentHeight < screenHeight) {
+      setShowSmallImage(true)
+    }
   }
 
   const handleLessonPress = (lesson) => {
@@ -205,6 +247,7 @@ export default function WeeklyLessonsScreen({ navigation }) {
       <ScrollView 
         ref={scrollViewRef}
         onScroll={handleScroll}
+        onContentSizeChange={handleContentSizeChange}
         scrollEventThrottle={16}
         contentContainerStyle={styles.content} 
         showsVerticalScrollIndicator={false}
@@ -284,13 +327,33 @@ export default function WeeklyLessonsScreen({ navigation }) {
           accessibilityLabel="הצג תמונה בגודל מלא"
         >
           <Image
-            source={require('../../assets/photos/שיעורי_הרב.jpg')}
+            source={imageUrl ? { uri: imageUrl } : require('../../assets/photos/שיעורי-הרב.jpeg')}
             style={styles.smallImage}
             resizeMode="cover"
+            onError={(error) => {
+              console.error('Error loading image:', error)
+              // Fallback to local image if remote fails
+              if (imageUrl) {
+                setImageUrl(null)
+              }
+            }}
           />
           <View style={styles.smallImageOverlay}>
             <Ionicons name="expand-outline" size={24} color="#fff" />
           </View>
+          {isAdminMode && (
+            <Pressable
+              style={styles.changeImageButton}
+              onPress={handleUploadImage}
+              disabled={uploadingImage}
+            >
+              {uploadingImage ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="camera" size={20} color="#fff" />
+              )}
+            </Pressable>
+          )}
         </Pressable>
       )}
 
@@ -310,9 +373,16 @@ export default function WeeklyLessonsScreen({ navigation }) {
             <Ionicons name="close" size={32} color="#fff" />
           </Pressable>
           <Image
-            source={require('../../assets/photos/שיעורי_הרב.jpg')}
+            source={imageUrl ? { uri: imageUrl } : require('../../assets/photos/שיעורי-הרב.jpeg')}
             style={styles.fullScreenImage}
             resizeMode="contain"
+            onError={(error) => {
+              console.error('Error loading full screen image:', error)
+              // Fallback to local image if remote fails
+              if (imageUrl) {
+                setImageUrl(null)
+              }
+            }}
           />
         </View>
       </Modal>
@@ -584,6 +654,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  changeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(220,38,38,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
   },
   modalContainer: {
     flex: 1,

@@ -195,3 +195,39 @@ export async function saveDailyInsightContent(contentData) {
   }
 }
 
+/**
+ * Get weekly lessons screen image URL
+ */
+export async function getWeeklyLessonsImage() {
+  try {
+    return await getOrFetch(
+      'weekly_lessons_image',
+      async () => {
+        const doc = await getDocument('appConfig', 'weeklyLessonsImage')
+        return doc?.imageUrl || null
+      },
+      CACHE_TTL.LONG // Cache for 1 hour
+    )
+  } catch (error) {
+    console.error('Error getting weekly lessons image:', error)
+    return null
+  }
+}
+
+/**
+ * Save weekly lessons screen image URL
+ */
+export async function saveWeeklyLessonsImage(imageUrl) {
+  try {
+    await setDocument('appConfig', 'weeklyLessonsImage', {
+      imageUrl,
+      updatedAt: new Date().toISOString()
+    }, true)
+
+    // Invalidate cache
+    await removeCached('weekly_lessons_image')
+  } catch (error) {
+    console.error('Error saving weekly lessons image:', error)
+    throw error
+  }
+}

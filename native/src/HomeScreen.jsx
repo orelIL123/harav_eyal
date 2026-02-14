@@ -18,12 +18,13 @@ if (Platform.OS !== 'web') {
 }
 import { useTranslation } from 'react-i18next'
 import i18n from './config/i18n'
-import { getAlerts, updateAlert, deleteAlert, getUnreadAlertsCount, markAlertAsViewed } from './services/alertsService'
+import { getAlerts, updateAlert, deleteAlert, getUnreadAlertsCount, markAlertAsViewed, getViewedAlerts } from './services/alertsService'
 import { getPodcasts } from './services/podcastsService'
 import { getDailyInsightLastUpdated } from './services/cardsService'
 import { getDailyInsightLastViewed, saveDailyInsightLastViewed } from './utils/storage'
 import { getPrimaryWhatsAppGroup } from './services/whatsappGroupsService'
 import { FAITH_TOPICS } from './data/faithTopics'
+import { customAlert } from './utils/customAlert'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -33,19 +34,19 @@ const BLACK = '#000000'
 
 const CARDS = [
   { key: 'faith-daily', title: 'home.faithBoost', desc: 'home.faithBoostDesc', icon: 'sparkles-outline', image: require('../assets/photos/זריקת אמונה.png') },
-  { key: 'lessons', title: 'home.lessonsLibrary', desc: 'home.lessonsLibraryDesc', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
+  { key: 'lessons', title: 'home.lessonsLibrary', desc: 'home.lessonsLibraryDesc', icon: 'library-outline', image: require('../assets/photos/שיעורי-הרב.jpeg') },
   { key: 'institutions', title: 'home.rabbiInstitutions', desc: 'home.rabbiInstitutionsDesc', icon: 'school-outline', image: require('../assets/icon.png') },
-  { key: 'lessons-library', title: 'סרטוני אמונה', desc: 'סרטוני אמונה של הרב', icon: 'library-outline', image: require('../assets/photos/שיעורי_הרב.jpg') },
+  { key: 'lessons-library', title: 'סרטוני אמונה', desc: 'סרטוני אמונה של הרב', icon: 'library-outline', image: require('../assets/photos/שיעורי-הרב.jpeg') },
   { key: 'flyers', title: 'עלונים', desc: 'עלונים שבועיים ופרסומים', icon: 'document-text-outline', image: require('../assets/alonim.png') },
   { key: 'books', title: 'home.books', desc: 'home.booksDesc', icon: 'book-outline', image: require('../assets/photos/ספרים/hbooks183_06072020180826.jpg') },
-  { key: 'contact', title: 'home.contactTab', desc: 'home.contactTabDesc', icon: 'mail-outline', image: require('../assets/icon.png') },
+  { key: 'personal-story', title: 'סיפור אישי', desc: 'שתף את סיפור האמונה שלך עם כולם', icon: 'heart-outline', image: require('../assets/icon.png') },
 ]
 
 // Carousel image order
 const IMAGES = [
   require('../assets/photos/ספרים/hbooks183_06072020180826.jpg'),
   require('../assets/photos/זריקת אמונה.png'),
-  require('../assets/photos/שיעורי_הרב.jpg'),
+  require('../assets/photos/שיעורי-הרב.jpeg'),
   require('../assets/icon.png'),
 ]
 
@@ -168,16 +169,32 @@ const GridCard = ({ item, onPress, index }) => {
 // Center FAB Button with spin animation on press
 const CenterFabButton = ({ onPress, screenWidth }) => {
   const spinValue = React.useRef(new Animated.Value(0)).current
+  const scaleValue = React.useRef(new Animated.Value(1)).current
+
+  const handlePressIn = () => {
+    Animated.spring(scaleValue, {
+      toValue: 0.91,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start()
+  }
+
+  const handlePressOut = () => {
+    Animated.spring(scaleValue, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 10,
+    }).start()
+  }
 
   const handlePress = () => {
-    // Start spinning animation on press
     Animated.timing(spinValue, {
       toValue: 1,
       duration: 800,
       useNativeDriver: true,
-    }).start(() => {
-      spinValue.setValue(0)
-    })
+    }).start(() => { spinValue.setValue(0) })
     onPress?.()
   }
 
@@ -191,24 +208,42 @@ const CenterFabButton = ({ onPress, screenWidth }) => {
   const fabHalfSize = fabSize / 2
 
   return (
-    <View style={[styles.centerFab, { 
+    <Animated.View style={[styles.centerFab, {
       left: screenWidth / 2 - fabHalfSize,
+      transform: [{ scale: scaleValue }],
     }]}>
+      {/* Soft outer pulse ring */}
+      <View style={[styles.fabOuterRing, {
+        width: fabSize + 14,
+        height: fabSize + 14,
+        borderRadius: fabRadius + 7,
+        top: -7,
+        left: -7,
+      }]} />
       <LinearGradient
-        colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.2)']}
+        colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.28)']}
         style={[styles.fabGradient, { width: fabSize, height: fabSize, borderRadius: fabRadius }]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.85, y: 1 }}
       >
-        <Pressable style={[styles.fab, { borderRadius: screenWidth < 380 ? 37 : 41 }]} onPress={handlePress}>
+        <Pressable
+          style={[styles.fab, { borderRadius: screenWidth < 380 ? 37 : 41 }]}
+          onPress={handlePress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+        >
           <Animated.Image
             source={require('../assets/spining_bootom.png')}
-            style={[styles.fabIcon, { width: screenWidth < 380 ? 104 : 112, height: screenWidth < 380 ? 104 : 112, transform: [{ rotate: spin }] }]}
+            style={[styles.fabIcon, {
+              width: screenWidth < 380 ? 104 : 112,
+              height: screenWidth < 380 ? 104 : 112,
+              transform: [{ rotate: spin }],
+            }]}
             resizeMode="cover"
           />
         </Pressable>
       </LinearGradient>
-    </View>
+    </Animated.View>
   )
 }
 
@@ -229,6 +264,7 @@ export default function HomeScreen({ navigation }) {
   const [primaryWhatsAppGroup, setPrimaryWhatsAppGroup] = React.useState(null)
   const notificationsAnim = React.useRef(new Animated.Value(0)).current
   const fadeAnim = React.useRef(new Animated.Value(0)).current
+  const hasShownInitialAlert = React.useRef(false)
 
   // Fade in animation on mount
   React.useEffect(() => {
@@ -288,6 +324,22 @@ export default function HomeScreen({ navigation }) {
           // Get unread count based on viewed alerts
           const count = await getUnreadAlertsCount()
           setUnreadCount(count)
+          
+          // Show first unread alert on app entry (only once per app session)
+          if (validAlerts.length > 0 && !hasShownInitialAlert.current) {
+            const viewedAlerts = await getViewedAlerts()
+            const unreadAlerts = validAlerts.filter(alert => !viewedAlerts.includes(alert.id))
+            if (unreadAlerts.length > 0) {
+              const firstUnreadAlert = unreadAlerts[0]
+              // Small delay to ensure UI is ready
+              setTimeout(() => {
+                const alertMessage = firstUnreadAlert.message || ''
+                customAlert(firstUnreadAlert.title, alertMessage)
+                // Mark that we've shown an alert in this session
+                hasShownInitialAlert.current = true
+              }, 1500)
+            }
+          }
         }
       } catch (error) {
         console.error('Error loading alerts:', error)
@@ -424,8 +476,8 @@ export default function HomeScreen({ navigation }) {
       navigation?.navigate('WeeklyLessons')
       return
     }
-    if (key === 'contact') {
-      navigation?.navigate('ContactRabbi')
+    if (key === 'personal-story') {
+      navigation?.navigate('PersonalFaithStory')
       return
     }
     if (key === 'lessons-library') {
@@ -466,6 +518,10 @@ export default function HomeScreen({ navigation }) {
     // Refresh unread count
     const count = await getUnreadAlertsCount()
     setUnreadCount(count)
+    
+    // Show the alert in the custom alert modal
+    const alertMessage = alert.message || ''
+    customAlert(alert.title, alertMessage)
   }, [])
 
   const openSocialLink = React.useCallback((url) => {
@@ -602,7 +658,11 @@ export default function HomeScreen({ navigation }) {
               const colors = priorityColors[alert.priority] || priorityColors.medium
               
               return (
-                <View key={alert.id} style={[styles.alertBanner, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+                <Pressable
+                  key={alert.id}
+                  style={[styles.alertBanner, { backgroundColor: colors.bg, borderColor: colors.border }]}
+                  onPress={() => handleNotificationItemPress(alert)}
+                >
                   {alert.imageUrl && (
                     <Image 
                       source={{ uri: alert.imageUrl }} 
@@ -618,12 +678,15 @@ export default function HomeScreen({ navigation }) {
                   </View>
                   <Pressable
                     style={styles.alertDismissButton}
-                    onPress={() => handleDismissAlert(alert.id)}
+                    onPress={(e) => {
+                      e.stopPropagation()
+                      handleDismissAlert(alert.id)
+                    }}
                     hitSlop={8}
                   >
                     <Ionicons name="close" size={18} color={colors.text} />
                   </Pressable>
-                </View>
+                </Pressable>
               )
             })}
           </ScrollView>
@@ -993,9 +1056,21 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Bottom Nav */}
-      <View style={[styles.bottomNavWrapper, Platform.OS === 'android' && { paddingBottom: insets.bottom }]}>
-        {/* Background */}
-        <View style={styles.bottomNavBackground} />
+      <View style={[
+        styles.bottomNavWrapper,
+        { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 8) : 0 },
+      ]}>
+        {/* Rounded gradient background — separate View so FAB is NOT clipped */}
+        <View style={styles.bottomNavBgContainer}>
+          <LinearGradient
+            colors={['#b01c1c', PRIMARY_RED, '#c41f1f']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Top shine line */}
+          <View style={styles.bottomNavTopBorder} />
+        </View>
 
         <View style={styles.navBar}>
           {/* Left Side */}
@@ -1005,28 +1080,30 @@ export default function HomeScreen({ navigation }) {
               style={styles.iconBtn}
               onPress={() => { setActiveTab('home'); navigation?.navigate('Home') }}
             >
-              <View style={activeTab === 'home' ? styles.iconGlow : null}>
-                <Ionicons name="home" size={22} color={activeTab === 'home' ? '#FFD700' : '#fff'} />
+              <View style={[styles.iconWrapper, activeTab === 'home' && styles.iconWrapperActive]}>
+                <Ionicons name={activeTab === 'home' ? 'home' : 'home-outline'} size={23} color={activeTab === 'home' ? '#FFD700' : 'rgba(255,255,255,0.75)'} />
               </View>
               <Text style={[styles.navLabel, activeTab === 'home' && styles.navLabelActive]}>בית</Text>
+              {activeTab === 'home' && <View style={styles.activeTabDot} />}
             </Pressable>
             <Pressable
               accessibilityRole="button"
               style={styles.iconBtn}
-              onPress={() => { setActiveTab('contact'); navigation?.navigate('ContactRabbi') }}
+              onPress={() => { setActiveTab('personal-story'); navigation?.navigate('PersonalFaithStory') }}
             >
-              <View style={activeTab === 'contact' ? styles.iconGlow : null}>
-                <Ionicons name="mail" size={22} color={activeTab === 'contact' ? '#FFD700' : '#fff'} />
+              <View style={[styles.iconWrapper, activeTab === 'personal-story' && styles.iconWrapperActive]}>
+                <Ionicons name={activeTab === 'personal-story' ? 'heart' : 'heart-outline'} size={23} color={activeTab === 'personal-story' ? '#FFD700' : 'rgba(255,255,255,0.75)'} />
               </View>
-              <Text style={[styles.navLabel, activeTab === 'contact' && styles.navLabelActive]}>צור קשר</Text>
+              <Text style={[styles.navLabel, activeTab === 'personal-story' && styles.navLabelActive]}>סיפור אישי</Text>
+              {activeTab === 'personal-story' && <View style={styles.activeTabDot} />}
             </Pressable>
           </View>
 
           {/* Center FAB */}
           <CenterFabButton
             screenWidth={width}
-            onPress={() => { 
-              setActiveTab('shortLessons'); 
+            onPress={() => {
+              setActiveTab('shortLessons');
               navigation?.navigate('LessonsLibrary', { initialCategory: 'shortLessons' })
             }}
           />
@@ -1038,28 +1115,32 @@ export default function HomeScreen({ navigation }) {
               style={styles.iconBtn}
               onPress={() => { setActiveTab('community'); navigation?.navigate('CommunityNews') }}
             >
-              <View style={activeTab === 'community' ? styles.iconGlow : null}>
-                <Ionicons name="newspaper" size={22} color={activeTab === 'community' ? '#FFD700' : '#fff'} />
+              <View style={[styles.iconWrapper, activeTab === 'community' && styles.iconWrapperActive]}>
+                <Ionicons name={activeTab === 'community' ? 'newspaper' : 'newspaper-outline'} size={23} color={activeTab === 'community' ? '#FFD700' : 'rgba(255,255,255,0.75)'} />
               </View>
               <Text style={[styles.navLabel, activeTab === 'community' && styles.navLabelActive]}>חדשות</Text>
+              {activeTab === 'community' && <View style={styles.activeTabDot} />}
             </Pressable>
             <Pressable
               accessibilityRole="button"
               style={styles.iconBtn}
               onPress={() => { setActiveTab('profile'); navigation?.navigate('Profile') }}
             >
-              <View style={activeTab === 'profile' ? styles.iconGlow : null}>
-                <Ionicons name="person" size={22} color={activeTab === 'profile' ? '#FFD700' : '#fff'} />
+              <View style={[styles.iconWrapper, activeTab === 'profile' && styles.iconWrapperActive]}>
+                <Ionicons name={activeTab === 'profile' ? 'person' : 'person-outline'} size={23} color={activeTab === 'profile' ? '#FFD700' : 'rgba(255,255,255,0.75)'} />
               </View>
               <Text style={[styles.navLabel, activeTab === 'profile' && styles.navLabelActive]}>פרופיל</Text>
+              {activeTab === 'profile' && <View style={styles.activeTabDot} />}
             </Pressable>
           </View>
         </View>
 
-        {/* Home Indicator */}
-        <View style={styles.homeIndicatorWrapper}>
-          <View style={styles.homeIndicator} />
-        </View>
+        {/* Home Indicator — iOS only */}
+        {Platform.OS === 'ios' && (
+          <View style={styles.homeIndicatorWrapper}>
+            <View style={styles.homeIndicator} />
+          </View>
+        )}
       </View>
     </Animated.View>
   )
@@ -1786,125 +1867,202 @@ const styles = StyleSheet.create({
   bottomNavWrapper: {
     width: '100%',
     backgroundColor: 'transparent',
-    alignItems: 'center',
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
     zIndex: 100,
-    minHeight: TAB_HEIGHT, // Changed from height to minHeight for Android safe area
+    minHeight: TAB_HEIGHT,
+    // No overflow:hidden here — FAB must not be clipped
   },
-  bottomNavBackground: {
+  // Separate container for the rounded gradient bg (does NOT wrap the FAB)
+  bottomNavBgContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: PRIMARY_RED,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    overflow: 'hidden',
+    // Android elevation for drop shadow above content
+    elevation: 20,
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
     zIndex: 0,
+  },
+  bottomNavTopBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    zIndex: 1,
   },
   navBar: {
     flexDirection: 'row',
     backgroundColor: 'transparent',
-    paddingTop: 15,
-    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 8 : 10,
+    paddingHorizontal: 16,
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     width: '100%',
-    height: '100%',
-    zIndex: 100,
+    minHeight: TAB_HEIGHT,
+    zIndex: 2,
   },
   leftSide: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 30,
+    gap: Platform.OS === 'android' ? 20 : 24,
     flex: 1,
     justifyContent: 'flex-start',
-    paddingLeft: 10,
+    paddingLeft: 6,
   },
   rightSide: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 30,
+    gap: Platform.OS === 'android' ? 20 : 24,
     flex: 1,
     justifyContent: 'flex-end',
-    paddingRight: 10,
+    paddingRight: 6,
   },
   iconBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingVertical: Platform.OS === 'android' ? 2 : 4,
+    paddingHorizontal: 6,
+    minWidth: 48,
+  },
+  iconWrapper: {
+    width: 42,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  iconWrapperActive: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    // Android: use elevation only (no shadowColor support)
+    elevation: Platform.OS === 'android' ? 4 : 0,
+    // iOS: glow shadow
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 8,
+      },
+    }),
   },
   navLabel: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.85)',
+    fontSize: Platform.OS === 'android' ? 9 : 9.5,
+    color: 'rgba(255,255,255,0.7)',
     fontFamily: 'Heebo_400Regular',
-    marginTop: 3,
+    marginTop: 2,
     textAlign: 'center',
+    letterSpacing: 0.2,
+    ...Platform.select({
+      android: { writingDirection: 'rtl' },
+    }),
   },
   navLabelActive: {
     color: '#FFD700',
     fontFamily: 'Heebo_700Bold',
-    textShadowColor: 'rgba(255, 215, 0, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+    ...Platform.select({
+      ios: {
+        textShadowColor: 'rgba(255, 215, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 6,
+      },
+    }),
   },
-  iconGlow: {
-    shadowColor: '#FFD700',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 10,
-    elevation: 8,
+  activeTabDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#FFD700',
+    marginTop: 3,
+    // Android: elevation for glow effect substitute
+    elevation: Platform.OS === 'android' ? 3 : 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FFD700',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+      },
+    }),
   },
   centerFab: {
     position: 'absolute',
-    top: -35,
+    top: Platform.OS === 'android' ? -32 : -38,
     zIndex: 101,
+  },
+  fabOuterRing: {
+    position: 'absolute',
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   fabGradient: {
     padding: 2,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 30,
-    elevation: 30,
+    elevation: Platform.OS === 'android' ? 16 : 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#fff',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.6,
+        shadowRadius: 18,
+      },
+    }),
   },
   fab: {
     width: '100%',
     height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 20,
+    borderColor: 'rgba(255,255,255,0.35)',
+    elevation: Platform.OS === 'android' ? 12 : 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#fff',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.7,
+        shadowRadius: 16,
+      },
+    }),
   },
   fabIcon: {
     borderRadius: 56,
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 25,
-    elevation: 25,
+    elevation: Platform.OS === 'android' ? 8 : 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#fff',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 20,
+      },
+    }),
   },
   homeIndicatorWrapper: {
     position: 'absolute',
-    bottom: 8,
+    bottom: 6,
     alignItems: 'center',
     width: '100%',
     zIndex: 102,
   },
   homeIndicator: {
-    width: 130,
-    height: 5,
+    width: 100,
+    height: 4,
     backgroundColor: '#fff',
     borderRadius: 100,
-    opacity: 0.3,
+    opacity: 0.25,
   },
 
   // Notifications

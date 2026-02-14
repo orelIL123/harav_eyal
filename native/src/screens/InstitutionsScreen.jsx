@@ -12,7 +12,7 @@ const TABS = [
   { key: 'activities', title: 'הפעילות שלנו', icon: 'school-outline', screen: 'OurActivities' },
   { key: 'about', title: 'אודות', icon: 'information-circle-outline', screen: 'About' },
   { key: 'foundation', title: 'על העמותה', icon: 'people-outline', screen: 'News' },
-  { key: 'contact', title: 'צור קשר', icon: 'mail-outline', screen: 'ContactRabbi' },
+  { key: 'contact', title: 'צור קשר', icon: 'mail-outline', screen: 'About' },
 ]
 
 export default function InstitutionsScreen({ navigation }) {

@@ -1,8 +1,9 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Linking } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { Analytics } from '../services/analyticsService'
+import { customAlert } from '../utils/customAlert'
 
 const PRIMARY_RED = '#DC2626'
 const PRIMARY_GOLD = '#FFD700'
@@ -16,7 +17,7 @@ export default function DonationScreen({ navigation }) {
     
     const donationUrl = 'https://www.jgive.com/new/he/ils/donation-targets/142539?fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPMTI0MDI0NTc0Mjg3NDE0AAGneTs411D0SUzm0ox_gnuWPlxtVYAo5WTjwYpjMtO5LF7NsfEFaSluhrNTOGE_aem_C7zwEIXjMrBF46Exo9F4Jg'
     Linking.openURL(donationUrl).catch(() => {
-      Alert.alert('שגיאה', 'לא ניתן לפתוח את הקישור')
+      customAlert('שגיאה', 'לא ניתן לפתוח את הקישור')
     })
   }
 
@@ -60,7 +61,7 @@ export default function DonationScreen({ navigation }) {
           <View style={styles.infoTextBlock}>
             <Text style={styles.infoTitle}>פרטי תרומה</Text>
             <Text style={styles.infoDesc}>
-              לפרטים נוספים על דרכי התרומה, אנא צרו קשר דרך עמוד "צרו קשר".
+              לפרטים נוספים על דרכי התרומה, אנא צרו קשר דרך עמוד "אודות".
             </Text>
           </View>
         </View>

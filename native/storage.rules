@@ -95,6 +95,15 @@ service firebase.storage {
                     request.resource.contentType.matches('image/.*')) &&
                    request.resource.size < 50 * 1024 * 1024; // Max 50MB
     }
+
+    // ========== WEEKLY LESSONS ==========
+    // תמונות שיעורים שבועיים - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא
+    match /weeklyLessons/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() &&
+                   request.resource.contentType.matches('image/.*') &&
+                   request.resource.size < 10 * 1024 * 1024; // Max 10MB
+    }
     
     // ========== FAITH VIDEOS ==========
     // סרטוני אמונה - רק Admin יכול להעלות/למחוק, כולם יכולים לקרוא

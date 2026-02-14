@@ -34,11 +34,11 @@ const MENU_ITEMS = [
     screen: 'Flyers',
   },
   {
-    id: 'contact',
-    title: 'sideMenu.contact',
-    icon: 'mail',
+    id: 'personal-story',
+    title: 'סיפור אישי',
+    icon: 'heart',
     color: PRIMARY_RED,
-    screen: 'ContactRabbi',
+    screen: 'PersonalFaithStory',
   },
   {
     id: 'institutions',

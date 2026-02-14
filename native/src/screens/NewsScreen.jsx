@@ -68,7 +68,7 @@ export default function NewsScreen({ navigation }) {
 
         <Pressable
           style={styles.contactCard}
-          onPress={() => navigation.navigate('ContactRabbi')}
+          onPress={() => Linking.openURL('https://wa.me/972527202020')}
           accessibilityRole="button"
         >
           <Ionicons name="mail-outline" size={32} color={PRIMARY_RED} />

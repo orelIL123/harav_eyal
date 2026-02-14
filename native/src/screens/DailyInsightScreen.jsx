@@ -426,9 +426,11 @@ export default function DailyInsightScreen({ navigation }) {
 
   const [currentStoryIndex, setCurrentStoryIndex] = React.useState(0)
   const [isStoryModalVisible, setIsStoryModalVisible] = React.useState(false)
+  const [storyVideoLoading, setStoryVideoLoading] = React.useState(true)
 
   const openStory = React.useCallback((index) => {
     setCurrentStoryIndex(index)
+    setStoryVideoLoading(true)
     setIsStoryModalVisible(true)
   }, [])
 
@@ -437,10 +439,14 @@ export default function DailyInsightScreen({ navigation }) {
   }, [])
 
   const handleStoryStatus = React.useCallback((status) => {
+    if (status?.isLoaded) {
+      setStoryVideoLoading(false)
+    }
     if (status?.didJustFinish) {
       const next = currentStoryIndex + 1
       if (next < validStories.length) {
         setCurrentStoryIndex(next)
+        setStoryVideoLoading(true)
       } else {
         setIsStoryModalVisible(false)
       }
@@ -933,26 +939,8 @@ export default function DailyInsightScreen({ navigation }) {
 
               <View style={styles.separator} />
 
-              {/* Editable Content */}
-              {isAdminMode ? (
-                <TextInput
-                  value={contentText}
-                  onChangeText={handleContentChange}
-                  style={styles.contentInput}
-                  multiline
-                  scrollEnabled={false}
-                />
-              ) : (
-                <Text style={styles.cardContent}>{contentTitle}</Text>
-              )}
-              {isAdminMode && (
-                <View style={styles.editableFieldLabel}>
-                  <View style={styles.editableLabel}>
-                    <Ionicons name="text" size={14} color={PRIMARY_RED} />
-                    <Text style={styles.editableLabelText}>כותרת</Text>
-                  </View>
-                </View>
-              )}
+              {/* Note: Content text is now displayed in "תוכן יומי" section below */}
+              {/* This section only shows the title for "זריקת אמונה" */}
 
               {/* Image Display */}
               {imageUrl && (
@@ -1256,16 +1244,24 @@ export default function DailyInsightScreen({ navigation }) {
           </View>
 
           {validStories[currentStoryIndex] && (
-            <Video
-              key={validStories[currentStoryIndex].id}
-              style={styles.storyVideo}
-              source={{ uri: validStories[currentStoryIndex].uri }}
-              resizeMode="contain"
-              shouldPlay
-              isLooping={false}
-              onPlaybackStatusUpdate={handleStoryStatus}
-              useNativeControls
-            />
+            <>
+              <Video
+                key={validStories[currentStoryIndex].id}
+                style={styles.storyVideo}
+                source={{ uri: validStories[currentStoryIndex].uri }}
+                resizeMode="contain"
+                shouldPlay
+                isLooping={false}
+                onPlaybackStatusUpdate={handleStoryStatus}
+                useNativeControls
+              />
+              {storyVideoLoading && (
+                <View style={styles.storyVideoLoadingOverlay}>
+                  <ActivityIndicator size="large" color={PRIMARY_GOLD} />
+                  <Text style={styles.storyVideoLoadingText}>הסרטון נטען...</Text>
+                </View>
+              )}
+            </>
           )}
         </View>
       </Modal>
@@ -2150,6 +2146,18 @@ const styles = StyleSheet.create({
   },
   storyVideo: {
     flex: 1,
+  },
+  storyVideoLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  storyVideoLoadingText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
   },
 
   // 3D Effects

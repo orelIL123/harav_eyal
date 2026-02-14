@@ -3,7 +3,7 @@
     "name": "הרב אייל עמרמי",
     "slug": "harav-eyal",
     "owner": "orel895",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -11,12 +11,17 @@
     "splash": {
       "image": "./assets/splashphoto.png",
       "resizeMode": "cover",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.raveialamrami.app",
       "buildNumber": "3",
+      "splash": {
+        "image": "./assets/splashphoto.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#000000"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

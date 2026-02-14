@@ -76,6 +76,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Weekly lessons image config
+    match /appConfig/weeklyLessonsImage {
+      // Public read
+      allow read: if true;
+      // Only admins can modify
+      allow write: if isAdmin();
+    }
+
     // ========== RECOMMENDATIONS COLLECTION ==========
 
     match /recommendations/{recoId} {
@@ -254,6 +262,16 @@ service cloud.firestore {
       // Anyone can create (to track installs even without login)
       allow create: if true;
       // Only admins can modify or delete
+      allow update, delete: if isAdmin();
+    }
+
+    // ========== PERSONAL FAITH STORIES (סיפור אישי) ==========
+    match /personalFaithStories/{storyId} {
+      // Everyone can read active stories; admins can read all
+      allow read: if resource.data.isActive != false || isAdmin();
+      // Anyone can create (share story without login)
+      allow create: if true;
+      // Only admins can update or delete (e.g. hide inappropriate)
       allow update, delete: if isAdmin();
     }
     

@@ -19,7 +19,7 @@ import AdminScreen from './src/screens/AdminScreen'
 import PrayersScreen from './src/screens/PrayersScreen'
 import PdfViewerScreen from './src/screens/PdfViewerScreen'
 import ImageViewerScreen from './src/screens/ImageViewerScreen'
-import ContactRabbiScreen from './src/screens/ContactRabbiScreen'
+import PersonalFaithStoryScreen from './src/screens/PersonalFaithStoryScreen'
 import WeeklyLessonsScreen from './src/screens/WeeklyLessonsScreen'
 import ReelsScreen from './src/screens/ReelsScreen'
 import SideMenuScreen from './src/screens/SideMenuScreen'
@@ -56,6 +56,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import { AuthProvider } from './src/utils/AuthContext'
+import { AlertProvider } from './src/utils/AlertContext'
 import { hasAcceptedConsent } from './src/utils/storage'
 import { trackAppInstall } from './src/services/appInstallsService'
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins'
@@ -286,11 +287,9 @@ export default function App() {
     }
   }, [])
 
-  // Hide splash screen when fonts are loaded with minimum display time
+  // Hide splash screen with minimum display time (always show for 5 seconds + 1 second fade out)
   useEffect(() => {
-    if (!fontsLoaded) return
-
-    // Hide splash screen with minimum 1 second display time and smooth fade animation
+    // Always show splash screen for minimum time, regardless of font loading
     const hideSplash = async () => {
       try {
         // Calculate elapsed time since app start
@@ -300,10 +299,10 @@ export default function App() {
 
         // Wait for minimum display time + small buffer for UI readiness
         setTimeout(async () => {
-          // Smooth fade-out animation
+          // Start fade-out animation (1 second)
           Animated.timing(fadeAnim, {
             toValue: 0,
-            duration: 300,
+            duration: 1000,
             useNativeDriver: true,
           }).start(async () => {
             try {
@@ -321,8 +320,9 @@ export default function App() {
       }
     }
 
+    // Start the hide process immediately, regardless of font loading
     hideSplash()
-  }, [fontsLoaded, fadeAnim])
+  }, [fadeAnim])
 
   // Push notifications disabled - will be added later
   // useEffect(() => {
@@ -335,12 +335,13 @@ export default function App() {
   // }, [])
 
   return (
-    <AuthProvider>
-      <ErrorBoundary
-        onGoHome={() => {
-          navigationRef.current?.navigate('Home')
-        }}
-      >
+    <AlertProvider>
+      <AuthProvider>
+        <ErrorBoundary
+          onGoHome={() => {
+            navigationRef.current?.navigate('Home')
+          }}
+        >
         <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
           {/* Always render navigation when fonts loaded, but splash will cover it */}
           {fontsLoaded && (
@@ -378,7 +379,7 @@ export default function App() {
                 <Stack.Screen name="Prayers" component={PrayersScreen} />
                 <Stack.Screen name="PdfViewer" component={PdfViewerScreen} />
                 <Stack.Screen name="ImageViewer" component={ImageViewerScreen} />
-                <Stack.Screen name="ContactRabbi" component={ContactRabbiScreen} />
+                <Stack.Screen name="PersonalFaithStory" component={PersonalFaithStoryScreen} />
                 <Stack.Screen name="WeeklyLessons" component={WeeklyLessonsScreen} />
                 <Stack.Screen name="Reels" component={ReelsScreen} />
                 <Stack.Screen name="SideMenu" component={SideMenuScreen} />
@@ -431,7 +432,7 @@ export default function App() {
                   right: 0,
                   bottom: 0,
                   opacity: fadeAnim,
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: '#000000',
                   zIndex: 9999
                 }
               ]}
@@ -445,17 +446,18 @@ export default function App() {
           )}
           {/* Show loading state when fonts not loaded */}
           {!fontsLoaded && !showSplash && (
-            <View style={{ flex: 1, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ flex: 1, backgroundColor: '#000000' }}>
               <Image
                 source={require('./assets/splashphoto.png')}
                 style={{ width: '100%', height: '100%' }}
                 resizeMode="cover"
               />
-              <StatusBar style="dark" />
+              <StatusBar style="light" />
             </View>
           )}
         </View>
       </ErrorBoundary>
     </AuthProvider>
+    </AlertProvider>
   )
 }

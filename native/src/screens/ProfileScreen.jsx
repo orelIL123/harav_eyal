@@ -312,7 +312,7 @@ export default function ProfileScreen({ navigation }) {
           <Pressable 
             style={styles.optionCard} 
             accessibilityRole="button"
-            onPress={() => navigation?.navigate('ContactRabbi')}
+            onPress={() => navigation?.navigate('About')}
           >
             <View style={styles.optionContent}>
               <View style={styles.optionRight}>

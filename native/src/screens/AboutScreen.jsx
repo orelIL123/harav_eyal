@@ -1,5 +1,5 @@
 import React from 'react'
-import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
+import { SafeAreaView, View, Text, StyleSheet, ScrollView, Pressable, Linking } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
 import { useTranslation } from 'react-i18next'
@@ -95,7 +95,7 @@ export default function AboutScreen({ navigation }) {
           </View>
           <Pressable
             style={styles.contactButton}
-            onPress={() => navigation.navigate('ContactRabbi')}
+            onPress={() => Linking.openURL('https://wa.me/972527202020')}
           >
             <Ionicons name="mail-outline" size={20} color={PRIMARY_RED} />
             <Text style={styles.contactButtonText}>{t('about.contact')}</Text>
